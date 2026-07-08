@@ -286,7 +286,7 @@ export class InstitucionesService {
     const resultado = await this.archivos.subirYReemplazar({
       tipoEntidad: 'INSTITUCION',
       id,
-      tipoArchivo: 'LOGO',
+      tipoArchivo: 'PORTADA',
       archivo,
     });
     return { idInstitucion: id, ...resultado };
@@ -296,7 +296,7 @@ export class InstitucionesService {
   async eliminarLogo(actor: JwtUser, id: number) {
     this.assertGestionInstitucion(actor, id, 'quitar el logo');
     await this.getEstado(id);
-    const r = await this.archivos.eliminarImagen('INSTITUCION', id, 'LOGO');
+    const r = await this.archivos.eliminarImagen('INSTITUCION', id, 'PORTADA');
     return { idInstitucion: id, ...r };
   }
 

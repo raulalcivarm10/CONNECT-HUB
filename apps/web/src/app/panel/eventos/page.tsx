@@ -57,6 +57,7 @@ function ventanaReal(a: {
 export default function EventosPage() {
   const { qs, nombreFiltro } = useInstitucionFiltro();
   const { t } = useI18n();
+  const lightbox = useLightbox();
   const [eventos, setEventos] = useState<EventoRow[]>([]);
   const [editar, setEditar] = useState<EventoRow | null>(null);
   const [ver, setVer] = useState<EventoRow | null>(null);
@@ -242,7 +243,12 @@ export default function EventosPage() {
                       key={`${ev.ID_EVENTO}-${imgVersion}`}
                       src={nasImagenUrl('EVENTO', ev.ID_EVENTO, 'PORTADA', imgVersion)}
                       alt=""
-                      className="h-10 w-14 shrink-0 rounded-lg border border-border-app object-cover"
+                      onClick={() =>
+                        lightbox.open(
+                          nasImagenUrl('EVENTO', ev.ID_EVENTO, 'PORTADA', imgVersion),
+                        )
+                      }
+                      className="h-10 w-14 shrink-0 cursor-zoom-in rounded-lg border border-border-app object-cover"
                       loading="lazy"
                       onError={(e) => {
                         e.currentTarget.style.visibility = 'hidden';
