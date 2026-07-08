@@ -547,6 +547,17 @@ export class EventosService {
     return { idEvento, tipoArchivo: tipo, ...resultado };
   }
 
+  /** Quita la imagen del evento (deja el ítem sin portada) */
+  async eliminarImagen(actor: JwtUser, idEvento: number, tipoArchivo = 'PORTADA') {
+    await this.eventoEnAmbito(actor, idEvento);
+    const r = await this.archivos.eliminarImagen(
+      'EVENTO',
+      idEvento,
+      tipoArchivo.toUpperCase(),
+    );
+    return { idEvento, ...r };
+  }
+
   /**
    * Agenda de una fecha para mostrar horarios ocupados en la UI:
    * por salón (eventos de ese salón) o por local (todos los del local).

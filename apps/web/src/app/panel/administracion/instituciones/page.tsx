@@ -165,6 +165,7 @@ export default function InstitucionesPage() {
                     id={i.ID_INSTITUCION}
                     tipoArchivo="LOGO"
                     uploadPath={`/instituciones/${i.ID_INSTITUCION}/logo`}
+                    deletePath={`/instituciones/${i.ID_INSTITUCION}/logo`}
                     etiqueta={t('in.logo')}
                     className="h-10 w-10"
                   />

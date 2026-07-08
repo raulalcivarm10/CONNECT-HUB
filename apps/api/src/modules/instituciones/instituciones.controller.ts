@@ -112,4 +112,13 @@ export class InstitucionesController {
     const { archivo } = await leerImagenMultipart(req);
     return this.instituciones.subirLogo(user, id, archivo);
   }
+
+  @Delete(':id/logo')
+  @ApiOperation({ summary: 'Quitar el logo de la institución' })
+  eliminarLogo(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.instituciones.eliminarLogo(user, id);
+  }
 }

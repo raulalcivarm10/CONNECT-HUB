@@ -292,6 +292,14 @@ export class InstitucionesService {
     return { idInstitucion: id, ...resultado };
   }
 
+  /** Quita el logo de la institución */
+  async eliminarLogo(actor: JwtUser, id: number) {
+    this.assertGestionInstitucion(actor, id, 'quitar el logo');
+    await this.getEstado(id);
+    const r = await this.archivos.eliminarImagen('INSTITUCION', id, 'LOGO');
+    return { idInstitucion: id, ...r };
+  }
+
   async cambiarEstado(
     actor: JwtUser,
     id: number,

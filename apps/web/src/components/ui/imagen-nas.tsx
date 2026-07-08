@@ -18,6 +18,7 @@ export function ImagenNas({
   deletePath = null,
   etiqueta = 'Subir',
   className = 'h-10 w-14',
+  onChanged,
 }: {
   tipoEntidad: NasEntidad;
   id: number;
@@ -28,6 +29,8 @@ export function ImagenNas({
   deletePath?: string | null;
   etiqueta?: string;
   className?: string;
+  /** se dispara tras subir o eliminar con éxito (p. ej. refrescar una lista) */
+  onChanged?: () => void;
 }) {
   const [version, setVersion] = useState(0);
   const [subiendo, setSubiendo] = useState(false);
@@ -47,6 +50,7 @@ export function ImagenNas({
     try {
       await api.del(deletePath);
       setVersion(Date.now()); // la img remonta y al dar 404 queda oculta
+      onChanged?.();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'No se pudo eliminar la imagen',
@@ -73,6 +77,7 @@ export function ImagenNas({
       await api.upload(uploadPath, fd);
       setVersion(Date.now());
       setSubidaOk(true);
+      onChanged?.();
     } catch (err) {
       setError(
         err instanceof Error

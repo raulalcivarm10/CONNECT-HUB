@@ -129,4 +129,13 @@ export class EventosController {
       campos.tipoArchivo ?? 'PORTADA',
     );
   }
+
+  @Delete(':id/imagen')
+  @ApiOperation({ summary: 'Quitar la imagen (portada) del evento' })
+  eliminarImagen(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.eventos.eliminarImagen(user, id);
+  }
 }

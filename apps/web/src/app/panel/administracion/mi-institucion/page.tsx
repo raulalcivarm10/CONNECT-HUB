@@ -42,6 +42,7 @@ export default function MiInstitucionPage() {
           id={user.idInstitucion}
           tipoArchivo="LOGO"
           uploadPath={`/instituciones/${user.idInstitucion}/logo`}
+          deletePath={`/instituciones/${user.idInstitucion}/logo`}
           etiqueta="Cambiar logo"
           className="h-16 w-16"
         />

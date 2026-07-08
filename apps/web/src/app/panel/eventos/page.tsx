@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
-import { FORMATOS_LEYENDA, validarImagen } from '@/lib/imagenes';
 import { useLightbox } from '@/lib/lightbox';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
+import { ImagenNas } from '@/components/ui/imagen-nas';
 import { useI18n } from '@/lib/i18n';
 import type {
   ConfiguracionRow,
@@ -202,6 +202,7 @@ export default function EventosPage() {
 
       {(showForm || editar) && (
         <EventoForm
+          key={editar ? `edit-${editar.ID_EVENTO}` : 'nuevo'}
           evento={editar}
           fechaInicial={fechaNueva}
           onImagenSubida={() => setImgVersion(Date.now())}
@@ -555,56 +556,6 @@ function EventoForm({
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-
-  // imagen de portada (solo al editar: el evento ya tiene ID en el NAS)
-  const [imagenFile, setImagenFile] = useState<File | null>(null);
-  const [imagenVersion, setImagenVersion] = useState(0);
-  const [subiendoImagen, setSubiendoImagen] = useState(false);
-  const [imagenOk, setImagenOk] = useState<string | null>(null);
-
-  const [imagenError, setImagenError] = useState<string | null>(null);
-
-  function elegirImagen(file: File | null) {
-    setImagenError(null);
-    setImagenOk(null);
-    if (!file) {
-      setImagenFile(null);
-      return;
-    }
-    const problema = validarImagen(file);
-    if (problema) {
-      setImagenError(problema);
-      setImagenFile(null);
-      return;
-    }
-    setImagenFile(file);
-  }
-
-  async function subirImagen() {
-    if (!evento || !imagenFile || subiendoImagen) return;
-    setError(null);
-    setImagenError(null);
-    setImagenOk(null);
-    setSubiendoImagen(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', imagenFile, imagenFile.name);
-      fd.append('tipoArchivo', 'PORTADA');
-      await api.upload(`/eventos/${evento.ID_EVENTO}/imagen`, fd);
-      setImagenVersion(Date.now());
-      setImagenFile(null);
-      setImagenOk(t('ev.coverOk'));
-      onImagenSubida?.(); // refresca las miniaturas del listado de atrás
-    } catch (err) {
-      setImagenError(
-        err instanceof Error
-          ? err.message
-          : 'No se pudo subir la imagen. Inténtalo de nuevo.',
-      );
-    } finally {
-      setSubiendoImagen(false);
-    }
-  }
 
   // locales (respeta el filtro global del superadmin)
   useEffect(() => {
@@ -961,48 +912,19 @@ function EventoForm({
 
       {evento && (
         <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
-          <div className="mb-1 text-sm font-medium text-text-2">
+          <div className="mb-2 text-sm font-medium text-text-2">
             {t('ev.cover')}
           </div>
-          <div className="mb-2 text-xs text-text-muted">
-            {FORMATOS_LEYENDA()}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={imagenVersion}
-              src={nasImagenUrl('EVENTO', evento.ID_EVENTO, 'PORTADA', imagenVersion)}
-              alt="Portada actual"
-              className="h-20 w-32 rounded-lg border border-border-app object-cover"
-              onError={(e) => {
-                e.currentTarget.style.visibility = 'hidden';
-              }}
-            />
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-              onChange={(e) => elegirImagen(e.target.files?.[0] ?? null)}
-              className="text-sm text-text-2 file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand"
-            />
-            <button
-              type="button"
-              onClick={subirImagen}
-              disabled={!imagenFile || subiendoImagen}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            >
-              {subiendoImagen ? t('ev.uploading') : t('ev.uploadCover')}
-            </button>
-          </div>
-          {imagenError && (
-            <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-              {imagenError}
-            </p>
-          )}
-          {imagenOk && (
-            <p className="mt-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
-              {imagenOk}
-            </p>
-          )}
+          <ImagenNas
+            tipoEntidad="EVENTO"
+            id={evento.ID_EVENTO}
+            tipoArchivo="PORTADA"
+            uploadPath={`/eventos/${evento.ID_EVENTO}/imagen`}
+            deletePath={`/eventos/${evento.ID_EVENTO}/imagen`}
+            etiqueta={t('ev.uploadCover')}
+            className="h-24 w-40"
+            onChanged={onImagenSubida}
+          />
         </div>
       )}
 
