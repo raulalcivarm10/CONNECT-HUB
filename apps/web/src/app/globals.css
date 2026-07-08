@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-2: #475569;
+  --text-muted: #94a3b8;
+  --brand: #7c3aed;
+  --success: #16a34a;
+  --danger: #dc2626;
+}
+
+.dark {
+  --bg: #0b1120;
+  --surface: #111a2e;
+  --surface-2: #1a2540;
+  --border: #24304d;
+  --text: #e2e8f0;
+  --text-2: #94a3b8;
+  --text-muted: #64748b;
+  --brand: #8b5cf6;
+  --success: #22c55e;
+  --danger: #ef4444;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border-app: var(--border);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* --- animaciones del arte del login --- */
+@keyframes ch-float {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--tilt, 0deg)); }
+}
+@keyframes ch-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.08); }
+  66% { transform: translate(-20px, 25px) scale(0.95); }
+}
+@keyframes ch-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.35; }
+}
+@keyframes ch-scan {
+  0%, 100% { transform: translateY(-22px); opacity: 0.9; }
+  50% { transform: translateY(22px); opacity: 0.5; }
+}
+.anim-float { animation: ch-float 6s ease-in-out infinite; }
+.anim-float-slow { animation: ch-float 9s ease-in-out infinite; }
+.anim-float-fast { animation: ch-float 4.5s ease-in-out infinite; }
+.anim-blob { animation: ch-blob 16s ease-in-out infinite; }
+.anim-pulse { animation: ch-pulse 3s ease-in-out infinite; }
+.anim-scan { animation: ch-scan 3.5s ease-in-out infinite; }

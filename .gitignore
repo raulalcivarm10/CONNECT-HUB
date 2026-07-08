@@ -1,0 +1,13 @@
+# dependencias / builds (viven en volúmenes Docker, nunca en la PC)
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# entorno — contiene credenciales reales
+.env
+
+# logs y temporales
+*.log
+.DS_Store
+Thumbs.db
