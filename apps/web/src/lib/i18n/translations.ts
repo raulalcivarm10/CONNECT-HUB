@@ -191,6 +191,13 @@ const en: Dict = {
   'in.title': 'Institutions',
   'in.subtitle':
     'The institution registers and pays in the registration app; here it is approved and its system user is created.',
+  'in.new': 'New institution',
+  'in.createHint':
+    'Register a new institution; then approve it to create its SYSTEM user.',
+  'in.country': 'Country',
+  'in.address': 'Address',
+  'in.create': 'Create',
+  'in.created': 'Institution “{name}” created. Approve it to create its user.',
   'in.logo': 'Logo',
   'in.institution': 'Institution',
   'in.city': 'City',
@@ -582,6 +589,13 @@ const es: Dict = {
   'in.title': 'Instituciones',
   'in.subtitle':
     'La institución se registra y paga en la app de registro; aquí se aprueba y se genera su usuario del sistema.',
+  'in.new': 'Nueva institución',
+  'in.createHint':
+    'Registra una nueva institución; luego apruébala para crear su usuario SYSTEM.',
+  'in.country': 'País',
+  'in.address': 'Dirección',
+  'in.create': 'Crear',
+  'in.created': 'Institución «{name}» creada. Apruébala para crear su usuario.',
   'in.logo': 'Logo',
   'in.institution': 'Institución',
   'in.city': 'Ciudad',
@@ -966,6 +980,14 @@ const fr: Dict = {
   'in.title': 'Institutions',
   'in.subtitle':
     "L'institution s'inscrit et paie dans l'app d'inscription ; ici elle est approuvée et son utilisateur système est créé.",
+  'in.new': 'Nouvelle institution',
+  'in.createHint':
+    "Enregistrez une nouvelle institution ; approuvez-la ensuite pour créer son utilisateur SYSTEM.",
+  'in.country': 'Pays',
+  'in.address': 'Adresse',
+  'in.create': 'Créer',
+  'in.created':
+    'Institution « {name} » créée. Approuvez-la pour créer son utilisateur.',
   'in.logo': 'Logo',
   'in.institution': 'Institution',
   'in.city': 'Ville',
@@ -1350,6 +1372,13 @@ const pt: Dict = {
   'in.title': 'Instituições',
   'in.subtitle':
     'A instituição se registra e paga no app de registro; aqui é aprovada e seu usuário do sistema é criado.',
+  'in.new': 'Nova instituição',
+  'in.createHint':
+    'Registre uma nova instituição; depois aprove-a para criar seu usuário SYSTEM.',
+  'in.country': 'País',
+  'in.address': 'Endereço',
+  'in.create': 'Criar',
+  'in.created': 'Instituição “{name}” criada. Aprove-a para criar seu usuário.',
   'in.logo': 'Logo',
   'in.institution': 'Instituição',
   'in.city': 'Cidade',

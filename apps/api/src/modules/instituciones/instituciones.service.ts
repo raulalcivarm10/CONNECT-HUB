@@ -11,6 +11,7 @@ import { JwtUser, ROL } from '../../auth/types';
 import { ArchivosService } from '../archivos/archivos.service';
 import { ArchivoSubido } from '../archivos/multipart.util';
 import { AprobarInstitucionDto } from './dto/aprobar.dto';
+import { CrearInstitucionDto } from './dto/crear-institucion.dto';
 import { EditarInstitucionDto } from './dto/editar-institucion.dto';
 
 @Injectable()
@@ -40,6 +41,36 @@ export class InstitucionesService {
         ORDER BY i.FECHA_REGISTRO DESC NULLS LAST`,
       { filtro },
     );
+  }
+
+  /**
+   * Crea una institución en estado PENDIENTE (solo superadmin). Luego se aprueba
+   * con POST /:id/aprobar, que genera su usuario SYSTEM.
+   */
+  async crear(actor: JwtUser, dto: CrearInstitucionDto) {
+    this.assertSuper(actor);
+    const nombre = dto.nombre.trim();
+    const dup = await this.oracle.query(
+      `SELECT 1 FROM INSTITUCIONES WHERE UPPER(NOMBRE) = UPPER(:nombre)`,
+      { nombre },
+    );
+    if (dup.length) {
+      throw new ConflictException('Ya existe una institución con ese nombre');
+    }
+    const result = await this.oracle.execute(
+      `INSERT INTO INSTITUCIONES (NOMBRE, CIUDAD, PAIS, DIRECCION, ESTADO)
+       VALUES (:nombre, :ciudad, :pais, :direccion, 'PENDIENTE')
+       RETURNING ID_INSTITUCION INTO :out`,
+      {
+        nombre,
+        ciudad: dto.ciudad?.trim() || null,
+        pais: dto.pais?.trim() || null,
+        direccion: dto.direccion?.trim() || null,
+        out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
+      },
+    );
+    const idInstitucion = (result.outBinds as { out: number[] }).out[0];
+    return { idInstitucion, nombre, estado: 'PENDIENTE' };
   }
 
   private async getEstado(id: number): Promise<string> {

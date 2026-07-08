@@ -23,6 +23,7 @@ import { CurrentUser } from '../../auth/current-user.decorator';
 import { JwtUser } from '../../auth/types';
 import { InstitucionesService } from './instituciones.service';
 import { AprobarInstitucionDto } from './dto/aprobar.dto';
+import { CrearInstitucionDto } from './dto/crear-institucion.dto';
 import { EditarInstitucionDto } from './dto/editar-institucion.dto';
 
 @ApiTags('instituciones')
@@ -36,6 +37,14 @@ export class InstitucionesController {
   @ApiOperation({ summary: 'Instituciones (superadmin: todas; usuario: la suya)' })
   list(@CurrentUser() user: JwtUser) {
     return this.instituciones.list(user);
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: 'Crear institución en estado PENDIENTE (solo superadmin)',
+  })
+  crear(@CurrentUser() user: JwtUser, @Body() dto: CrearInstitucionDto) {
+    return this.instituciones.crear(user, dto);
   }
 
   @Post(':id/aprobar')

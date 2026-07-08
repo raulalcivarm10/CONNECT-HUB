@@ -31,6 +31,7 @@ export default function InstitucionesPage() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [crear, setCrear] = useState(false);
 
   const cargar = useCallback(async () => {
     setItems(await api.get<InstitucionRow[]>('/instituciones'));
@@ -87,8 +88,39 @@ export default function InstitucionesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-text">{t('in.title')}</h1>
-      <p className="text-sm text-text-2">{t('in.subtitle')}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-text">{t('in.title')}</h1>
+          <p className="text-sm text-text-2">{t('in.subtitle')}</p>
+        </div>
+        <button
+          onClick={() => {
+            setCrear((v) => !v);
+            setAprobar(null);
+            setEditarPerfil(null);
+          }}
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          {crear ? t('c.cancel') : t('in.new')}
+        </button>
+      </div>
+
+      {crear && (
+        <NuevaInstitucionForm
+          onCancel={() => setCrear(false)}
+          onDone={async (idInstitucion, nombre) => {
+            setCrear(false);
+            setOk(t('in.created', { name: nombre }));
+            const lista = await api.get<InstitucionRow[]>('/instituciones');
+            setItems(lista);
+            const nueva = lista.find(
+              (x) => x.ID_INSTITUCION === idInstitucion,
+            );
+            if (nueva) setAprobar(nueva);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
 
       {error && (
         <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -323,6 +355,119 @@ function AprobarForm({
         <button
           type="button"
           onClick={onClose}
+          className="rounded-lg border border-border-app px-4 py-2 text-sm text-text-2 hover:bg-surface-2"
+        >
+          {t('c.cancel')}
+        </button>
+      </div>
+      {error && (
+        <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function NuevaInstitucionForm({
+  onCancel,
+  onDone,
+}: {
+  onCancel: () => void;
+  onDone: (idInstitucion: number, nombre: string) => void;
+}) {
+  const { t } = useI18n();
+  const [nombre, setNombre] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [pais, setPais] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const inputCls =
+    'w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand';
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (sending) return;
+    setError(null);
+    setSending(true);
+    try {
+      const res = await api.post<{ idInstitucion: number }>('/instituciones', {
+        nombre: nombre.trim(),
+        ciudad: ciudad.trim() || undefined,
+        pais: pais.trim() || undefined,
+        direccion: direccion.trim() || undefined,
+      });
+      onDone(res.idInstitucion, nombre.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear');
+      setSending(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="mt-4 rounded-2xl border border-brand/40 bg-surface p-5"
+    >
+      <div className="font-semibold text-text">{t('in.new')}</div>
+      <p className="mt-1 text-sm text-text-2">{t('in.createHint')}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-text-2">
+            {t('c.name')}
+          </label>
+          <input
+            required
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className={inputCls}
+            placeholder="Universidad Ejemplo"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-text-2">
+            {t('in.city')}
+          </label>
+          <input
+            value={ciudad}
+            onChange={(e) => setCiudad(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-text-2">
+            {t('in.country')}
+          </label>
+          <input
+            value={pais}
+            onChange={(e) => setPais(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-text-2">
+            {t('in.address')}
+          </label>
+          <input
+            value={direccion}
+            onChange={(e) => setDireccion(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <button
+          type="submit"
+          disabled={sending}
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {sending ? t('c.saving') : t('in.create')}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
           className="rounded-lg border border-border-app px-4 py-2 text-sm text-text-2 hover:bg-surface-2"
         >
           {t('c.cancel')}
