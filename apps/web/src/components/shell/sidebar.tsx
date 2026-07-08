@@ -2,17 +2,32 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { ComponentType, SVGProps } from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
 import { MODULOS, puedeVer } from '@/lib/types';
+import {
+  IconBuilding,
+  IconBuildingProfile,
+  IconCalendar,
+  IconFinance,
+  IconHome,
+  IconTicket,
+  IconUsers,
+  IconVenue,
+} from '@/components/ui/icons';
+
+type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
 function NavLink({
   href,
   label,
+  icon: Ico,
   exact = false,
 }: {
   href: string;
   label: string;
+  icon: Icon;
   exact?: boolean;
 }) {
   const pathname = usePathname();
@@ -22,13 +37,14 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`block rounded-lg px-3 py-2 text-sm transition ${
+      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
         active
           ? 'bg-brand/15 font-semibold text-brand'
           : 'text-text-2 hover:bg-surface-2 hover:text-text'
       }`}
     >
-      {label}
+      <Ico className="shrink-0" width={17} height={17} />
+      <span>{label}</span>
     </Link>
   );
 }
@@ -48,7 +64,7 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-5 overflow-y-auto p-3">
         <div>
-          <NavLink href="/panel" label={t('side.home')} exact />
+          <NavLink href="/panel" label={t('side.home')} icon={IconHome} exact />
         </div>
 
         {puedeVer(user, MODULOS[0].roles) && (
@@ -59,16 +75,19 @@ export function Sidebar() {
             <NavLink
               href="/panel/administracion/usuarios"
               label={t('side.users')}
+              icon={IconUsers}
             />
             {user?.esSuper ? (
               <NavLink
                 href="/panel/administracion/instituciones"
                 label={t('side.institutions')}
+                icon={IconBuilding}
               />
             ) : (
               <NavLink
                 href="/panel/administracion/mi-institucion"
                 label={t('side.myInstitution')}
+                icon={IconBuildingProfile}
               />
             )}
           </div>
@@ -79,7 +98,11 @@ export function Sidebar() {
             <div className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
               {t('side.finance')}
             </div>
-            <NavLink href="/panel/financiero" label={t('side.payments')} />
+            <NavLink
+              href="/panel/financiero"
+              label={t('side.payments')}
+              icon={IconFinance}
+            />
           </div>
         )}
 
@@ -91,6 +114,7 @@ export function Sidebar() {
             <NavLink
               href="/panel/operativa/locales"
               label={t('side.venues')}
+              icon={IconVenue}
             />
           </div>
         )}
@@ -103,8 +127,14 @@ export function Sidebar() {
             <NavLink
               href="/panel/eventos/calendario"
               label={t('side.calendar')}
+              icon={IconCalendar}
             />
-            <NavLink href="/panel/eventos" label={t('side.events')} exact />
+            <NavLink
+              href="/panel/eventos"
+              label={t('side.events')}
+              icon={IconTicket}
+              exact
+            />
           </div>
         )}
       </nav>

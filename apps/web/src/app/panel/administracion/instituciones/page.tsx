@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useI18n } from '@/lib/i18n';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
 import type { InstitucionRow, PerfilInstitucion } from '@/lib/types';
@@ -16,6 +17,7 @@ const ESTADO_STYLE: Record<string, string> = {
 
 export default function InstitucionesPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [items, setItems] = useState<InstitucionRow[]>([]);
   const [aprobar, setAprobar] = useState<InstitucionRow | null>(null);
   const [editarPerfil, setEditarPerfil] = useState<PerfilInstitucion | null>(
@@ -59,18 +61,14 @@ export default function InstitucionesPage() {
   }
 
   async function eliminar(i: InstitucionRow) {
-    if (
-      !window.confirm(
-        `¿Eliminar definitivamente la institución «${i.NOMBRE}»? Esta acción no se puede deshacer.`,
-      )
-    ) {
+    if (!window.confirm(t('in.confirmDelete', { name: i.NOMBRE }))) {
       return;
     }
     setError(null);
     setOk(null);
     try {
       await api.del(`/instituciones/${i.ID_INSTITUCION}`);
-      setOk(`Institución «${i.NOMBRE}» eliminada`);
+      setOk(t('in.deleted', { name: i.NOMBRE }));
       await cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
@@ -78,20 +76,13 @@ export default function InstitucionesPage() {
   }
 
   if (!user?.esSuper) {
-    return (
-      <p className="text-text-muted">
-        Solo el superadmin de la plataforma gestiona instituciones.
-      </p>
-    );
+    return <p className="text-text-muted">{t('in.onlySuper')}</p>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-text">Instituciones</h1>
-      <p className="text-sm text-text-2">
-        La institución se registra y paga en la app de registro; aquí se
-        aprueba y se genera su usuario del sistema.
-      </p>
+      <h1 className="text-2xl font-bold text-text">{t('in.title')}</h1>
+      <p className="text-sm text-text-2">{t('in.subtitle')}</p>
 
       {error && (
         <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -101,20 +92,17 @@ export default function InstitucionesPage() {
 
       {credenciales && (
         <div className="mt-4 rounded-2xl border border-success/40 bg-success/10 p-4">
-          <div className="font-semibold text-success">
-            Institución aprobada — credenciales del usuario del sistema
-            (guárdalas, se muestran una sola vez):
-          </div>
+          <div className="font-semibold text-success">{t('in.credTitle')}</div>
           <div className="mt-2 font-mono text-sm text-text">
-            Usuario: {credenciales.usuarioSistema}
+            {t('in.credUser')}: {credenciales.usuarioSistema}
             <br />
-            Contraseña temporal: {credenciales.passwordTemporal}
+            {t('in.credPass')}: {credenciales.passwordTemporal}
           </div>
           <button
             onClick={() => setCredenciales(null)}
             className="mt-3 rounded-lg border border-border-app px-3 py-1 text-xs text-text-2"
           >
-            Entendido, ocultar
+            {t('in.credHide')}
           </button>
         </div>
       )}
@@ -128,7 +116,7 @@ export default function InstitucionesPage() {
       {editarPerfil && (
         <div className="mt-4">
           <div className="mb-2 font-semibold text-text">
-            Editando perfil de «{editarPerfil.NOMBRE}»
+            {t('in.editingProfile', { name: editarPerfil.NOMBRE })}
           </div>
           <PerfilInstitucionForm
             perfil={editarPerfil}
@@ -160,11 +148,11 @@ export default function InstitucionesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
-              <th className="px-4 py-3">Logo</th>
-              <th className="px-4 py-3">Institución</th>
-              <th className="px-4 py-3">Ciudad</th>
-              <th className="px-4 py-3">Usuarios</th>
-              <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3">{t('in.logo')}</th>
+              <th className="px-4 py-3">{t('in.institution')}</th>
+              <th className="px-4 py-3">{t('in.city')}</th>
+              <th className="px-4 py-3">{t('in.users')}</th>
+              <th className="px-4 py-3">{t('in.state')}</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -177,7 +165,7 @@ export default function InstitucionesPage() {
                     id={i.ID_INSTITUCION}
                     tipoArchivo="LOGO"
                     uploadPath={`/instituciones/${i.ID_INSTITUCION}/logo`}
-                    etiqueta="Logo"
+                    etiqueta={t('in.logo')}
                     className="h-10 w-10"
                   />
                 </td>
@@ -190,7 +178,7 @@ export default function InstitucionesPage() {
                   <span
                     className={`rounded px-2 py-0.5 text-xs font-semibold ${ESTADO_STYLE[i.ESTADO] ?? ''}`}
                   >
-                    {i.ESTADO}
+                    {t(`st.${i.ESTADO}`)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -199,13 +187,13 @@ export default function InstitucionesPage() {
                       onClick={() => abrirEdicion(i.ID_INSTITUCION)}
                       className="rounded-lg border border-border-app px-3 py-1 text-xs text-text-2 hover:bg-surface-2"
                     >
-                      Editar
+                      {t('c.edit')}
                     </button>
                     <button
                       onClick={() => eliminar(i)}
                       className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
                     >
-                      Eliminar
+                      {t('c.delete')}
                     </button>
                     {(i.ESTADO === 'PENDIENTE' || i.ESTADO === 'RECHAZADA') && (
                       <>
@@ -213,14 +201,14 @@ export default function InstitucionesPage() {
                           onClick={() => setAprobar(i)}
                           className="rounded-lg bg-brand px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
                         >
-                          Aprobar
+                          {t('in.approve')}
                         </button>
                         {i.ESTADO === 'PENDIENTE' && (
                           <button
                             onClick={() => accion(i.ID_INSTITUCION, 'rechazar')}
                             className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
                           >
-                            Rechazar
+                            {t('in.reject')}
                           </button>
                         )}
                       </>
@@ -230,7 +218,7 @@ export default function InstitucionesPage() {
                         onClick={() => accion(i.ID_INSTITUCION, 'suspender')}
                         className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
                       >
-                        Suspender
+                        {t('in.suspend')}
                       </button>
                     )}
                     {i.ESTADO === 'SUSPENDIDA' && (
@@ -238,7 +226,7 @@ export default function InstitucionesPage() {
                         onClick={() => accion(i.ID_INSTITUCION, 'reactivar')}
                         className="rounded-lg border border-border-app px-3 py-1 text-xs text-success hover:bg-surface-2"
                       >
-                        Reactivar
+                        {t('in.reactivate')}
                       </button>
                     )}
                   </div>
@@ -248,7 +236,7 @@ export default function InstitucionesPage() {
             {items.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-text-muted">
-                  Sin instituciones registradas
+                  {t('in.empty')}
                 </td>
               </tr>
             )}
@@ -271,6 +259,7 @@ function AprobarForm({
     idInstitucion: number,
   ) => void;
 }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -299,16 +288,13 @@ function AprobarForm({
       className="mt-4 rounded-2xl border border-brand/40 bg-surface p-5"
     >
       <div className="font-semibold text-text">
-        Aprobar «{institucion.NOMBRE}»
+        {t('in.approveTitle', { name: institucion.NOMBRE })}
       </div>
-      <p className="mt-1 text-sm text-text-2">
-        Se creará automáticamente el usuario genérico con rol SYSTEM y una
-        contraseña temporal.
-      </p>
+      <p className="mt-1 text-sm text-text-2">{t('in.approveHint')}</p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1">
           <label className="mb-1 block text-sm font-medium text-text-2">
-            Correo de login del usuario del sistema
+            {t('in.sysEmail')}
           </label>
           <input
             type="email"
@@ -324,14 +310,14 @@ function AprobarForm({
           disabled={sending}
           className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
-          {sending ? 'Aprobando…' : 'Aprobar y crear usuario'}
+          {sending ? t('in.approving') : t('in.approveCreate')}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="rounded-lg border border-border-app px-4 py-2 text-sm text-text-2 hover:bg-surface-2"
         >
-          Cancelar
+          {t('c.cancel')}
         </button>
       </div>
       {error && (

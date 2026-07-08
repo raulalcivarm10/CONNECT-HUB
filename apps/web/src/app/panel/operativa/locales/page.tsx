@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useI18n } from '@/lib/i18n';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import type { InstitucionRow, LocalRow } from '@/lib/types';
 
 export default function LocalesPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const { qs, instituciones, nombreFiltro } = useInstitucionFiltro();
   const [locales, setLocales] = useState<LocalRow[]>([]);
   const [editar, setEditar] = useState<LocalRow | null>(null);
@@ -38,11 +40,11 @@ export default function LocalesPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text">Locales</h1>
+          <h1 className="text-2xl font-bold text-text">{t('loc.title')}</h1>
           <p className="text-sm text-text-2">
             {nombreFiltro
-              ? `Filtrando por: ${nombreFiltro}`
-              : 'Espacios físicos de la institución; cada local contiene salones.'}
+              ? t('us.filtering', { name: nombreFiltro })
+              : t('loc.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -53,7 +55,7 @@ export default function LocalesPage() {
             }}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
-            {showForm && !editar ? 'Cerrar' : '+ Nuevo local'}
+            {showForm && !editar ? t('c.close') : t('loc.new')}
           </button>
         </div>
       </div>
@@ -85,11 +87,13 @@ export default function LocalesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
-              <th className="px-4 py-3">Plano</th>
-              <th className="px-4 py-3">Local</th>
-              <th className="px-4 py-3">Ubicación</th>
-              {user?.esSuper && <th className="px-4 py-3">Institución</th>}
-              <th className="px-4 py-3">Salones</th>
+              <th className="px-4 py-3">{t('loc.plan')}</th>
+              <th className="px-4 py-3">{t('loc.venue')}</th>
+              <th className="px-4 py-3">{t('loc.location')}</th>
+              {user?.esSuper && (
+                <th className="px-4 py-3">{t('in.institution')}</th>
+              )}
+              <th className="px-4 py-3">{t('loc.halls')}</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -103,7 +107,7 @@ export default function LocalesPage() {
                     tipoArchivo="CROQUIS"
                     uploadPath={`/locales/${l.ID_LOCAL}/plano`}
                     deletePath={`/locales/${l.ID_LOCAL}/plano`}
-                    etiqueta="Plano"
+                    etiqueta={t('loc.plan')}
                   />
                 </td>
                 <td className="px-4 py-3 font-medium text-text">{l.NOMBRE}</td>
@@ -118,7 +122,7 @@ export default function LocalesPage() {
                       href={`/panel/operativa/locales/${l.ID_LOCAL}?nombre=${encodeURIComponent(l.NOMBRE)}`}
                       className="rounded-lg bg-brand/10 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand/20"
                     >
-                      Salones →
+                      {t('loc.hallsBtn')}
                     </Link>
                     <button
                       onClick={() => {
@@ -127,13 +131,13 @@ export default function LocalesPage() {
                       }}
                       className="rounded-lg border border-border-app px-3 py-1 text-xs text-text-2 hover:bg-surface-2"
                     >
-                      Editar
+                      {t('c.edit')}
                     </button>
                     <button
                       onClick={() => eliminar(l)}
                       className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
                     >
-                      Eliminar
+                      {t('c.delete')}
                     </button>
                   </div>
                 </td>
@@ -142,7 +146,7 @@ export default function LocalesPage() {
             {locales.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-text-muted">
-                  Sin locales — crea el primero
+                  {t('loc.empty')}
                 </td>
               </tr>
             )}
@@ -166,6 +170,7 @@ function LocalForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [nombre, setNombre] = useState(local?.NOMBRE ?? '');
   const [ubicacion, setUbicacion] = useState(local?.UBICACION ?? '');
   const [descripcion, setDescripcion] = useState(local?.DESCRIPCION ?? '');
@@ -209,11 +214,11 @@ function LocalForm({
       className="mt-5 grid gap-4 rounded-2xl border border-border-app bg-surface p-5 sm:grid-cols-2"
     >
       <div className="sm:col-span-2 font-semibold text-text">
-        {local ? `Editar «${local.NOMBRE}»` : 'Nuevo local'}
+        {local ? t('loc.editing', { name: local.NOMBRE }) : t('loc.newTitle')}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-text-2">
-          Nombre
+          {t('c.name')}
         </label>
         <input
           required
@@ -225,7 +230,7 @@ function LocalForm({
       {esSuper && !local && (
         <div>
           <label className="mb-1 block text-sm font-medium text-text-2">
-            Institución
+            {t('in.institution')}
           </label>
           <select
             required
@@ -233,7 +238,7 @@ function LocalForm({
             onChange={(e) => setIdInstitucion(e.target.value)}
             className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text"
           >
-            <option value="">Seleccionar…</option>
+            <option value="">{t('c.select')}</option>
             {instituciones
               .filter((i) => i.ESTADO === 'APROBADA')
               .map((i) => (
@@ -246,7 +251,7 @@ function LocalForm({
       )}
       <div>
         <label className="mb-1 block text-sm font-medium text-text-2">
-          Ubicación
+          {t('loc.location')}
         </label>
         <input
           value={ubicacion}
@@ -256,7 +261,7 @@ function LocalForm({
       </div>
       <div className="sm:col-span-2">
         <label className="mb-1 block text-sm font-medium text-text-2">
-          Descripción
+          {t('loc.description')}
         </label>
         <textarea
           value={descripcion}
@@ -276,14 +281,14 @@ function LocalForm({
           disabled={sending}
           className="rounded-lg bg-brand px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
-          {sending ? 'Guardando…' : 'Guardar'}
+          {sending ? t('c.saving') : t('c.save')}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="rounded-lg border border-border-app px-4 py-2 text-text-2 hover:bg-surface-2"
         >
-          Cancelar
+          {t('c.cancel')}
         </button>
       </div>
     </form>
