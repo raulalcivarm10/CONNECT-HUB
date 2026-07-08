@@ -10,6 +10,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { OperativaModule } from './modules/operativa/operativa.module';
 import { FinanzasModule } from './modules/finanzas/finanzas.module';
 import { EventosModule } from './modules/eventos/eventos.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { EventosModule } from './modules/eventos/eventos.module';
     OperativaModule,
     FinanzasModule,
     EventosModule,
+    ReportesModule,
   ],
 })
 export class AppModule {}

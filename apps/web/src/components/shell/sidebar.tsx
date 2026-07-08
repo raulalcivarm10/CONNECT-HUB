@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import type { ComponentType, SVGProps } from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
-import { MODULOS, puedeVer } from '@/lib/types';
+import { MODULOS, puedeVer, ROL } from '@/lib/types';
 import {
   IconBuilding,
   IconBuildingProfile,
   IconCalendar,
+  IconChart,
   IconFinance,
   IconHome,
   IconTicket,
@@ -134,6 +135,19 @@ export function Sidebar() {
               label={t('side.events')}
               icon={IconTicket}
               exact
+            />
+          </div>
+        )}
+
+        {puedeVer(user, [ROL.SYSTEM, ROL.ADMINISTRATIVO, ROL.EVENTOS]) && (
+          <div>
+            <div className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              {t('side.reports')}
+            </div>
+            <NavLink
+              href="/panel/reportes"
+              label={t('side.attendance')}
+              icon={IconChart}
             />
           </div>
         )}

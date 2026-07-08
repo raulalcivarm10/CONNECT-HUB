@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { FORMATOS_LEYENDA, validarImagen } from '@/lib/imagenes';
+import { useLightbox } from '@/lib/lightbox';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { useI18n } from '@/lib/i18n';
 import type {
@@ -345,6 +346,7 @@ function DetalleEvento({
 }) {
   const [sinImagen, setSinImagen] = useState(false);
   const { t } = useI18n();
+  const lightbox = useLightbox();
   const datos: Array<[string, string]> = [
     [t('ev.date'), evento.FECHA_EVENTO],
     [t('ev.schedule'), `${evento.HORA_INICIO ?? '—'}–${evento.HORA_FIN ?? '—'}`],
@@ -419,7 +421,12 @@ function DetalleEvento({
           <img
             src={nasImagenUrl('EVENTO', evento.ID_EVENTO, 'PORTADA', imgVersion)}
             alt="Portada"
-            className="h-48 w-full rounded-xl border border-border-app object-cover lg:w-80"
+            onClick={() =>
+              lightbox.open(
+                nasImagenUrl('EVENTO', evento.ID_EVENTO, 'PORTADA', imgVersion),
+              )
+            }
+            className="h-48 w-full cursor-zoom-in rounded-xl border border-border-app object-cover lg:w-80"
             onError={() => setSinImagen(true)}
           />
         )}
@@ -456,6 +463,8 @@ function RefEspacio({
 }) {
   const [sinImagen, setSinImagen] = useState(false);
   const { t } = useI18n();
+  const lightbox = useLightbox();
+  const src = nasImagenUrl(tipo, id, 'CROQUIS');
   return (
     <div className="text-center">
       {sinImagen ? (
@@ -465,9 +474,10 @@ function RefEspacio({
       ) : (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-          src={nasImagenUrl(tipo, id, 'CROQUIS')}
+          src={src}
           alt={etiqueta}
-          className="h-24 w-36 rounded-lg border border-border-app object-cover"
+          onClick={() => lightbox.open(src, etiqueta)}
+          className="h-24 w-36 cursor-zoom-in rounded-lg border border-border-app object-cover"
           onError={() => setSinImagen(true)}
         />
       )}

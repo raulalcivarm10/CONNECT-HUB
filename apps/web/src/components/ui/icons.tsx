@@ -76,6 +76,15 @@ export const IconBuildingProfile = (p: IconProps) => (
   </svg>
 );
 
+export const IconChart = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M3 3v18h18" />
+    <rect x="7" y="11" width="3" height="6" />
+    <rect x="12" y="7" width="3" height="10" />
+    <rect x="17" y="13" width="3" height="4" />
+  </svg>
+);
+
 export const MODULE_ICONS: Record<string, ComponentType<IconProps>> = {
   administracion: IconUsers,
   financiero: IconFinance,

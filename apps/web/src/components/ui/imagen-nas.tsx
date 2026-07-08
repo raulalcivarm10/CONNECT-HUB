@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { FORMATOS_LEYENDA, validarImagen } from '@/lib/imagenes';
+import { useLightbox } from '@/lib/lightbox';
 
 /**
  * Miniatura de imagen del NAS + botón para subir/reemplazar, con leyenda de
@@ -32,7 +33,10 @@ export function ImagenNas({
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subidaOk, setSubidaOk] = useState(false);
+  const [tieneImagen, setTieneImagen] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lightbox = useLightbox();
+  const src = nasImagenUrl(tipoEntidad, id, tipoArchivo, version);
 
   async function eliminarImagen() {
     if (!deletePath || subiendo) return;
@@ -87,11 +91,14 @@ export function ImagenNas({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         key={version}
-        src={nasImagenUrl(tipoEntidad, id, tipoArchivo, version)}
+        src={src}
         alt=""
         loading="lazy"
-        className={`shrink-0 rounded-lg border border-border-app object-cover ${className}`}
+        onClick={() => tieneImagen && lightbox.open(src)}
+        className={`shrink-0 rounded-lg border border-border-app object-cover ${tieneImagen ? 'cursor-zoom-in' : ''} ${className}`}
+        onLoad={() => setTieneImagen(true)}
         onError={(e) => {
+          setTieneImagen(false);
           e.currentTarget.style.visibility = 'hidden';
         }}
       />
