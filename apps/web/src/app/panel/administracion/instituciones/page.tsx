@@ -169,7 +169,7 @@ export default function InstitucionesPage() {
                   <ImagenNas
                     tipoEntidad="INSTITUCION"
                     id={i.ID_INSTITUCION}
-                    tipoArchivo="PORTADA"
+                    tipoArchivo="LOGO"
                     uploadPath={`/instituciones/${i.ID_INSTITUCION}/logo`}
                     deletePath={`/instituciones/${i.ID_INSTITUCION}/logo`}
                     etiqueta={t('in.logo')}

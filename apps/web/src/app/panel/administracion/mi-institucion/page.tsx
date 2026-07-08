@@ -40,7 +40,7 @@ export default function MiInstitucionPage() {
         <ImagenNas
           tipoEntidad="INSTITUCION"
           id={user.idInstitucion}
-          tipoArchivo="PORTADA"
+          tipoArchivo="LOGO"
           uploadPath={`/instituciones/${user.idInstitucion}/logo`}
           deletePath={`/instituciones/${user.idInstitucion}/logo`}
           etiqueta="Cambiar logo"
