@@ -1,0 +1,16 @@
+# Reverse proxy con HTTPS automático (Let's Encrypt).
+# El dominio y el email vienen del .env (DOMAIN, ACME_EMAIL).
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	# /api/* → API (se quita el prefijo /api antes de pasar a la API)
+	handle_path /api/* {
+		reverse_proxy api:4000
+	}
+	# todo lo demás → web Next.js
+	handle {
+		reverse_proxy web:3000
+	}
+}

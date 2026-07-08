@@ -28,8 +28,10 @@ export class AuthController {
     res.setCookie(REFRESH_COOKIE, token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, // pasar a true detrás de HTTPS
-      path: '/auth',
+      // detrás de HTTPS (proxy Caddy) → COOKIE_SECURE=true
+      secure: process.env.COOKIE_SECURE === 'true',
+      // path '/' para que viaje también cuando la API va tras /api en el proxy
+      path: '/',
       maxAge: 7 * 24 * 3600,
     });
   }
@@ -65,7 +67,7 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Cierra la sesión (borra la cookie de refresh)' })
   logout(@Res({ passthrough: true }) res: FastifyReply) {
-    res.clearCookie(REFRESH_COOKIE, { path: '/auth' });
+    res.clearCookie(REFRESH_COOKIE, { path: '/' });
     return { ok: true };
   }
 
