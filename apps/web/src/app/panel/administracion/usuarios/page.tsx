@@ -5,12 +5,14 @@ import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { useI18n } from '@/lib/i18n';
+import { useDialogo } from '@/lib/dialogo';
 import type { InstitucionRow, RolRow, UsuarioRow } from '@/lib/types';
 import { ROL } from '@/lib/types';
 
 export default function UsuariosPage() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const dialogo = useDialogo();
   const { qs, instituciones, nombreFiltro } = useInstitucionFiltro();
   const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
   const [roles, setRoles] = useState<RolRow[]>([]);
@@ -43,9 +45,13 @@ export default function UsuariosPage() {
   }
 
   async function eliminar(u: UsuarioRow) {
-    if (!window.confirm(t('us.confirmDelete', { user: u.COD_USUARIO }))) {
-      return;
-    }
+    const ok = await dialogo.confirmar({
+      titulo: t('dlg.deleteTitle', { name: u.COD_USUARIO }),
+      mensaje: t('us.deleteHint'),
+      tono: 'danger',
+      confirmar: t('c.delete'),
+    });
+    if (!ok) return;
     setError(null);
     setOk(null);
     try {

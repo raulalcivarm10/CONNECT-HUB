@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { InstitucionFilterProvider } from '@/lib/institucion-context';
 import { LightboxProvider } from '@/lib/lightbox';
+import { DialogoProvider } from '@/lib/dialogo';
 import { Sidebar } from '@/components/shell/sidebar';
 import { Topbar } from '@/components/shell/topbar';
 
@@ -33,13 +34,15 @@ export default function PanelLayout({
   return (
     <InstitucionFilterProvider>
       <LightboxProvider>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <Topbar />
-            <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <DialogoProvider>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Topbar />
+              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+            </div>
           </div>
-        </div>
+        </DialogoProvider>
       </LightboxProvider>
     </InstitucionFilterProvider>
   );

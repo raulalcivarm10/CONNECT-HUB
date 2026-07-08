@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { FORMATOS_LEYENDA, validarImagen } from '@/lib/imagenes';
 import { useLightbox } from '@/lib/lightbox';
+import { useDialogo } from '@/lib/dialogo';
 
 /**
  * Miniatura de imagen del NAS + botón para subir/reemplazar, con leyenda de
@@ -41,11 +42,17 @@ export function ImagenNas({
   const [tieneImagen, setTieneImagen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const lightbox = useLightbox();
+  const dialogo = useDialogo();
   const src = nasImagenUrl(tipoEntidad, id, tipoArchivo, version);
 
   async function eliminarImagen() {
     if (!deletePath || subiendo) return;
-    if (!window.confirm('¿Quitar la imagen de este elemento?')) return;
+    const ok = await dialogo.confirmar({
+      titulo: '¿Quitar la imagen de este elemento?',
+      tono: 'warning',
+      confirmar: 'Quitar',
+    });
+    if (!ok) return;
     setError(null);
     setSubidaOk(false);
     setSubiendo(true);

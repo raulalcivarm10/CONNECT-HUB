@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
+import { useDialogo } from '@/lib/dialogo';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import type { InstitucionRow, LocalRow } from '@/lib/types';
@@ -12,6 +13,7 @@ import type { InstitucionRow, LocalRow } from '@/lib/types';
 export default function LocalesPage() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const dialogo = useDialogo();
   const { qs, instituciones, nombreFiltro } = useInstitucionFiltro();
   const [locales, setLocales] = useState<LocalRow[]>([]);
   const [editar, setEditar] = useState<LocalRow | null>(null);
@@ -27,6 +29,13 @@ export default function LocalesPage() {
   }, [cargar]);
 
   async function eliminar(l: LocalRow) {
+    const ok = await dialogo.confirmar({
+      titulo: t('dlg.deleteTitle', { name: l.NOMBRE }),
+      mensaje: t('dlg.deleteMsg'),
+      tono: 'danger',
+      confirmar: t('c.delete'),
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.del(`/locales/${l.ID_LOCAL}`);

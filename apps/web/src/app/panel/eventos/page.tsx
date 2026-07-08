@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { useLightbox } from '@/lib/lightbox';
+import { useDialogo } from '@/lib/dialogo';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { useI18n } from '@/lib/i18n';
@@ -58,6 +59,7 @@ export default function EventosPage() {
   const { qs, nombreFiltro } = useInstitucionFiltro();
   const { t } = useI18n();
   const lightbox = useLightbox();
+  const dialogo = useDialogo();
   const [eventos, setEventos] = useState<EventoRow[]>([]);
   const [editar, setEditar] = useState<EventoRow | null>(null);
   const [ver, setVer] = useState<EventoRow | null>(null);
@@ -111,6 +113,13 @@ export default function EventosPage() {
   }, []);
 
   async function eliminar(ev: EventoRow) {
+    const ok = await dialogo.confirmar({
+      titulo: t('dlg.deleteTitle', { name: ev.TITULO }),
+      mensaje: t('dlg.deleteMsg'),
+      tono: 'danger',
+      confirmar: t('c.delete'),
+    });
+    if (!ok) return;
     setError(null);
     setOk(null);
     try {

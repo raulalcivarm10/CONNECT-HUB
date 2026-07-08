@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { ImagenNas } from '@/components/ui/imagen-nas';
+import { useDialogo } from '@/lib/dialogo';
 import type { ConfiguracionRow, SalonRow, SubsalonRow } from '@/lib/types';
 
 export default function LocalDetallePage() {
@@ -12,6 +13,7 @@ export default function LocalDetallePage() {
   const search = useSearchParams();
   const idLocal = Number(params.id);
   const nombreLocal = search.get('nombre') ?? `Local ${idLocal}`;
+  const dialogo = useDialogo();
 
   const [salones, setSalones] = useState<SalonRow[]>([]);
   const [abierto, setAbierto] = useState<number | null>(null);
@@ -28,6 +30,13 @@ export default function LocalDetallePage() {
   }, [cargar]);
 
   async function eliminar(s: SalonRow) {
+    const ok = await dialogo.confirmar({
+      titulo: `¿Eliminar «${s.NOMBRE}»?`,
+      mensaje: 'Esta acción no se puede deshacer.',
+      tono: 'danger',
+      confirmar: 'Eliminar',
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.del(`/salones/${s.ID_SALON}`);
@@ -282,6 +291,7 @@ function SalonPanel({ salon }: { salon: SalonRow }) {
 }
 
 function SubsalonesPanel({ idSalon }: { idSalon: number }) {
+  const dialogo = useDialogo();
   const [items, setItems] = useState<SubsalonRow[]>([]);
   const [nombre, setNombre] = useState('');
   const [capacidad, setCapacidad] = useState('');
@@ -317,7 +327,14 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
     }
   }
 
-  async function eliminar(id: number) {
+  async function eliminar(id: number, nombre: string) {
+    const ok = await dialogo.confirmar({
+      titulo: `¿Eliminar «${nombre}»?`,
+      mensaje: 'Esta acción no se puede deshacer.',
+      tono: 'danger',
+      confirmar: 'Eliminar',
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.del(`/subsalones/${id}`);
@@ -362,7 +379,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
           <SubsalonItem
             key={ss.ID_SUBSALON}
             subsalon={ss}
-            onEliminar={() => eliminar(ss.ID_SUBSALON)}
+            onEliminar={() => eliminar(ss.ID_SUBSALON, ss.NOMBRE)}
             onGuardado={() => void cargar()}
             onError={setError}
           />
@@ -483,6 +500,7 @@ function SubsalonItem({
 }
 
 function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
+  const dialogo = useDialogo();
   const [items, setItems] = useState<ConfiguracionRow[]>([]);
   const [subsalones, setSubsalones] = useState<SubsalonRow[]>([]);
   const [nombre, setNombre] = useState('');
@@ -566,7 +584,14 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
     }
   }
 
-  async function eliminar(id: number) {
+  async function eliminar(id: number, nombre: string) {
+    const ok = await dialogo.confirmar({
+      titulo: `¿Eliminar «${nombre}»?`,
+      mensaje: 'Esta acción no se puede deshacer.',
+      tono: 'danger',
+      confirmar: 'Eliminar',
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.del(`/configuraciones/${id}`);
@@ -679,7 +704,9 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
                 Editar
               </button>
               <button
-                onClick={() => eliminar(c.ID_CONFIGURACION)}
+                onClick={() =>
+                  eliminar(c.ID_CONFIGURACION, c.NOMBRE ?? 'esta configuración')
+                }
                 className="text-xs text-danger hover:underline"
               >
                 Eliminar

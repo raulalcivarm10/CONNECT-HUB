@@ -62,6 +62,15 @@ body {
   0%, 100% { transform: translateY(-22px); opacity: 0.9; }
   50% { transform: translateY(22px); opacity: 0.5; }
 }
+/* --- diálogo de confirmación (estilo SweetAlert) --- */
+@keyframes ch-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes ch-fade { from { opacity: 0; } to { opacity: 1; } }
+.anim-pop { animation: ch-pop 0.18s ease-out; }
+.anim-fade { animation: ch-fade 0.15s ease-out; }
+
 .anim-float { animation: ch-float 6s ease-in-out infinite; }
 .anim-float-slow { animation: ch-float 9s ease-in-out infinite; }
 .anim-float-fast { animation: ch-float 4.5s ease-in-out infinite; }

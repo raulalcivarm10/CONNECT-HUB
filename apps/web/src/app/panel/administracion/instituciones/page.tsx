@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
+import { useDialogo } from '@/lib/dialogo';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
 import type { InstitucionRow, PerfilInstitucion } from '@/lib/types';
@@ -18,6 +19,7 @@ const ESTADO_STYLE: Record<string, string> = {
 export default function InstitucionesPage() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const dialogo = useDialogo();
   const [items, setItems] = useState<InstitucionRow[]>([]);
   const [aprobar, setAprobar] = useState<InstitucionRow | null>(null);
   const [editarPerfil, setEditarPerfil] = useState<PerfilInstitucion | null>(
@@ -61,9 +63,13 @@ export default function InstitucionesPage() {
   }
 
   async function eliminar(i: InstitucionRow) {
-    if (!window.confirm(t('in.confirmDelete', { name: i.NOMBRE }))) {
-      return;
-    }
+    const ok = await dialogo.confirmar({
+      titulo: t('dlg.deleteTitle', { name: i.NOMBRE }),
+      mensaje: t('dlg.deleteMsg'),
+      tono: 'danger',
+      confirmar: t('c.delete'),
+    });
+    if (!ok) return;
     setError(null);
     setOk(null);
     try {
