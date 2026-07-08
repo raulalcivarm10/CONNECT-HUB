@@ -36,7 +36,9 @@ export function ImagenNas({
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subidaOk, setSubidaOk] = useState(false);
-  const [tieneImagen, setTieneImagen] = useState(true);
+  // arranca en false: solo se confirma que hay imagen cuando la <img> carga bien,
+  // así el botón ✕ y el zoom no aparecen para ítems sin imagen ni tras borrar.
+  const [tieneImagen, setTieneImagen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const lightbox = useLightbox();
   const src = nasImagenUrl(tipoEntidad, id, tipoArchivo, version);
@@ -49,6 +51,7 @@ export function ImagenNas({
     setSubiendo(true);
     try {
       await api.del(deletePath);
+      setTieneImagen(false); // oculta ✕/zoom al instante, sin esperar el 404
       setVersion(Date.now()); // la img remonta y al dar 404 queda oculta
       onChanged?.();
     } catch (err) {
@@ -125,7 +128,7 @@ export function ImagenNas({
             >
               {subiendo ? 'Procesando…' : etiqueta}
             </button>
-            {deletePath && (
+            {deletePath && tieneImagen && (
               <button
                 type="button"
                 onClick={eliminarImagen}
