@@ -14,7 +14,9 @@ CMD ["npm", "run", "dev"]
 # --- build de producción (NEXT_PUBLIC_* se inyecta en build) ---
 FROM deps AS build
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_NAS_URL=https://api-ligaprocorp.ec:3443/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_NAS_URL=$NEXT_PUBLIC_NAS_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN npm run build
