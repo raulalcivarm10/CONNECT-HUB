@@ -35,10 +35,10 @@ export function LoginArt() {
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-white/70">
-              Septiembre
+              September
             </span>
             <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              HOY
+              TODAY
             </span>
           </div>
           <div className="grid grid-cols-7 gap-1.5">
@@ -56,7 +56,7 @@ export function LoginArt() {
             ))}
           </div>
           <div className="mt-3 rounded-lg bg-white/15 px-2 py-1.5 text-xs text-white">
-            📅 Cumbre de Innovación · 09:00
+            📅 Innovation Summit · 09:00
           </div>
         </div>
 
@@ -67,15 +67,15 @@ export function LoginArt() {
         >
           <div className="border-b border-dashed border-white/30 p-3">
             <div className="text-[10px] uppercase tracking-widest text-white/60">
-              Entrada
+              Ticket
             </div>
             <div className="text-sm font-bold text-white">
-              Concierto Electrónico
+              Electronic Concert
             </div>
           </div>
           <div className="flex items-center justify-between p-3">
             <div className="text-xs text-white/70">
-              Salón Regente
+              Regent Hall
               <br />
               A + B
             </div>
@@ -116,7 +116,7 @@ export function LoginArt() {
             📍
           </span>
           <span className="text-xs font-semibold text-white">
-            Local Centro · Salón Regente
+            Downtown Venue · Regent Hall
           </span>
         </div>
       </div>
