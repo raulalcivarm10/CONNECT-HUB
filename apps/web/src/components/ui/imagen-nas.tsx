@@ -102,20 +102,19 @@ export function ImagenNas({
 
   return (
     <div className="flex items-center gap-2">
-      {/* key=version remonta la img: recarga tras subir y reintenta el onError */}
+      {/* key=version remonta la img tras subir/borrar; sin imagen -> 'hidden'
+          (display:none): ni recuadro vacío ni botón ✕. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         key={version}
         src={src}
         alt=""
-        loading="lazy"
         onClick={() => tieneImagen && lightbox.open(src)}
-        className={`shrink-0 rounded-lg border border-border-app object-cover ${tieneImagen ? 'cursor-zoom-in' : ''} ${className}`}
+        className={`shrink-0 rounded-lg border border-border-app object-cover ${className} ${
+          tieneImagen ? 'cursor-zoom-in' : 'hidden'
+        }`}
         onLoad={() => setTieneImagen(true)}
-        onError={(e) => {
-          setTieneImagen(false);
-          e.currentTarget.style.visibility = 'hidden';
-        }}
+        onError={() => setTieneImagen(false)}
       />
       {uploadPath && (
         <div className="min-w-0">

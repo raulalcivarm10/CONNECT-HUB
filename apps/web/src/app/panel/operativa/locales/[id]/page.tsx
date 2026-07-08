@@ -77,6 +77,7 @@ export default function LocalDetallePage() {
 
       {(showForm || editar) && (
         <SalonForm
+          key={editar ? `salon-${editar.ID_SALON}` : 'nuevo'}
           idLocal={idLocal}
           salon={editar}
           onDone={() => {

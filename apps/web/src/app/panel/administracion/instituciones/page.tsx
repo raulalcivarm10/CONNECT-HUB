@@ -125,6 +125,7 @@ export default function InstitucionesPage() {
             {t('in.editingProfile', { name: editarPerfil.NOMBRE })}
           </div>
           <PerfilInstitucionForm
+            key={editarPerfil.ID_INSTITUCION}
             perfil={editarPerfil}
             onSaved={(msg) => {
               setOk(msg);

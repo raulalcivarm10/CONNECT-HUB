@@ -77,6 +77,7 @@ export default function LocalesPage() {
 
       {(showForm || editar) && (
         <LocalForm
+          key={editar ? `local-${editar.ID_LOCAL}` : 'nuevo'}
           local={editar}
           instituciones={instituciones}
           esSuper={!!user?.esSuper}

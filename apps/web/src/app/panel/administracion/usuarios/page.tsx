@@ -112,6 +112,7 @@ export default function UsuariosPage() {
 
       {editar && (
         <EditarUsuarioForm
+          key={editar.COD_USUARIO}
           usuario={editar}
           onDone={(msg) => {
             setOk(msg);
