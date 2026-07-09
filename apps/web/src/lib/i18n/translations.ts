@@ -127,6 +127,12 @@ const en: Dict = {
   'us.newPasswordPh': 'Leave empty to keep it',
   'us.confirmDelete': 'Permanently delete user {user}? If you only want to block access, use Deactivate.',
   'us.created': 'User {user} created successfully',
+  'us.autoPassword':
+    'A password will be generated automatically and emailed to the user with a login link.',
+  'us.createdEmailed':
+    'User {user} created. Credentials were emailed to them.',
+  'us.createdManual':
+    'User {user} created. Temporary password: {pwd} (email not configured — share it securely).',
   'us.updated': 'User {user} updated',
   'us.updatedPwd': 'User {user} updated and password reset',
   'us.deleted': 'User {user} deleted',
@@ -527,6 +533,12 @@ const es: Dict = {
   'us.newPasswordPh': 'Dejar vacío para no cambiarla',
   'us.confirmDelete': '¿Eliminar definitivamente al usuario {user}? Si solo quieres bloquear su acceso, usa Desactivar.',
   'us.created': 'Usuario {user} creado correctamente',
+  'us.autoPassword':
+    'Se generará una contraseña automáticamente y se enviará al correo del usuario con el enlace de acceso.',
+  'us.createdEmailed':
+    'Usuario {user} creado. Se enviaron las credenciales a su correo.',
+  'us.createdManual':
+    'Usuario {user} creado. Contraseña temporal: {pwd} (correo no configurado — entrégala de forma segura).',
   'us.updated': 'Usuario {user} actualizado',
   'us.updatedPwd': 'Usuario {user} actualizado y contraseña restablecida',
   'us.deleted': 'Usuario {user} eliminado',
@@ -918,6 +930,12 @@ const fr: Dict = {
   'us.newPasswordPh': 'Laisser vide pour ne pas changer',
   'us.confirmDelete': "Supprimer définitivement l'utilisateur {user} ? Pour bloquer l'accès seulement, utilisez Désactiver.",
   'us.created': 'Utilisateur {user} créé avec succès',
+  'us.autoPassword':
+    "Un mot de passe sera généré automatiquement et envoyé par e-mail à l'utilisateur avec un lien de connexion.",
+  'us.createdEmailed':
+    'Utilisateur {user} créé. Les identifiants ont été envoyés par e-mail.',
+  'us.createdManual':
+    'Utilisateur {user} créé. Mot de passe temporaire : {pwd} (e-mail non configuré — partagez-le en toute sécurité).',
   'us.updated': 'Utilisateur {user} mis à jour',
   'us.updatedPwd': 'Utilisateur {user} mis à jour et mot de passe réinitialisé',
   'us.deleted': 'Utilisateur {user} supprimé',
@@ -1310,6 +1328,12 @@ const pt: Dict = {
   'us.newPasswordPh': 'Deixe vazio para não alterar',
   'us.confirmDelete': 'Excluir definitivamente o usuário {user}? Para apenas bloquear o acesso, use Desativar.',
   'us.created': 'Usuário {user} criado com sucesso',
+  'us.autoPassword':
+    'Uma senha será gerada automaticamente e enviada ao e-mail do usuário com o link de acesso.',
+  'us.createdEmailed':
+    'Usuário {user} criado. As credenciais foram enviadas ao seu e-mail.',
+  'us.createdManual':
+    'Usuário {user} criado. Senha temporária: {pwd} (e-mail não configurado — compartilhe com segurança).',
   'us.updated': 'Usuário {user} atualizado',
   'us.updatedPwd': 'Usuário {user} atualizado e senha redefinida',
   'us.deleted': 'Usuário {user} excluído',

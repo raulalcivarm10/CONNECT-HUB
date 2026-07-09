@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { OracleService } from '../../database/oracle.service';
 import { generateTempPassword, hashPassword } from '../../auth/password.util';
+import { MailerService } from '../../auth/mailer.service';
 import { JwtUser, ROL } from '../../auth/types';
 import { ArchivosService } from '../archivos/archivos.service';
 import { ArchivoSubido } from '../archivos/multipart.util';
@@ -19,6 +20,7 @@ export class InstitucionesService {
   constructor(
     private readonly oracle: OracleService,
     private readonly archivos: ArchivosService,
+    private readonly mailer: MailerService,
   ) {}
 
   private assertSuper(actor: JwtUser) {
@@ -127,9 +129,9 @@ export class InstitucionesService {
       await conn.execute(
         `INSERT INTO USUARIOS_INSTITUCIONES
            (COD_USUARIO, NOMBRE_USUARIO, EMAIL, ESTADOS, CLAVE, SALT,
-            ID_INSTITUCION, NOMBRES, APELLIDOS, ES_SUPER)
+            ID_INSTITUCION, NOMBRES, APELLIDOS, ES_SUPER, DEBE_CAMBIAR_CLAVE)
          VALUES (:cod, :nombreUsuario, :cod, 'A', :clave, :salt, :id,
-                 :nombres, :apellidos, 'N')`,
+                 :nombres, :apellidos, 'N', 'S')`,
         {
           cod,
           nombreUsuario: `${nombres} ${apellidos}`.trim(),
@@ -147,11 +149,20 @@ export class InstitucionesService {
       await conn.commit();
     });
 
+    const correoEnviado = await this.mailer.enviarCredenciales(
+      dto.emailUsuarioSistema.toLowerCase(),
+      nombres,
+      apellidos,
+      cod,
+      passwordTemporal,
+    );
+
     return {
       idInstitucion: id,
       estado: 'APROBADA',
       usuarioSistema: cod,
       passwordTemporal,
+      correoEnviado,
     };
   }
 

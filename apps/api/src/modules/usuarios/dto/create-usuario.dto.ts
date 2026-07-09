@@ -33,10 +33,15 @@ export class CreateUsuarioDto {
   @MaxLength(100)
   apellidos: string;
 
-  @ApiProperty({ minLength: 8 })
+  @ApiPropertyOptional({
+    minLength: 8,
+    description:
+      'Opcional. Si se omite, se autogenera y se envía por correo al usuario.',
+  })
+  @IsOptional()
   @IsString()
   @MinLength(8)
-  password: string;
+  password?: string;
 
   @ApiProperty({
     description: 'Nombres de rol de ROLES_INSTITUCIONES',

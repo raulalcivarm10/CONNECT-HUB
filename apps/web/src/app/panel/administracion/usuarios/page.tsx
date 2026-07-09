@@ -351,7 +351,6 @@ function NuevoUsuarioForm({
   const [usuario, setUsuario] = useState('');
   const [nombres, setNombres] = useState('');
   const [apellidos, setApellidos] = useState('');
-  const [password, setPassword] = useState('');
   const [rolesSel, setRolesSel] = useState<string[]>([]);
   const [idInstitucion, setIdInstitucion] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -373,17 +372,24 @@ function NuevoUsuarioForm({
     setError(null);
     setSending(true);
     try {
-      await api.post('/usuarios', {
+      const res = await api.post<{
+        passwordTemporal: string;
+        correoEnviado: boolean;
+      }>('/usuarios', {
         usuario: usuario.trim(),
         nombres: nombres.trim(),
         apellidos: apellidos.trim(),
-        password,
         roles: rolesSel,
         ...(esSuper && idInstitucion
           ? { idInstitucion: Number(idInstitucion) }
           : {}),
       });
-      onDone(t('us.created', { user: usuario.trim().toUpperCase() }));
+      const user = usuario.trim().toUpperCase();
+      onDone(
+        res.correoEnviado
+          ? t('us.createdEmailed', { user })
+          : t('us.createdManual', { user, pwd: res.passwordTemporal }),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear');
       setSending(false);
@@ -451,18 +457,8 @@ function NuevoUsuarioForm({
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-text-2">
-          {t('us.passwordMin')}
-        </label>
-        <input
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
-        />
+      <div className="sm:col-span-2 rounded-lg bg-brand/5 px-3 py-2 text-xs text-text-2">
+        {t('us.autoPassword')}
       </div>
       <div className="sm:col-span-2">
         <div className="mb-1 text-sm font-medium text-text-2">

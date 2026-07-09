@@ -6,13 +6,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OracleService } from '../../database/oracle.service';
-import { hashPassword } from '../../auth/password.util';
+import { generateTempPassword, hashPassword } from '../../auth/password.util';
+import { MailerService } from '../../auth/mailer.service';
 import { JwtUser } from '../../auth/types';
 import { CreateUsuarioDto, UpdateUsuarioDto } from './dto/create-usuario.dto';
 
 @Injectable()
 export class UsuariosService {
-  constructor(private readonly oracle: OracleService) {}
+  constructor(
+    private readonly oracle: OracleService,
+    private readonly mailer: MailerService,
+  ) {}
 
   /** Institución sobre la que puede actuar el usuario; el super puede elegir */
   private resolveInstitucion(actor: JwtUser, requested?: number): number {
@@ -86,15 +90,19 @@ export class UsuariosService {
     }
 
     const roles = await this.rolIds(dto.roles);
-    const { clave, salt } = hashPassword(dto.password);
+    // sin password explícito -> se autogenera y se obliga a cambiarla al ingresar
+    const passwordPlano = dto.password ?? generateTempPassword();
+    const debeCambiar = dto.password ? 'N' : 'S';
+    const { clave, salt } = hashPassword(passwordPlano);
+    const correoContacto = (dto.email ?? dto.usuario).toLowerCase();
 
     await this.oracle.withConnection(async (conn) => {
       await conn.execute(
         `INSERT INTO USUARIOS_INSTITUCIONES
            (COD_USUARIO, NOMBRE_USUARIO, EMAIL, ESTADOS, CLAVE, SALT,
-            ID_INSTITUCION, NOMBRES, APELLIDOS, ES_SUPER)
+            ID_INSTITUCION, NOMBRES, APELLIDOS, ES_SUPER, DEBE_CAMBIAR_CLAVE)
          VALUES (:cod, :nombreUsuario, :email, 'A', :clave, :salt,
-                 :idInstitucion, :nombres, :apellidos, 'N')`,
+                 :idInstitucion, :nombres, :apellidos, 'N', :debeCambiar)`,
         {
           cod,
           nombreUsuario: `${dto.nombres} ${dto.apellidos}`.trim(),
@@ -104,6 +112,7 @@ export class UsuariosService {
           idInstitucion,
           nombres: dto.nombres,
           apellidos: dto.apellidos,
+          debeCambiar,
         },
       );
       for (const [, idRol] of roles) {
@@ -115,7 +124,21 @@ export class UsuariosService {
       await conn.commit();
     });
 
-    return { codUsuario: cod, idInstitucion, roles: dto.roles };
+    const correoEnviado = await this.mailer.enviarCredenciales(
+      correoContacto,
+      dto.nombres,
+      dto.apellidos,
+      cod,
+      passwordPlano,
+    );
+
+    return {
+      codUsuario: cod,
+      idInstitucion,
+      roles: dto.roles,
+      passwordTemporal: passwordPlano,
+      correoEnviado,
+    };
   }
 
   /** Verifica que el usuario objetivo pertenezca al ámbito del actor */
