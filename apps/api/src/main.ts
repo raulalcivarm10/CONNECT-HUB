@@ -13,6 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
+    // rawBody expone req.rawBody (Buffer) para verificar firmas HMAC de webhooks
+    { rawBody: true },
   );
 
   await app.register(fastifyCookie, {

@@ -11,6 +11,7 @@ import { OperativaModule } from './modules/operativa/operativa.module';
 import { FinanzasModule } from './modules/finanzas/finanzas.module';
 import { EventosModule } from './modules/eventos/eventos.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
+import { FslWebhooksModule } from './modules/fsl-webhooks/fsl-webhooks.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ReportesModule } from './modules/reportes/reportes.module';
     FinanzasModule,
     EventosModule,
     ReportesModule,
+    FslWebhooksModule,
   ],
 })
 export class AppModule {}
