@@ -8,6 +8,73 @@ const inputCls =
   'w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand';
 const labelCls = 'mb-1 block text-sm font-medium text-text-2';
 
+type CredKey =
+  | 'usuarioPasarela'
+  | 'contrasenaPasarela'
+  | 'tokenPasarela'
+  | 'appCodeTokenization'
+  | 'appKeyTokenization'
+  | 'appCodeCheckout'
+  | 'appKeyCheckout';
+
+/**
+ * Proveedores de pago (tipos quemados). Cada uno declara los campos que pide,
+ * mapeados a las columnas genéricas de credenciales que ya existen en la BD.
+ * En producción solo Nuvei procesa pagos; el resto queda disponible en la UI.
+ */
+const PROVEEDORES: Record<
+  string,
+  { label: string; nota: string; campos: [CredKey, string][] }
+> = {
+  NUVEI: {
+    label: 'Nuvei',
+    nota: 'Credenciales de tokenización y checkout de Nuvei.',
+    campos: [
+      ['appCodeTokenization', 'App Code (tokenización)'],
+      ['appKeyTokenization', 'App Key (tokenización)'],
+      ['appCodeCheckout', 'App Code (checkout)'],
+      ['appKeyCheckout', 'App Key (checkout)'],
+      ['usuarioPasarela', 'Server App Code'],
+      ['contrasenaPasarela', 'Server App Key'],
+    ],
+  },
+  PAYPAL: {
+    label: 'PayPal',
+    nota: 'Credenciales de la app REST de PayPal (Developer Dashboard).',
+    campos: [
+      ['appCodeTokenization', 'Client ID'],
+      ['appKeyTokenization', 'Client Secret'],
+      ['tokenPasarela', 'Webhook ID'],
+    ],
+  },
+  PAYPHONE: {
+    label: 'PayPhone',
+    nota: 'Token y Store ID de la Cajita de Pagos de PayPhone.',
+    campos: [
+      ['tokenPasarela', 'API Token'],
+      ['usuarioPasarela', 'Store ID'],
+    ],
+  },
+  KUSHKI: {
+    label: 'Kushki',
+    nota: 'Merchant IDs pública y privada de Kushki.',
+    campos: [
+      ['appCodeTokenization', 'Public Merchant ID'],
+      ['appKeyTokenization', 'Private Merchant ID'],
+    ],
+  },
+};
+
+const TIENE: Record<CredKey, keyof PerfilInstitucion> = {
+  usuarioPasarela: 'TIENE_USUARIO_PASARELA',
+  contrasenaPasarela: 'TIENE_CONTRASENA_PASARELA',
+  tokenPasarela: 'TIENE_TOKEN_PASARELA',
+  appCodeTokenization: 'TIENE_APP_CODE_TOKENIZATION',
+  appKeyTokenization: 'TIENE_APP_KEY_TOKENIZATION',
+  appCodeCheckout: 'TIENE_APP_CODE_CHECKOUT',
+  appKeyCheckout: 'TIENE_APP_KEY_CHECKOUT',
+};
+
 /**
  * Formulario de perfil de institución. Las credenciales de pasarela son de
  * solo escritura: los campos van vacíos y solo se envían si se llenan.
@@ -28,8 +95,9 @@ export function PerfilInstitucionForm({
   const [codigoConexion, setCodigoConexion] = useState(
     perfil.CODIGO_CONEXION ?? '',
   );
+  const provInicial = (perfil.PROVEEDOR_PAGO ?? '').toUpperCase();
   const [proveedorPago, setProveedorPago] = useState(
-    perfil.PROVEEDOR_PAGO ?? '',
+    PROVEEDORES[provInicial] ? provInicial : 'NUVEI',
   );
   const [paymentEnvironment, setPaymentEnvironment] = useState(
     perfil.PAYMENT_ENVIROMENT ?? '',
@@ -51,14 +119,10 @@ export function PerfilInstitucionForm({
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
-  const totalConfiguradas =
-    perfil.TIENE_USUARIO_PASARELA +
-    perfil.TIENE_CONTRASENA_PASARELA +
-    perfil.TIENE_TOKEN_PASARELA +
-    perfil.TIENE_APP_CODE_TOKENIZATION +
-    perfil.TIENE_APP_KEY_TOKENIZATION +
-    perfil.TIENE_APP_CODE_CHECKOUT +
-    perfil.TIENE_APP_KEY_CHECKOUT;
+  const proveedor = PROVEEDORES[proveedorPago];
+  const configuradasProv = proveedor.campos.filter(
+    ([c]) => perfil[TIENE[c]],
+  ).length;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -119,24 +183,38 @@ export function PerfilInstitucionForm({
       </div>
       <div>
         <label className={labelCls}>Proveedor de pago</label>
-        <input maxLength={100} value={proveedorPago} onChange={(e) => setProveedorPago(e.target.value)} className={inputCls} placeholder="p. ej. PAYMENTEZ" />
+        <select
+          value={proveedorPago}
+          onChange={(e) => setProveedorPago(e.target.value)}
+          className={inputCls}
+        >
+          {Object.entries(PROVEEDORES).map(([key, p]) => (
+            <option key={key} value={key}>
+              {p.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className={labelCls}>Ambiente de pago</label>
         <select value={paymentEnvironment} onChange={(e) => setPaymentEnvironment(e.target.value)} className={inputCls}>
           <option value="">Sin definir</option>
-          <option value="stg">stg (pruebas)</option>
-          <option value="prod">prod (producción)</option>
+          <option value="stg">Pruebas (sandbox)</option>
+          <option value="prod">Producción</option>
         </select>
       </div>
-      <div className="sm:col-span-2 lg:col-span-1">
-        <label className={labelCls}>URL código de pago</label>
-        <input maxLength={500} value={urlCodPago} onChange={(e) => setUrlCodPago(e.target.value)} className={inputCls} />
-      </div>
-      <div className="sm:col-span-2">
-        <label className={labelCls}>URL proceso de pago</label>
-        <input maxLength={500} value={urlProcesoPago} onChange={(e) => setUrlProcesoPago(e.target.value)} className={inputCls} />
-      </div>
+      {proveedorPago === 'NUVEI' && (
+        <>
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className={labelCls}>URL código de pago</label>
+            <input maxLength={500} value={urlCodPago} onChange={(e) => setUrlCodPago(e.target.value)} className={inputCls} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>URL proceso de pago</label>
+            <input maxLength={500} value={urlProcesoPago} onChange={(e) => setUrlProcesoPago(e.target.value)} className={inputCls} />
+          </div>
+        </>
+      )}
 
       <div className="sm:col-span-2 lg:col-span-3">
         <button
@@ -144,54 +222,48 @@ export function PerfilInstitucionForm({
           onClick={() => setVerCredenciales((v) => !v)}
           className="text-sm font-semibold text-brand hover:underline"
         >
-          {verCredenciales ? '▾' : '▸'} Credenciales de pasarela (
-          {totalConfiguradas} de 7 configuradas)
+          {verCredenciales ? '▾' : '▸'} Credenciales de {proveedor.label} (
+          {configuradasProv} de {proveedor.campos.length} configuradas)
         </button>
         {verCredenciales && (
           <>
             <p className="mb-2 mt-2 text-xs text-text-muted">
-              Por seguridad los valores guardados nunca se muestran: escribe
-              solo los que quieras registrar o reemplazar y guarda.
+              {proveedor.nota} Por seguridad los valores guardados nunca se
+              muestran: escribe solo los que quieras registrar o reemplazar y
+              guarda.
             </p>
             <div className="grid gap-3 rounded-lg border border-border-app bg-surface-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(
-            [
-              ['usuarioPasarela', 'Usuario pasarela', perfil.TIENE_USUARIO_PASARELA],
-              ['contrasenaPasarela', 'Contraseña pasarela', perfil.TIENE_CONTRASENA_PASARELA],
-              ['tokenPasarela', 'Token pasarela', perfil.TIENE_TOKEN_PASARELA],
-              ['appCodeTokenization', 'APP_CODE_TOKENIZATION', perfil.TIENE_APP_CODE_TOKENIZATION],
-              ['appKeyTokenization', 'APP_KEY_TOKENIZATION', perfil.TIENE_APP_KEY_TOKENIZATION],
-              ['appCodeCheckout', 'APP_CODE_CHECKOUT', perfil.TIENE_APP_CODE_CHECKOUT],
-              ['appKeyCheckout', 'APP_KEY_CHECKOUT', perfil.TIENE_APP_KEY_CHECKOUT],
-            ] as const
-          ).map(([campo, etiqueta, configurada]) => (
-            <div key={campo}>
-              <label className={`${labelCls} flex items-center justify-between`}>
-                <span>{etiqueta}</span>
-                <span
-                  className={`text-[10px] font-semibold ${
-                    configurada ? 'text-success' : 'text-text-muted'
-                  }`}
-                >
-                  {configurada ? '● configurada' : '○ sin configurar'}
-                </span>
-              </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                placeholder={
-                  configurada
-                    ? '•••••• (escribir solo para reemplazar)'
-                    : 'Sin configurar — escribe el valor'
-                }
-                value={cred[campo]}
-                onChange={(e) =>
-                  setCred((c) => ({ ...c, [campo]: e.target.value }))
-                }
-                className={inputCls}
-              />
-            </div>
-          ))}
+              {proveedor.campos.map(([campo, etiqueta]) => {
+                const configurada = !!perfil[TIENE[campo]];
+                return (
+                  <div key={campo}>
+                    <label className={`${labelCls} flex items-center justify-between`}>
+                      <span>{etiqueta}</span>
+                      <span
+                        className={`text-[10px] font-semibold ${
+                          configurada ? 'text-success' : 'text-text-muted'
+                        }`}
+                      >
+                        {configurada ? '● configurada' : '○ sin configurar'}
+                      </span>
+                    </label>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder={
+                        configurada
+                          ? '•••••• (escribir solo para reemplazar)'
+                          : 'Sin configurar — escribe el valor'
+                      }
+                      value={cred[campo]}
+                      onChange={(e) =>
+                        setCred((c) => ({ ...c, [campo]: e.target.value }))
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
