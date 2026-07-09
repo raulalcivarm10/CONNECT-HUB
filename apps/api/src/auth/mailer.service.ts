@@ -54,15 +54,15 @@ export class MailerService {
       await this.transporter.sendMail({
         from: this.from,
         to: destino,
-        subject: 'CONNECT-HUB — Recuperación de contraseña',
+        subject: 'ConnectHub — Password recovery',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-            <h2 style="color:#7c3aed">CONNECT-HUB</h2>
-            <p>Hola ${nombre},</p>
-            <p>Recibimos una solicitud para restablecer tu contraseña. Tu contraseña temporal es:</p>
+            <h2 style="color:#7c3aed">ConnectHub</h2>
+            <p>Hi ${nombre},</p>
+            <p>We received a request to reset your password. Your temporary password is:</p>
             <p style="font-size:22px;font-weight:bold;letter-spacing:2px;background:#f1f5f9;padding:12px;border-radius:8px;text-align:center">${claveTemporal}</p>
-            <p>Al ingresar con ella, el sistema te pedirá crear una contraseña nueva.</p>
-            <p style="color:#64748b;font-size:12px">Si no solicitaste este cambio, ignora este correo.</p>
+            <p>When you sign in with it, the system will ask you to create a new password.</p>
+            <p style="color:#64748b;font-size:12px">If you didn't request this change, please ignore this email.</p>
           </div>`,
       });
       return true;
@@ -86,25 +86,25 @@ export class MailerService {
       await this.transporter.sendMail({
         from: this.from,
         to: destino,
-        subject: 'ConnectHub — Tu acceso a la plataforma',
+        subject: 'ConnectHub — Your platform access',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#0f172a">
             <h2 style="color:#7c3aed">ConnectHub</h2>
-            <p>Estimado/a ${nombre},</p>
-            <p>Se ha generado un usuario para la aplicación de ConnectHub. Sus credenciales de acceso son:</p>
+            <p>Dear ${nombre},</p>
+            <p>An account has been created for you on the ConnectHub platform. Your access credentials are:</p>
             <div style="background:#f1f5f9;padding:16px;border-radius:8px;margin:12px 0">
-              <p style="margin:4px 0"><b>Usuario:</b> ${usuario}</p>
-              <p style="margin:4px 0"><b>Contraseña:</b>
+              <p style="margin:4px 0"><b>Username:</b> ${usuario}</p>
+              <p style="margin:4px 0"><b>Password:</b>
                 <span style="font-weight:bold;letter-spacing:1px">${claveTemporal}</span>
               </p>
             </div>
-            <p>Ingresa a la plataforma aquí:</p>
+            <p>Sign in to the platform here:</p>
             <p style="text-align:center;margin:16px 0">
-              <a href="${this.appUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">Entrar a ConnectHub</a>
+              <a href="${this.appUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">Sign in to ConnectHub</a>
             </p>
             <p style="color:#64748b;font-size:13px">${this.appUrl}</p>
-            <p>Por seguridad, el sistema te pedirá crear una contraseña nueva al iniciar sesión por primera vez.</p>
-            <p style="color:#64748b;font-size:12px">Si no esperabas este correo, ignóralo.</p>
+            <p>For your security, you'll be asked to set a new password the first time you sign in.</p>
+            <p style="color:#64748b;font-size:12px">If you weren't expecting this email, please ignore it.</p>
           </div>`,
       });
       return true;
