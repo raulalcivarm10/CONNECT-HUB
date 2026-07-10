@@ -150,8 +150,20 @@ export function PerfilInstitucionForm({
           ? 'Perfil y credenciales de pasarela actualizados'
           : 'Perfil actualizado',
       );
+      // limpia los inputs write-only tras guardar
+      setCred({
+        usuarioPasarela: '',
+        contrasenaPasarela: '',
+        tokenPasarela: '',
+        appCodeTokenization: '',
+        appKeyTokenization: '',
+        appCodeCheckout: '',
+        appKeyCheckout: '',
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar');
+    } finally {
+      // libera el botón siempre (en Mi institución el form no se desmonta)
       setSending(false);
     }
   }
