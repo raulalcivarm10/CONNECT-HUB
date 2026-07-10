@@ -12,6 +12,7 @@ import { FinanzasModule } from './modules/finanzas/finanzas.module';
 import { EventosModule } from './modules/eventos/eventos.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
 import { FslWebhooksModule } from './modules/fsl-webhooks/fsl-webhooks.module';
+import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { FslWebhooksModule } from './modules/fsl-webhooks/fsl-webhooks.module';
     EventosModule,
     ReportesModule,
     FslWebhooksModule,
+    AuditoriaModule,
   ],
 })
 export class AppModule {}

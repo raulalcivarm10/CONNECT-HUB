@@ -79,11 +79,18 @@ export function Sidebar() {
               icon={IconUsers}
             />
             {user?.esSuper ? (
-              <NavLink
-                href="/panel/administracion/instituciones"
-                label={t('side.institutions')}
-                icon={IconBuilding}
-              />
+              <>
+                <NavLink
+                  href="/panel/administracion/instituciones"
+                  label={t('side.institutions')}
+                  icon={IconBuilding}
+                />
+                <NavLink
+                  href="/panel/administracion/auditoria"
+                  label={t('side.audit')}
+                  icon={IconChart}
+                />
+              </>
             ) : (
               <NavLink
                 href="/panel/administracion/mi-institucion"

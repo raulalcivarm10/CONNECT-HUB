@@ -14,6 +14,7 @@ import '@fastify/cookie';
 import { AuthService } from './auth.service';
 import { CambiarClaveDto, LoginDto, RecuperarDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RateLimitGuard } from './rate-limit.guard';
 import { CurrentUser } from './current-user.decorator';
 import { JwtUser } from './types';
 
@@ -38,6 +39,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @UseGuards(RateLimitGuard)
   @ApiOperation({ summary: 'Login con COD_USUARIO (correo) y contraseña' })
   async login(
     @Body() dto: LoginDto,
@@ -81,6 +83,7 @@ export class AuthController {
 
   @Post('recuperar')
   @HttpCode(200)
+  @UseGuards(RateLimitGuard)
   @ApiOperation({
     summary:
       'Olvidé mi contraseña: genera una temporal aleatoria y la envía por correo (fuerza cambio al ingresar)',
