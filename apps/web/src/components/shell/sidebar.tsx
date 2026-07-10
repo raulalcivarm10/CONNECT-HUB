@@ -133,6 +133,11 @@ export function Sidebar() {
               {t('side.events')}
             </div>
             <NavLink
+              href="/panel/reservas"
+              label={t('side.reservations')}
+              icon={IconVenue}
+            />
+            <NavLink
               href="/panel/eventos/calendario"
               label={t('side.calendar')}
               icon={IconCalendar}

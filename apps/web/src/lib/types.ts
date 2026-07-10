@@ -150,6 +150,7 @@ export interface EventoRow {
   DESTACADO: number;
   ORDEN_DESTACADO: number | null;
   COD_ITEM: string | null;
+  NO_PUBLICAR?: string | null;
   IMAGEN_URL: string | null;
   ID_LOCAL: number | null;
   ID_SALON: number | null;

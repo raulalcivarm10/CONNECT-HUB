@@ -536,6 +536,7 @@ function EventoForm({
     String(evento?.TIEMPO_CLEAN_MIN ?? 30),
   );
   const [destacado, setDestacado] = useState(evento?.DESTACADO === 1);
+  const [noPublicar, setNoPublicar] = useState(evento?.NO_PUBLICAR === 'S');
   const [ordenDestacado, setOrdenDestacado] = useState(
     evento?.ORDEN_DESTACADO ? String(evento.ORDEN_DESTACADO) : '',
   );
@@ -641,6 +642,7 @@ function EventoForm({
       tiempoSetupMin: Number(setupMin) || 0,
       tiempoCleanMin: Number(cleanMin) || 0,
       codItem: codItem.trim() || undefined,
+      noPublicar,
     };
     try {
       if (evento) {
@@ -798,6 +800,14 @@ function EventoForm({
               onChange={(e) => setDestacado(e.target.checked)}
             />
             {t('ev.featuredCheck')}
+          </label>
+          <label className="flex items-center gap-2 text-sm text-text-2">
+            <input
+              type="checkbox"
+              checked={noPublicar}
+              onChange={(e) => setNoPublicar(e.target.checked)}
+            />
+            {t('ev.privateCheck')}
           </label>
           {destacado && (
             <label className="flex items-center gap-2 text-sm text-text-2">

@@ -49,7 +49,7 @@ export class EventosService {
               TO_CHAR(e.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
               e.HORA_INICIO, e.HORA_FIN, e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN,
               e.PRECIO, e.PUBLICO_ESPERADO, e.DESTACADO, e.ORDEN_DESTACADO,
-              e.COD_ITEM, e.IMAGEN_URL, e.FECHA_REGISTRO,
+              e.COD_ITEM, e.NO_PUBLICAR, e.IMAGEN_URL, e.FECHA_REGISTRO,
               e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               l.NOMBRE AS LOCAL_NOMBRE, s.NOMBRE AS SALON_NOMBRE,
               ss.NOMBRE AS SUBSALON_NOMBRE, c.NOMBRE AS CONFIGURACION_NOMBRE,
@@ -247,11 +247,11 @@ export class EventosService {
            (TITULO, DESCRIPCION, FECHA_EVENTO, HORA_INICIO, HORA_FIN,
             ID_LOCAL, ID_SALON, ID_SUBSALON, ID_CONFIGURACION,
             PRECIO, PUBLICO_ESPERADO, TIEMPO_SETUP_MIN, TIEMPO_CLEAN_MIN,
-            COD_ITEM, IMAGEN_URL)
+            COD_ITEM, NO_PUBLICAR, IMAGEN_URL)
          VALUES
            (:titulo, :descripcion, TO_DATE(:fecha, 'YYYY-MM-DD'), :horaInicio, :horaFin,
             :idLocal, :idSalon, :idSubsalon, :idConfiguracion,
-            :precio, :publico, :setupMin, :cleanMin, :codItem, :imagenUrl)
+            :precio, :publico, :setupMin, :cleanMin, :codItem, :noPublicar, :imagenUrl)
          RETURNING ID_EVENTO INTO :out`,
         {
           titulo: dto.titulo,
@@ -271,6 +271,7 @@ export class EventosService {
           setupMin: dto.tiempoSetupMin ?? 0,
           cleanMin: dto.tiempoCleanMin ?? 0,
           codItem: dto.codItem ?? null,
+          noPublicar: dto.noPublicar ? 'S' : 'N',
           imagenUrl: dto.imagenUrl ?? null,
           out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
         },
@@ -391,6 +392,7 @@ export class EventosService {
            ID_LOCAL = :idLocal,
            ID_SALON = :idSalon,
            COD_ITEM = COALESCE(:codItem, COD_ITEM),
+           NO_PUBLICAR = COALESCE(:noPublicar, NO_PUBLICAR),
            ID_SUBSALON = :idSubsalon,
            ID_CONFIGURACION = :idConfiguracion,
            PRECIO = COALESCE(:precio, PRECIO),
@@ -408,6 +410,8 @@ export class EventosService {
           idLocal,
           idSalon: { val: idSalon ?? null, type: this.oracle.NUMBER },
           codItem: dto.codItem ?? null,
+          noPublicar:
+            dto.noPublicar === undefined ? null : dto.noPublicar ? 'S' : 'N',
           // binds numéricos nulos deben tiparse: si no, el driver los manda
           // como VARCHAR y Oracle lanza ORA-00932 dentro de COALESCE/NVL
           idSubsalon: { val: idSubsalon ?? null, type: this.oracle.NUMBER },
