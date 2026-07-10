@@ -5,7 +5,7 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { Observable, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { JwtUser } from '../../auth/types';
@@ -64,8 +64,13 @@ export class AuditoriaInterceptor implements NestInterceptor {
       });
     };
 
+    const res = ctx.switchToHttp().getResponse<FastifyReply>();
     return next.handle().pipe(
-      tap(() => registrar(200, false)),
+      tap(() => {
+        // con @Res el controlador fija el status manualmente (p. ej. webhooks)
+        const status = res.statusCode ?? 200;
+        registrar(status, status >= 400);
+      }),
       catchError((err: unknown) => {
         const status = err instanceof HttpException ? err.getStatus() : 500;
         const msg =

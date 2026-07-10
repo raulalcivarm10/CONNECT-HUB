@@ -19,6 +19,9 @@ interface FslEvent {
     };
     admin?: { email?: string; firstNames?: string; lastNames?: string };
     requester?: { email?: string; firstNames?: string; lastNames?: string };
+    // formato genérico de la plataforma FSL
+    customer?: { id?: string; email?: string; name?: string; locale?: string };
+    subscription?: { id?: string; demo?: boolean; expiresAt?: string };
   };
 }
 
@@ -89,8 +92,27 @@ export class FslWebhooksService {
       return { status: 200, body: { received: true, ignored: event.type } };
     }
 
-    const inst = event.data?.institution;
-    const admin = event.data?.admin;
+    let inst = event.data?.institution;
+    let admin = event.data?.admin;
+    // formato genérico FSL (data.customer): deriva institución/admin, y si la
+    // suscripción es demo/trial envía las credenciales del entorno demo
+    const customer = event.data?.customer;
+    if ((!inst?.name || !admin?.email) && customer?.email) {
+      const partes = (customer.name ?? '').trim().split(/\s+/).filter(Boolean);
+      const derivado = {
+        email: customer.email,
+        firstNames: partes[0] ?? customer.email,
+        lastNames: partes.slice(1).join(' ') || undefined,
+      };
+      if (event.data?.subscription?.demo) {
+        return this.procesarDemo(eventId, {
+          ...event,
+          data: { requester: derivado },
+        });
+      }
+      inst = inst?.name ? inst : { name: (customer.name ?? '').trim() || customer.email };
+      admin = admin?.email ? admin : derivado;
+    }
     if (!inst?.name || !admin?.email || !admin?.firstNames) {
       return {
         status: 400,
