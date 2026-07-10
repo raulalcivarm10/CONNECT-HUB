@@ -526,6 +526,10 @@ function EventoForm({
   const [horaInicio, setHoraInicio] = useState(evento?.HORA_INICIO ?? '09:00');
   const [horaFin, setHoraFin] = useState(evento?.HORA_FIN ?? '13:00');
   const [precio, setPrecio] = useState(String(evento?.PRECIO ?? '0'));
+  const [incluyeIva, setIncluyeIva] = useState(evento?.INCLUYE_IVA === 'S');
+  const [montoIva, setMontoIva] = useState(
+    evento?.MONTO_IVA != null ? String(evento.MONTO_IVA) : '',
+  );
   const [publico, setPublico] = useState(
     evento?.PUBLICO_ESPERADO ? String(evento.PUBLICO_ESPERADO) : '',
   );
@@ -638,6 +642,8 @@ function EventoForm({
           ? Number(idSubsalon)
           : undefined,
       precio: Number(precio) || 0,
+      incluyeIva,
+      montoIva: incluyeIva && montoIva ? Number(montoIva) : undefined,
       publicoEsperado: publico ? Number(publico) : undefined,
       tiempoSetupMin: Number(setupMin) || 0,
       tiempoCleanMin: Number(cleanMin) || 0,
@@ -705,6 +711,25 @@ function EventoForm({
           onChange={(e) => setPrecio(e.target.value)}
           className={inputCls}
         />
+        <label className="mt-2 flex items-center gap-2 text-sm text-text-2">
+          <input
+            type="checkbox"
+            checked={incluyeIva}
+            onChange={(e) => setIncluyeIva(e.target.checked)}
+          />
+          {t('ev.vatCheck')}
+        </label>
+        {incluyeIva && (
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder={t('ev.vatAmount')}
+            value={montoIva}
+            onChange={(e) => setMontoIva(e.target.value)}
+            className={`${inputCls} mt-2`}
+          />
+        )}
       </div>
 
       <div>
@@ -953,6 +978,8 @@ function EventoForm({
         </div>
       )}
 
+      {evento && <CuponesEvento idEvento={evento.ID_EVENTO} />}
+
       {(idLocal || idSalon) && (
         <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
           <div className="mb-2 text-sm font-medium text-text-2">
@@ -1042,5 +1069,121 @@ function EventoForm({
         </button>
       </div>
     </form>
+  );
+}
+
+interface CuponRow {
+  ID_CUPON: number;
+  CODIGO: string;
+  MONTO_DESCUENTO: number;
+}
+
+function CuponesEvento({ idEvento }: { idEvento: number }) {
+  const { t } = useI18n();
+  const dialogo = useDialogo();
+  const [cupones, setCupones] = useState<CuponRow[]>([]);
+  const [codigo, setCodigo] = useState('');
+  const [monto, setMonto] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCupones(await api.get<CuponRow[]>(`/eventos/${idEvento}/cupones`));
+  }, [idEvento]);
+
+  useEffect(() => {
+    cargar().catch((e) => setError(e.message));
+  }, [cargar]);
+
+  async function crear(e: FormEvent) {
+    e.preventDefault();
+    if (sending) return;
+    setError(null);
+    setSending(true);
+    try {
+      await api.post(`/eventos/${idEvento}/cupones`, {
+        codigo: codigo.trim(),
+        montoDescuento: Number(monto),
+      });
+      setCodigo('');
+      setMonto('');
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function eliminar(c: CuponRow) {
+    const ok = await dialogo.confirmar({
+      titulo: t('dlg.deleteTitle', { name: c.CODIGO }),
+      tono: 'danger',
+      confirmar: t('c.delete'),
+    });
+    if (!ok) return;
+    try {
+      await api.del(`/eventos/${idEvento}/cupones/${c.ID_CUPON}`);
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
+      <div className="mb-2 text-sm font-medium text-text-2">{t('cup.title')}</div>
+      <form onSubmit={crear} className="flex flex-wrap items-end gap-2">
+        <input
+          required
+          maxLength={50}
+          placeholder={t('cup.code')}
+          value={codigo}
+          onChange={(e) => setCodigo(e.target.value)}
+          className="min-w-40 flex-1 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
+        />
+        <input
+          required
+          type="number"
+          min={0.01}
+          step="0.01"
+          placeholder={t('cup.amount')}
+          value={monto}
+          onChange={(e) => setMonto(e.target.value)}
+          className="w-40 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
+        />
+        <button
+          disabled={sending}
+          className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {sending ? t('c.saving') : t('cup.add')}
+        </button>
+      </form>
+      {error && (
+        <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+      )}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {cupones.map((c) => (
+          <span
+            key={c.ID_CUPON}
+            className="flex items-center gap-2 rounded-full border border-border-app bg-surface px-3 py-1 text-xs"
+          >
+            <span className="font-mono font-semibold text-text">{c.CODIGO}</span>
+            <span className="text-success">-{money(c.MONTO_DESCUENTO)}</span>
+            <button
+              type="button"
+              onClick={() => eliminar(c)}
+              className="text-danger hover:opacity-70"
+              title={t('c.delete')}
+            >
+              &#10005;
+            </button>
+          </span>
+        ))}
+        {cupones.length === 0 && (
+          <span className="text-xs text-text-muted">{t('cup.empty')}</span>
+        )}
+      </div>
+    </div>
   );
 }

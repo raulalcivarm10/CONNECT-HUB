@@ -151,6 +151,8 @@ export interface EventoRow {
   ORDEN_DESTACADO: number | null;
   COD_ITEM: string | null;
   NO_PUBLICAR?: string | null;
+  INCLUYE_IVA?: string | null;
+  MONTO_IVA?: number | null;
   IMAGEN_URL: string | null;
   ID_LOCAL: number | null;
   ID_SALON: number | null;

@@ -25,11 +25,10 @@ type CredKey =
  */
 const PROVEEDORES: Record<
   string,
-  { label: string; nota: string; campos: [CredKey, string][] }
+  { label: string; campos: [CredKey, string][] }
 > = {
   NUVEI: {
     label: 'Nuvei',
-    nota: 'Credenciales de tokenización y checkout de Nuvei.',
     campos: [
       ['appCodeTokenization', 'App Code (tokenización)'],
       ['appKeyTokenization', 'App Key (tokenización)'],
@@ -41,7 +40,6 @@ const PROVEEDORES: Record<
   },
   PAYPAL: {
     label: 'PayPal',
-    nota: 'Credenciales de la app REST de PayPal (Developer Dashboard).',
     campos: [
       ['appCodeTokenization', 'Client ID'],
       ['appKeyTokenization', 'Client Secret'],
@@ -50,18 +48,32 @@ const PROVEEDORES: Record<
   },
   PAYPHONE: {
     label: 'PayPhone',
-    nota: 'Token y Store ID de la Cajita de Pagos de PayPhone.',
     campos: [
       ['tokenPasarela', 'API Token'],
       ['usuarioPasarela', 'Store ID'],
     ],
   },
-  KUSHKI: {
-    label: 'Kushki',
-    nota: 'Merchant IDs pública y privada de Kushki.',
+  STRIPE: {
+    label: 'Stripe',
     campos: [
-      ['appCodeTokenization', 'Public Merchant ID'],
-      ['appKeyTokenization', 'Private Merchant ID'],
+      ['appCodeTokenization', 'Publishable Key'],
+      ['appKeyTokenization', 'Secret Key'],
+      ['tokenPasarela', 'Webhook Signing Secret'],
+    ],
+  },
+  SQUARE: {
+    label: 'Square',
+    campos: [
+      ['appCodeTokenization', 'Application ID'],
+      ['appKeyTokenization', 'Access Token'],
+      ['usuarioPasarela', 'Location ID'],
+    ],
+  },
+  AUTHNET: {
+    label: 'Authorize.Net',
+    campos: [
+      ['appCodeTokenization', 'API Login ID'],
+      ['appKeyTokenization', 'Transaction Key'],
     ],
   },
 };

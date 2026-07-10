@@ -27,6 +27,7 @@ import { Roles } from '../../auth/roles.decorator';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { JwtUser, ROL } from '../../auth/types';
 import { EventosService } from './eventos.service';
+import { CrearCuponDto } from './dto/cupon.dto';
 import {
   CreateEventoDto,
   DestacarDto,
@@ -137,5 +138,34 @@ export class EventosController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.eventos.eliminarImagen(user, id);
+  }
+
+  @Get(':id/cupones')
+  @ApiOperation({ summary: 'Cupones de descuento del evento' })
+  listarCupones(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.eventos.listarCupones(user, id);
+  }
+
+  @Post(':id/cupones')
+  @ApiOperation({ summary: 'Crear cupón de descuento (código único por evento)' })
+  crearCupon(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CrearCuponDto,
+  ) {
+    return this.eventos.crearCupon(user, id, dto);
+  }
+
+  @Delete(':id/cupones/:idCupon')
+  @ApiOperation({ summary: 'Eliminar cupón de descuento' })
+  eliminarCupon(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idCupon', ParseIntPipe) idCupon: number,
+  ) {
+    return this.eventos.eliminarCupon(user, id, idCupon);
   }
 }

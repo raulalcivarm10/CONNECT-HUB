@@ -9,6 +9,7 @@ import { JwtUser } from '../../auth/types';
 import { ScopeService } from '../operativa/scope.service';
 import { ArchivosService } from '../archivos/archivos.service';
 import { CreateEventoDto, UpdateEventoDto } from './dto/evento.dto';
+import { CrearCuponDto } from './dto/cupon.dto';
 
 const TIPOS_IMAGEN_EVENTO = ['PORTADA', 'BANNER', 'GALERIA'];
 const MIMES_IMAGEN = ['image/jpeg', 'image/png', 'image/webp'];
@@ -49,7 +50,8 @@ export class EventosService {
               TO_CHAR(e.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
               e.HORA_INICIO, e.HORA_FIN, e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN,
               e.PRECIO, e.PUBLICO_ESPERADO, e.DESTACADO, e.ORDEN_DESTACADO,
-              e.COD_ITEM, e.NO_PUBLICAR, e.IMAGEN_URL, e.FECHA_REGISTRO,
+              e.COD_ITEM, e.NO_PUBLICAR, e.INCLUYE_IVA, e.MONTO_IVA,
+              e.IMAGEN_URL, e.FECHA_REGISTRO,
               e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               l.NOMBRE AS LOCAL_NOMBRE, s.NOMBRE AS SALON_NOMBRE,
               ss.NOMBRE AS SUBSALON_NOMBRE, c.NOMBRE AS CONFIGURACION_NOMBRE,
@@ -247,11 +249,12 @@ export class EventosService {
            (TITULO, DESCRIPCION, FECHA_EVENTO, HORA_INICIO, HORA_FIN,
             ID_LOCAL, ID_SALON, ID_SUBSALON, ID_CONFIGURACION,
             PRECIO, PUBLICO_ESPERADO, TIEMPO_SETUP_MIN, TIEMPO_CLEAN_MIN,
-            COD_ITEM, NO_PUBLICAR, IMAGEN_URL)
+            COD_ITEM, NO_PUBLICAR, INCLUYE_IVA, MONTO_IVA, IMAGEN_URL)
          VALUES
            (:titulo, :descripcion, TO_DATE(:fecha, 'YYYY-MM-DD'), :horaInicio, :horaFin,
             :idLocal, :idSalon, :idSubsalon, :idConfiguracion,
-            :precio, :publico, :setupMin, :cleanMin, :codItem, :noPublicar, :imagenUrl)
+            :precio, :publico, :setupMin, :cleanMin, :codItem, :noPublicar,
+            :incluyeIva, :montoIva, :imagenUrl)
          RETURNING ID_EVENTO INTO :out`,
         {
           titulo: dto.titulo,
@@ -272,6 +275,11 @@ export class EventosService {
           cleanMin: dto.tiempoCleanMin ?? 0,
           codItem: dto.codItem ?? null,
           noPublicar: dto.noPublicar ? 'S' : 'N',
+          incluyeIva: dto.incluyeIva ? 'S' : 'N',
+          montoIva: {
+            val: dto.incluyeIva ? (dto.montoIva ?? null) : null,
+            type: this.oracle.NUMBER,
+          },
           imagenUrl: dto.imagenUrl ?? null,
           out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
         },
@@ -393,6 +401,9 @@ export class EventosService {
            ID_SALON = :idSalon,
            COD_ITEM = COALESCE(:codItem, COD_ITEM),
            NO_PUBLICAR = COALESCE(:noPublicar, NO_PUBLICAR),
+           INCLUYE_IVA = COALESCE(:incluyeIva, INCLUYE_IVA),
+           MONTO_IVA = CASE WHEN :incluyeIva = 'N' THEN NULL
+                            ELSE COALESCE(:montoIva, MONTO_IVA) END,
            ID_SUBSALON = :idSubsalon,
            ID_CONFIGURACION = :idConfiguracion,
            PRECIO = COALESCE(:precio, PRECIO),
@@ -412,6 +423,9 @@ export class EventosService {
           codItem: dto.codItem ?? null,
           noPublicar:
             dto.noPublicar === undefined ? null : dto.noPublicar ? 'S' : 'N',
+          incluyeIva:
+            dto.incluyeIva === undefined ? null : dto.incluyeIva ? 'S' : 'N',
+          montoIva: { val: dto.montoIva ?? null, type: this.oracle.NUMBER },
           // binds numéricos nulos deben tiparse: si no, el driver los manda
           // como VARCHAR y Oracle lanza ORA-00932 dentro de COALESCE/NVL
           idSubsalon: { val: idSubsalon ?? null, type: this.oracle.NUMBER },
@@ -594,5 +608,52 @@ export class EventosService {
         ORDER BY e.HORA_INICIO`,
       { id: filtro.idSalon ?? filtro.idLocal!, fecha },
     );
+  }
+
+  async listarCupones(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    return this.oracle.query(
+      `SELECT ID_CUPON, ID_EVENTO, CODIGO, MONTO_DESCUENTO, ACTIVO,
+              TO_CHAR(FECHA_REGISTRO, 'YYYY-MM-DD') AS FECHA_REGISTRO
+         FROM EVENTO_CUPONES
+        WHERE ID_EVENTO = :id
+        ORDER BY ID_CUPON DESC`,
+      { id: idEvento },
+    );
+  }
+
+  async crearCupon(actor: JwtUser, idEvento: number, dto: CrearCuponDto) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const codigo = dto.codigo.trim().toUpperCase();
+    try {
+      const r = await this.oracle.execute(
+        `INSERT INTO EVENTO_CUPONES (ID_EVENTO, CODIGO, MONTO_DESCUENTO)
+         VALUES (:id, :codigo, :monto) RETURNING ID_CUPON INTO :out`,
+        {
+          id: idEvento,
+          codigo,
+          monto: dto.montoDescuento,
+          out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
+        },
+      );
+      return { idCupon: (r.outBinds as { out: number[] }).out[0], codigo };
+    } catch (err) {
+      if (String(err).includes('ORA-00001')) {
+        throw new ConflictException(
+          'Ya existe un cupón con ese código en este evento',
+        );
+      }
+      throw err;
+    }
+  }
+
+  async eliminarCupon(actor: JwtUser, idEvento: number, idCupon: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const r = await this.oracle.execute(
+      `DELETE FROM EVENTO_CUPONES WHERE ID_CUPON = :c AND ID_EVENTO = :e`,
+      { c: idCupon, e: idEvento },
+    );
+    if (!r.rowsAffected) throw new NotFoundException('Cupón no encontrado');
+    return { eliminado: idCupon };
   }
 }

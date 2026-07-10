@@ -63,6 +63,12 @@ export class CreateEventoDto {
   @ApiPropertyOptional({ description: 'true = evento privado, no se publica en la app' })
   @IsOptional() @IsBoolean() noPublicar?: boolean;
 
+  @ApiPropertyOptional({ description: 'El precio incluye IVA' })
+  @IsOptional() @IsBoolean() incluyeIva?: boolean;
+
+  @ApiPropertyOptional({ description: 'Monto del IVA' })
+  @IsOptional() @IsNumber() @Min(0) montoIva?: number;
+
   @ApiPropertyOptional({ description: 'URL de imagen (hasta integrar el NAS)' })
   @IsOptional() @IsString() @MaxLength(500) imagenUrl?: string;
 }
@@ -84,6 +90,10 @@ export class UpdateEventoDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) codItem?: string;
 
   @ApiPropertyOptional() @IsOptional() @IsBoolean() noPublicar?: boolean;
+
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() incluyeIva?: boolean;
+
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) montoIva?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) imagenUrl?: string;
 
   @ApiPropertyOptional({
