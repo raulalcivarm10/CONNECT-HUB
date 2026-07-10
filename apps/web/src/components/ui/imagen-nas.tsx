@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { FORMATOS_LEYENDA, validarImagen } from '@/lib/imagenes';
 import { useLightbox } from '@/lib/lightbox';
+import { useI18n } from '@/lib/i18n';
 import { useDialogo } from '@/lib/dialogo';
 
 /**
@@ -43,14 +44,15 @@ export function ImagenNas({
   const inputRef = useRef<HTMLInputElement>(null);
   const lightbox = useLightbox();
   const dialogo = useDialogo();
+  const { t } = useI18n();
   const src = nasImagenUrl(tipoEntidad, id, tipoArchivo, version);
 
   async function eliminarImagen() {
     if (!deletePath || subiendo) return;
     const ok = await dialogo.confirmar({
-      titulo: '¿Quitar la imagen de este elemento?',
+      titulo: t('img.confirmDelete'),
       tono: 'warning',
-      confirmar: 'Quitar',
+      confirmar: t('c.delete'),
     });
     if (!ok) return;
     setError(null);
@@ -63,7 +65,7 @@ export function ImagenNas({
       onChanged?.();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'No se pudo eliminar la imagen',
+        err instanceof Error ? err.message : t('img.deleteError'),
       );
     } finally {
       setSubiendo(false);
@@ -92,7 +94,7 @@ export function ImagenNas({
       setError(
         err instanceof Error
           ? err.message
-          : 'No se pudo subir la imagen. Inténtalo de nuevo.',
+          : t('img.uploadError'),
       );
     } finally {
       setSubiendo(false);
@@ -132,14 +134,14 @@ export function ImagenNas({
               disabled={subiendo}
               className="rounded-lg border border-border-app px-2 py-1 text-xs text-text-2 transition hover:bg-surface-2 disabled:opacity-50"
             >
-              {subiendo ? 'Procesando…' : etiqueta}
+              {subiendo ? t('img.processing') : etiqueta}
             </button>
             {deletePath && tieneImagen && (
               <button
                 type="button"
                 onClick={eliminarImagen}
                 disabled={subiendo}
-                title="Quitar imagen"
+                title={t('img.remove')}
                 className="rounded-lg border border-border-app px-1.5 py-1 text-xs text-danger transition hover:bg-surface-2 disabled:opacity-50"
               >
                 ✕

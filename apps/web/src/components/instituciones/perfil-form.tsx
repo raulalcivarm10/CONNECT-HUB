@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { api } from '@/lib/api/client';
+import { useI18n } from '@/lib/i18n';
 import type { PerfilInstitucion } from '@/lib/types';
 
 const inputCls =
@@ -88,6 +89,7 @@ export function PerfilInstitucionForm({
   onSaved: (msg: string) => void;
   onCancel?: () => void;
 }) {
+  const { t } = useI18n();
   const [nombre, setNombre] = useState(perfil.NOMBRE ?? '');
   const [direccion, setDireccion] = useState(perfil.DIRECCION ?? '');
   const [ciudad, setCiudad] = useState(perfil.CIUDAD ?? '');
@@ -146,9 +148,7 @@ export function PerfilInstitucionForm({
         ...credenciales,
       });
       onSaved(
-        Object.keys(credenciales).length
-          ? 'Perfil y credenciales de pasarela actualizados'
-          : 'Perfil actualizado',
+        Object.keys(credenciales).length ? t('pf.savedCreds') : t('pf.saved'),
       );
       // limpia los inputs write-only tras guardar
       setCred({
@@ -161,7 +161,7 @@ export function PerfilInstitucionForm({
         appKeyCheckout: '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
+      setError(err instanceof Error ? err.message : 'Error');
     } finally {
       // libera el botón siempre (en Mi institución el form no se desmonta)
       setSending(false);
@@ -174,27 +174,27 @@ export function PerfilInstitucionForm({
       className="grid gap-4 rounded-2xl border border-border-app bg-surface p-5 sm:grid-cols-2 lg:grid-cols-3"
     >
       <div className="sm:col-span-2">
-        <label className={labelCls}>Nombre de la institución</label>
+        <label className={labelCls}>{t('pf.name')}</label>
         <input required maxLength={150} value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
       </div>
       <div>
-        <label className={labelCls}>Código de conexión</label>
+        <label className={labelCls}>{t('pf.connCode')}</label>
         <input maxLength={20} value={codigoConexion} onChange={(e) => setCodigoConexion(e.target.value)} className={inputCls} />
       </div>
       <div className="sm:col-span-2">
-        <label className={labelCls}>Dirección</label>
+        <label className={labelCls}>{t('pf.address')}</label>
         <input maxLength={250} value={direccion} onChange={(e) => setDireccion(e.target.value)} className={inputCls} />
       </div>
       <div>
-        <label className={labelCls}>Ciudad</label>
+        <label className={labelCls}>{t('pf.city')}</label>
         <input maxLength={100} value={ciudad} onChange={(e) => setCiudad(e.target.value)} className={inputCls} />
       </div>
       <div>
-        <label className={labelCls}>País</label>
+        <label className={labelCls}>{t('pf.country')}</label>
         <input maxLength={100} value={pais} onChange={(e) => setPais(e.target.value)} className={inputCls} />
       </div>
       <div>
-        <label className={labelCls}>Proveedor de pago</label>
+        <label className={labelCls}>{t('pf.provider')}</label>
         <select
           value={proveedorPago}
           onChange={(e) => setProveedorPago(e.target.value)}
@@ -208,21 +208,21 @@ export function PerfilInstitucionForm({
         </select>
       </div>
       <div>
-        <label className={labelCls}>Ambiente de pago</label>
+        <label className={labelCls}>{t('pf.environment')}</label>
         <select value={paymentEnvironment} onChange={(e) => setPaymentEnvironment(e.target.value)} className={inputCls}>
-          <option value="">Sin definir</option>
-          <option value="stg">Pruebas (sandbox)</option>
-          <option value="prod">Producción</option>
+          <option value="">{t('pf.envNone')}</option>
+          <option value="stg">{t('pf.envStg')}</option>
+          <option value="prod">{t('pf.envProd')}</option>
         </select>
       </div>
       {proveedorPago === 'NUVEI' && (
         <>
           <div className="sm:col-span-2 lg:col-span-1">
-            <label className={labelCls}>URL código de pago</label>
+            <label className={labelCls}>{t('pf.urlCode')}</label>
             <input maxLength={500} value={urlCodPago} onChange={(e) => setUrlCodPago(e.target.value)} className={inputCls} />
           </div>
           <div className="sm:col-span-2">
-            <label className={labelCls}>URL proceso de pago</label>
+            <label className={labelCls}>{t('pf.urlProcess')}</label>
             <input maxLength={500} value={urlProcesoPago} onChange={(e) => setUrlProcesoPago(e.target.value)} className={inputCls} />
           </div>
         </>
@@ -234,15 +234,17 @@ export function PerfilInstitucionForm({
           onClick={() => setVerCredenciales((v) => !v)}
           className="text-sm font-semibold text-brand hover:underline"
         >
-          {verCredenciales ? '▾' : '▸'} Credenciales de {proveedor.label} (
-          {configuradasProv} de {proveedor.campos.length} configuradas)
+          {verCredenciales ? '▾' : '▸'}{' '}
+          {t('pf.creds', {
+            prov: proveedor.label,
+            n: configuradasProv,
+            total: proveedor.campos.length,
+          })}
         </button>
         {verCredenciales && (
           <>
             <p className="mb-2 mt-2 text-xs text-text-muted">
-              {proveedor.nota} Por seguridad los valores guardados nunca se
-              muestran: escribe solo los que quieras registrar o reemplazar y
-              guarda.
+              {t(`pf.note${proveedorPago}`)} {t('pf.credsHint')}
             </p>
             <div className="grid gap-3 rounded-lg border border-border-app bg-surface-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
               {proveedor.campos.map(([campo, etiqueta]) => {
@@ -256,16 +258,14 @@ export function PerfilInstitucionForm({
                           configurada ? 'text-success' : 'text-text-muted'
                         }`}
                       >
-                        {configurada ? '● configurada' : '○ sin configurar'}
+                        {configurada ? t('pf.configured') : t('pf.notConfigured')}
                       </span>
                     </label>
                     <input
                       type="password"
                       autoComplete="new-password"
                       placeholder={
-                        configurada
-                          ? '•••••• (escribir solo para reemplazar)'
-                          : 'Sin configurar — escribe el valor'
+                        configurada ? t('pf.replacePh') : t('pf.setPh')
                       }
                       value={cred[campo]}
                       onChange={(e) =>
@@ -293,7 +293,7 @@ export function PerfilInstitucionForm({
           disabled={sending}
           className="rounded-lg bg-brand px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
-          {sending ? 'Guardando…' : 'Guardar perfil'}
+          {sending ? t('c.saving') : t('pf.saveProfile')}
         </button>
         {onCancel && (
           <button
@@ -301,7 +301,7 @@ export function PerfilInstitucionForm({
             onClick={onCancel}
             className="rounded-lg border border-border-app px-4 py-2 text-text-2 hover:bg-surface-2"
           >
-            Cancelar
+            {t('c.cancel')}
           </button>
         )}
       </div>

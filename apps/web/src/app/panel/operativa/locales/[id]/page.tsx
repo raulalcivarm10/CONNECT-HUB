@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { useDialogo } from '@/lib/dialogo';
+import { useI18n } from '@/lib/i18n';
 import type { ConfiguracionRow, SalonRow, SubsalonRow } from '@/lib/types';
 
 export default function LocalDetallePage() {
@@ -14,6 +15,7 @@ export default function LocalDetallePage() {
   const idLocal = Number(params.id);
   const nombreLocal = search.get('nombre') ?? `Local ${idLocal}`;
   const dialogo = useDialogo();
+  const { t } = useI18n();
 
   const [salones, setSalones] = useState<SalonRow[]>([]);
   const [abierto, setAbierto] = useState<number | null>(null);
@@ -31,10 +33,10 @@ export default function LocalDetallePage() {
 
   async function eliminar(s: SalonRow) {
     const ok = await dialogo.confirmar({
-      titulo: `¿Eliminar «${s.NOMBRE}»?`,
-      mensaje: 'Esta acción no se puede deshacer.',
+      titulo: t('dlg.deleteTitle', { name: s.NOMBRE }),
+      mensaje: t('dlg.deleteMsg'),
       tono: 'danger',
-      confirmar: 'Eliminar',
+      confirmar: t('c.delete'),
     });
     if (!ok) return;
     setError(null);
@@ -50,13 +52,13 @@ export default function LocalDetallePage() {
     <div>
       <div className="mb-1 text-sm text-text-muted">
         <Link href="/panel/operativa/locales" className="hover:text-brand">
-          Locales
+          {t('loc.title')}
         </Link>{' '}
         / {nombreLocal}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-text">
-          Salones de {nombreLocal}
+          {t('sal.title', { name: nombreLocal })}
         </h1>
         <button
           onClick={() => {
@@ -65,7 +67,7 @@ export default function LocalDetallePage() {
           }}
           className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
         >
-          {showForm && !editar ? 'Cerrar' : '+ Nuevo salón'}
+          {showForm && !editar ? t('c.close') : t('sal.new')}
         </button>
       </div>
 
@@ -106,7 +108,7 @@ export default function LocalDetallePage() {
                   tipoArchivo="CROQUIS"
                   uploadPath={`/salones/${s.ID_SALON}/imagen`}
                   deletePath={`/salones/${s.ID_SALON}/imagen`}
-                  etiqueta="Imagen"
+                  etiqueta={t('sal.img')}
                   className="h-14 w-20"
                 />
                 <div>
@@ -114,14 +116,16 @@ export default function LocalDetallePage() {
                     {s.NOMBRE}
                     {s.ES_SUBDIVISIBLE === 'S' && (
                       <span className="ml-2 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand">
-                        SUBDIVISIBLE
+                        {t('sal.subdividable')}
                       </span>
                     )}
                   </div>
                   <div className="text-sm text-text-2">
-                    Capacidad: {s.CAPACIDAD_MAX ?? 's/d'} · Subsalones:{' '}
-                    {s.TOTAL_SUBSALONES} · Configuraciones:{' '}
-                    {s.TOTAL_CONFIGURACIONES}
+                    {t('sal.stats', {
+                      cap: s.CAPACIDAD_MAX ?? 's/d',
+                      subs: s.TOTAL_SUBSALONES,
+                      confs: s.TOTAL_CONFIGURACIONES,
+                    })}
                   </div>
                 </div>
               </div>
@@ -132,7 +136,7 @@ export default function LocalDetallePage() {
                   }
                   className="rounded-lg bg-brand/10 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand/20"
                 >
-                  {abierto === s.ID_SALON ? 'Cerrar' : 'Gestionar'}
+                  {abierto === s.ID_SALON ? t('c.close') : t('sal.manage')}
                 </button>
                 <button
                   onClick={() => {
@@ -141,13 +145,13 @@ export default function LocalDetallePage() {
                   }}
                   className="rounded-lg border border-border-app px-3 py-1 text-xs text-text-2 hover:bg-surface-2"
                 >
-                  Editar
+                  {t('c.edit')}
                 </button>
                 <button
                   onClick={() => eliminar(s)}
                   className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
                 >
-                  Eliminar
+                  {t('c.delete')}
                 </button>
               </div>
             </div>
@@ -156,7 +160,7 @@ export default function LocalDetallePage() {
         ))}
         {salones.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border-app bg-surface p-10 text-center text-text-muted">
-            Este local aún no tiene salones
+            {t('sal.empty')}
           </div>
         )}
       </div>
@@ -175,6 +179,7 @@ function SalonForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [nombre, setNombre] = useState(salon?.NOMBRE ?? '');
   const [capacidad, setCapacidad] = useState(
     salon?.CAPACIDAD_MAX ? String(salon.CAPACIDAD_MAX) : '',
@@ -211,7 +216,7 @@ function SalonForm({
     >
       <div className="min-w-48 flex-1">
         <label className="mb-1 block text-sm font-medium text-text-2">
-          Nombre del salón
+          {t('sal.name')}
         </label>
         <input
           required
@@ -222,7 +227,7 @@ function SalonForm({
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-text-2">
-          Capacidad máx.
+          {t('sal.maxCap')}
         </label>
         <input
           type="number"
@@ -238,21 +243,21 @@ function SalonForm({
           checked={subdivisible}
           onChange={(e) => setSubdivisible(e.target.checked)}
         />
-        Subdivisible
+        {t('sal.subdivCheck')}
       </label>
       <button
         type="submit"
         disabled={sending}
         className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
       >
-        {salon ? 'Guardar' : 'Crear salón'}
+        {salon ? t('c.save') : t('sal.create')}
       </button>
       <button
         type="button"
         onClick={onCancel}
         className="rounded-lg border border-border-app px-3 py-2 text-sm text-text-2 hover:bg-surface-2"
       >
-        Cancelar
+        {t('c.cancel')}
       </button>
       {error && (
         <p className="w-full rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -264,21 +269,22 @@ function SalonForm({
 }
 
 function SalonPanel({ salon }: { salon: SalonRow }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<'subsalones' | 'configuraciones'>('subsalones');
   return (
     <div className="border-t border-border-app p-4">
       <div className="mb-3 flex gap-2">
-        {(['subsalones', 'configuraciones'] as const).map((t) => (
+        {(['subsalones', 'configuraciones'] as const).map((tk) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-3 py-1 text-sm capitalize transition ${
-              tab === t
+            key={tk}
+            onClick={() => setTab(tk)}
+            className={`rounded-full px-3 py-1 text-sm transition ${
+              tab === tk
                 ? 'bg-brand/15 font-semibold text-brand'
                 : 'text-text-2 hover:bg-surface-2'
             }`}
           >
-            {t}
+            {tk === 'subsalones' ? t('sal.tabSubs') : t('sal.tabConfigs')}
           </button>
         ))}
       </div>
@@ -293,6 +299,7 @@ function SalonPanel({ salon }: { salon: SalonRow }) {
 
 function SubsalonesPanel({ idSalon }: { idSalon: number }) {
   const dialogo = useDialogo();
+  const { t } = useI18n();
   const [items, setItems] = useState<SubsalonRow[]>([]);
   const [nombre, setNombre] = useState('');
   const [capacidad, setCapacidad] = useState('');
@@ -330,10 +337,10 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
 
   async function eliminar(id: number, nombre: string) {
     const ok = await dialogo.confirmar({
-      titulo: `¿Eliminar «${nombre}»?`,
-      mensaje: 'Esta acción no se puede deshacer.',
+      titulo: t('dlg.deleteTitle', { name: nombre }),
+      mensaje: t('dlg.deleteMsg'),
       tono: 'danger',
-      confirmar: 'Eliminar',
+      confirmar: t('c.delete'),
     });
     if (!ok) return;
     setError(null);
@@ -350,7 +357,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
       <form onSubmit={crear} className="mb-3 flex flex-wrap items-end gap-2">
         <input
           required
-          placeholder="Nombre del subsalón"
+          placeholder={t('sal.subName')}
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           className="min-w-48 flex-1 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-brand"
@@ -358,7 +365,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
         <input
           type="number"
           min={1}
-          placeholder="Capacidad"
+          placeholder={t('sal.capacity')}
           value={capacidad}
           onChange={(e) => setCapacidad(e.target.value)}
           className="w-28 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-brand"
@@ -367,7 +374,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
           disabled={sending}
           className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
-          {sending ? 'Agregando…' : '+ Agregar'}
+          {sending ? t('sal.adding') : t('sal.add')}
         </button>
       </form>
       {error && (
@@ -386,7 +393,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
           />
         ))}
         {items.length === 0 && (
-          <p className="text-sm text-text-muted">Sin subsalones</p>
+          <p className="text-sm text-text-muted">{t('sal.noSubs')}</p>
         )}
       </div>
     </div>
@@ -404,6 +411,7 @@ function SubsalonItem({
   onGuardado: () => void;
   onError: (msg: string) => void;
 }) {
+  const { t } = useI18n();
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(subsalon.NOMBRE);
   const [capacidad, setCapacidad] = useState(
@@ -453,7 +461,7 @@ function SubsalonItem({
           disabled={sending}
           className="text-xs font-semibold text-brand hover:underline disabled:opacity-50"
         >
-          {sending ? '…' : 'Guardar'}
+          {sending ? '…' : t('c.save')}
         </button>
         <button
           type="button"
@@ -490,10 +498,10 @@ function SubsalonItem({
           onClick={() => setEditando(true)}
           className="text-xs text-brand hover:underline"
         >
-          Editar
+          {t('c.edit')}
         </button>
         <button onClick={onEliminar} className="text-xs text-danger hover:underline">
-          Eliminar
+          {t('c.delete')}
         </button>
       </span>
     </div>
@@ -502,6 +510,7 @@ function SubsalonItem({
 
 function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
   const dialogo = useDialogo();
+  const { t } = useI18n();
   const [items, setItems] = useState<ConfiguracionRow[]>([]);
   const [subsalones, setSubsalones] = useState<SubsalonRow[]>([]);
   const [nombre, setNombre] = useState('');
@@ -587,10 +596,10 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
 
   async function eliminar(id: number, nombre: string) {
     const ok = await dialogo.confirmar({
-      titulo: `¿Eliminar «${nombre}»?`,
-      mensaje: 'Esta acción no se puede deshacer.',
+      titulo: t('dlg.deleteTitle', { name: nombre }),
+      mensaje: t('dlg.deleteMsg'),
       tono: 'danger',
-      confirmar: 'Eliminar',
+      confirmar: t('c.delete'),
     });
     if (!ok) return;
     setError(null);
@@ -610,13 +619,13 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
       >
         {editando && (
           <div className="mb-2 text-xs font-semibold text-brand">
-            Editando «{editando.NOMBRE}»
+            {t('sal.editing', { name: editando.NOMBRE ?? '' })}
           </div>
         )}
         <div className="flex flex-wrap items-end gap-2">
           <input
             required
-            placeholder="Nombre de la configuración (p. ej. Salón A+B)"
+            placeholder={t('sal.cfgName')}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             className="min-w-56 flex-1 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
@@ -626,10 +635,10 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
             className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             {sending
-              ? 'Guardando…'
+              ? t('c.saving')
               : editando
-                ? 'Guardar cambios'
-                : '+ Crear configuración'}
+                ? t('sal.cfgSave')
+                : t('sal.cfgCreate')}
           </button>
           {editando && (
             <button
@@ -637,7 +646,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
               onClick={cancelarEdicion}
               className="rounded-lg border border-border-app px-3 py-2 text-sm text-text-2 hover:bg-surface"
             >
-              Cancelar
+              {t('c.cancel')}
             </button>
           )}
         </div>
@@ -658,7 +667,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
           ))}
           {subsalones.length === 0 && (
             <span className="text-xs text-text-muted">
-              Crea subsalones primero para combinarlos
+              {t('sal.cfgFirst')}
             </span>
           )}
         </div>
@@ -687,7 +696,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
               <span className="min-w-0">
                 <span className="font-medium text-text">{c.NOMBRE}</span>
                 <span className="ml-2 text-xs text-text-muted">
-                  {c.SUBSALONES_NOMBRES ?? 'sin subsalones'}
+                  {c.SUBSALONES_NOMBRES ?? t('sal.cfgNoSubs')}
                 </span>
               </span>
             </div>
@@ -696,21 +705,21 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
                 onClick={() => toggleActivo(c)}
                 className={`text-xs font-semibold ${c.ACTIVO === 'Y' ? 'text-success' : 'text-text-muted'}`}
               >
-                {c.ACTIVO === 'Y' ? '● Activa' : '○ Inactiva'}
+                {c.ACTIVO === 'Y' ? t('sal.active') : t('sal.inactive')}
               </button>
               <button
                 onClick={() => empezarEdicion(c)}
                 className="text-xs text-brand hover:underline"
               >
-                Editar
+                {t('c.edit')}
               </button>
               <button
                 onClick={() =>
-                  eliminar(c.ID_CONFIGURACION, c.NOMBRE ?? 'esta configuración')
+                  eliminar(c.ID_CONFIGURACION, c.NOMBRE ?? t('sal.thisCfg'))
                 }
                 className="text-xs text-danger hover:underline"
               >
-                Eliminar
+                {t('c.delete')}
               </button>
             </div>
           </div>

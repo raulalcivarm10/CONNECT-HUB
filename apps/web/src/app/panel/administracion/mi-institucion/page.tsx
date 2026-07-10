@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useI18n } from '@/lib/i18n';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
 import type { PerfilInstitucion } from '@/lib/types';
 
 export default function MiInstitucionPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [perfil, setPerfil] = useState<PerfilInstitucion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function MiInstitucionPage() {
   if (user?.idInstitucion == null) {
     return (
       <p className="text-text-muted">
-        Como superadmin gestiona los perfiles desde la página Instituciones.
+        {t('mi.superHint')}
       </p>
     );
   }
@@ -43,15 +45,15 @@ export default function MiInstitucionPage() {
           tipoArchivo="LOGO"
           uploadPath={`/instituciones/${user.idInstitucion}/logo`}
           deletePath={`/instituciones/${user.idInstitucion}/logo`}
-          etiqueta="Cambiar logo"
+          etiqueta={t('mi.changeLogo')}
           className="h-16 w-16"
         />
         <div>
           <h1 className="text-2xl font-bold text-text">
-            {perfil?.NOMBRE ?? 'Mi institución'}
+            {perfil?.NOMBRE ?? t('mi.title')}
           </h1>
           <p className="text-sm text-text-2">
-            Perfil de la institución — edita sus datos y guarda.
+            {t('mi.subtitle')}
           </p>
         </div>
       </div>
@@ -77,7 +79,7 @@ export default function MiInstitucionPage() {
             }}
           />
         ) : (
-          <p className="text-text-muted">Cargando…</p>
+          <p className="text-text-muted">{t('c.loading')}</p>
         )}
       </div>
     </div>
