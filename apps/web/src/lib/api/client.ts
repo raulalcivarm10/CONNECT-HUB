@@ -50,12 +50,43 @@ async function request<T>(
   return body as T;
 }
 
+/**
+ * Política global: todo texto ingresado se guarda en MAYÚSCULAS.
+ * Se excluyen campos sensibles o técnicos donde el case importa:
+ * contraseñas, credenciales de pasarela, tokens/keys, URLs y el
+ * código de conexión (lo genera el sistema en minúsculas).
+ */
+const SIN_MAYUSCULAS =
+  /pass|clave|pasarela|appcode|appkey|key|token|secret|url|codigoconexion/i;
+
+function aMayusculas(valor: unknown, clave = ''): unknown {
+  if (typeof valor === 'string') {
+    return SIN_MAYUSCULAS.test(clave) ? valor : valor.toUpperCase();
+  }
+  if (Array.isArray(valor)) return valor.map((v) => aMayusculas(v, clave));
+  if (valor && typeof valor === 'object') {
+    return Object.fromEntries(
+      Object.entries(valor as Record<string, unknown>).map(([k, v]) => [
+        k,
+        aMayusculas(v, k),
+      ]),
+    );
+  }
+  return valor;
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(data ?? {}) }),
+    request<T>(path, {
+      method: 'POST',
+      body: JSON.stringify(aMayusculas(data ?? {})),
+    }),
   patch: <T>(path: string, data?: unknown) =>
-    request<T>(path, { method: 'PATCH', body: JSON.stringify(data ?? {}) }),
+    request<T>(path, {
+      method: 'PATCH',
+      body: JSON.stringify(aMayusculas(data ?? {})),
+    }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 
   /** multipart: el navegador arma el boundary, no fijar Content-Type */

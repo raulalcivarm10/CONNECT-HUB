@@ -44,6 +44,18 @@ body {
   color: var(--text);
 }
 
+/* Política global: los inputs de texto se ven en MAYÚSCULAS mientras se
+   escribe (el guardado real lo hace el cliente API). Contraseñas y campos
+   con case sensible usan la clase `normal-case`. */
+input:not([type="password"]):not([type="date"]):not([type="time"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]),
+textarea {
+  text-transform: uppercase;
+}
+input::placeholder,
+textarea::placeholder {
+  text-transform: none;
+}
+
 /* --- animaciones del arte del login --- */
 @keyframes ch-float {
   0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }

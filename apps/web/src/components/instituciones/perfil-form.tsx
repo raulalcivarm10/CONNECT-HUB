@@ -179,7 +179,7 @@ export function PerfilInstitucionForm({
       </div>
       <div>
         <label className={labelCls}>{t('pf.connCode')}</label>
-        <input maxLength={20} value={codigoConexion} onChange={(e) => setCodigoConexion(e.target.value)} className={inputCls} />
+        <input maxLength={20} value={codigoConexion} onChange={(e) => setCodigoConexion(e.target.value)} className={`${inputCls} normal-case`} />
       </div>
       <div className="sm:col-span-2">
         <label className={labelCls}>{t('pf.address')}</label>
@@ -219,11 +219,11 @@ export function PerfilInstitucionForm({
         <>
           <div className="sm:col-span-2 lg:col-span-1">
             <label className={labelCls}>{t('pf.urlCode')}</label>
-            <input maxLength={500} value={urlCodPago} onChange={(e) => setUrlCodPago(e.target.value)} className={inputCls} />
+            <input maxLength={500} value={urlCodPago} onChange={(e) => setUrlCodPago(e.target.value)} className={`${inputCls} normal-case`} />
           </div>
           <div className="sm:col-span-2">
             <label className={labelCls}>{t('pf.urlProcess')}</label>
-            <input maxLength={500} value={urlProcesoPago} onChange={(e) => setUrlProcesoPago(e.target.value)} className={inputCls} />
+            <input maxLength={500} value={urlProcesoPago} onChange={(e) => setUrlProcesoPago(e.target.value)} className={`${inputCls} normal-case`} />
           </div>
         </>
       )}
