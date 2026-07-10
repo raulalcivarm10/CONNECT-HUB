@@ -167,4 +167,66 @@ export class MailerService {
       return false;
     }
   }
+
+  /**
+   * Correo de acceso a la demo (evento demo.requested del webhook FSL):
+   * credenciales del entorno demo, un usuario por rol.
+   */
+  async enviarCredencialesDemo(
+    destino: string,
+    nombres: string | null,
+    apellidos: string | null,
+  ): Promise<boolean> {
+    if (!this.transporter) return false;
+    const nombre = [nombres, apellidos].filter(Boolean).join(' ') || destino;
+    const usuarios: [string, string][] = [
+      ['usersystem@demo.com', 'Full administration (SYSTEM)'],
+      ['useradmin@demo.com', 'Administration'],
+      ['userfinance@demo.com', 'Finance dashboard'],
+      ['useroperations@demo.com', 'Venues and spaces'],
+      ['userevents@demo.com', 'Events and attendance'],
+    ];
+    const filas = usuarios
+      .map(
+        ([u, rol]) =>
+          `<tr><td style="padding:3px 0;font-weight:bold">${u}</td>` +
+          `<td style="text-align:right;color:#475569">${rol}</td></tr>`,
+      )
+      .join('');
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to: destino,
+        subject: 'Your ConnectHub demo access',
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#0f172a">
+            <h2 style="color:#7c3aed">ConnectHub</h2>
+            <p>Dear ${nombre},</p>
+            <p>Thanks for your interest in ConnectHub. We prepared a demo environment
+               with sample data so you can explore the admin panel from every angle.
+               Each user below opens a different role, so you can see exactly what
+               your team would see:</p>
+            <div style="background:#f1f5f9;padding:14px 16px;border-radius:8px;margin:12px 0">
+              <table style="width:100%;font-size:13px;border-collapse:collapse">${filas}</table>
+              <div style="border-top:1px solid #e2e8f0;margin-top:10px;padding-top:10px;font-size:13px">
+                Password for all users:
+                <span style="font-weight:bold;letter-spacing:1px">Demo2026!</span>
+              </div>
+            </div>
+            <p style="text-align:center;margin:18px 0">
+              <a href="${this.appUrl}" style="background:#7c3aed;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">Try the ConnectHub demo</a>
+            </p>
+            <p style="text-align:center;color:#64748b;font-size:12px">${this.appUrl}</p>
+            <p style="color:#475569;font-size:13px">This is a shared demo environment with
+               sample data (Demo Institution: venues, three events, attendance and revenue).
+               Please don't enter real information.</p>
+            <p style="color:#94a3b8;font-size:12px">If you weren't expecting this email, please ignore it.</p>
+          </div>`,
+      });
+      return true;
+    } catch (err) {
+      this.logger.error(`Error enviando demo a ${destino}: ${String(err)}`);
+      return false;
+    }
+  }
 }

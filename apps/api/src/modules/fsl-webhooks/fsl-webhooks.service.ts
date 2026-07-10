@@ -18,6 +18,7 @@ interface FslEvent {
       country?: string;
     };
     admin?: { email?: string; firstNames?: string; lastNames?: string };
+    requester?: { email?: string; firstNames?: string; lastNames?: string };
   };
 }
 
@@ -70,18 +71,22 @@ export class FslWebhooksService {
     const eventId = eventIdHeader ?? event.id;
     if (!eventId) return { status: 400, body: { error: 'missing_event_id' } };
 
-    // compatibilidad hacia adelante: otros eventos se aceptan sin procesar
-    if (event.type !== 'subscription.created') {
-      return { status: 200, body: { received: true, ignored: event.type } };
-    }
-
-    // idempotencia rápida
+    // idempotencia rápida (aplica a todos los tipos procesables)
     const dup = await this.oracle.query(
       `SELECT 1 FROM FSL_WEBHOOK_EVENTS WHERE EVENT_ID = :id`,
       { id: eventId },
     );
     if (dup.length) {
       return { status: 200, body: { received: true, duplicate: true } };
+    }
+
+    if (event.type === 'demo.requested') {
+      return this.procesarDemo(eventId, event);
+    }
+
+    // compatibilidad hacia adelante: otros eventos se aceptan sin procesar
+    if (event.type !== 'subscription.created') {
+      return { status: 200, body: { received: true, ignored: event.type } };
     }
 
     const inst = event.data?.institution;
@@ -142,6 +147,34 @@ export class FslWebhooksService {
       this.logger.error(`Provisión falló: ${String(err)}`);
       return { status: 500, body: { error: 'provision_failed' } };
     }
+  }
+
+  /** demo.requested → correo con las credenciales del entorno demo (sin tocar BD de negocio) */
+  private async procesarDemo(
+    eventId: string,
+    event: FslEvent,
+  ): Promise<Respuesta> {
+    const req = event.data?.requester;
+    if (!req?.email) {
+      return {
+        status: 400,
+        body: { error: 'missing_fields', need: ['data.requester.email'] },
+      };
+    }
+    const correoEnviado = await this.mailer.enviarCredencialesDemo(
+      req.email.trim().toLowerCase(),
+      req.firstNames ?? null,
+      req.lastNames ?? null,
+    );
+    await this.marcarEvento(
+      eventId,
+      event.type,
+      correoEnviado ? 'DEMO_SENT' : 'DEMO_EMAIL_FAILED',
+    );
+    this.logger.log(
+      `Demo solicitada por ${req.email}; correo=${correoEnviado}`,
+    );
+    return { status: 200, body: { received: true, demo: true, correoEnviado } };
   }
 
   private async marcarEvento(eventId: string, tipo: string, estado: string) {
