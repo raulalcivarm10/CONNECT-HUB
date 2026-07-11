@@ -13,6 +13,7 @@ import { EventosModule } from './modules/eventos/eventos.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
 import { FslWebhooksModule } from './modules/fsl-webhooks/fsl-webhooks.module';
 import { AuditoriaModule } from './modules/auditoria/auditoria.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AuditoriaModule } from './modules/auditoria/auditoria.module';
     ReportesModule,
     FslWebhooksModule,
     AuditoriaModule,
+    FeedbackModule,
   ],
 })
 export class AppModule {}

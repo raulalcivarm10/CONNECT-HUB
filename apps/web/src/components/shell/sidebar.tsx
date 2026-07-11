@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import { MODULOS, puedeVer, ROL } from '@/lib/types';
 import {
   IconBuilding,
+  IconChat,
   IconBuildingProfile,
   IconCalendar,
   IconChart,
@@ -163,6 +164,14 @@ export function Sidebar() {
             />
           </div>
         )}
+
+        <div>
+          <NavLink
+            href="/panel/feedback"
+            label={t('side.feedback')}
+            icon={IconChat}
+          />
+        </div>
       </nav>
 
       <div className="border-t border-border-app p-3 text-xs text-text-muted">
