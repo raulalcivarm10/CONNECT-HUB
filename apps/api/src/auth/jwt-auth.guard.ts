@@ -31,7 +31,7 @@ export class JwtAuthGuard implements CanActivate {
       .getRequest<FastifyRequest & { user?: JwtUser }>();
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Token requerido');
+      throw new UnauthorizedException('Token required');
     }
     let user: JwtUser;
     try {
@@ -39,14 +39,14 @@ export class JwtAuthGuard implements CanActivate {
         secret: this.config.getOrThrow<string>('JWT_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Token inválido o expirado');
+      throw new UnauthorizedException('Invalid or expired token');
     }
     if (
       user.debeCambiarClave &&
       !RUTAS_CAMBIO_CLAVE.some((r) => req.url.startsWith(r))
     ) {
       throw new ForbiddenException(
-        'Ingresaste con una contraseña temporal: debes cambiarla antes de continuar',
+        'You signed in with a temporary password: you must change it before continuing',
       );
     }
     req.user = user;

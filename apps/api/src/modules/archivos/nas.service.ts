@@ -11,7 +11,8 @@ export type TipoEntidad =
   | 'LOCAL'
   | 'SALON'
   | 'SUBSALON'
-  | 'CONFIGURACION';
+  | 'CONFIGURACION'
+  | 'EXPOSITOR';
 
 const CAMPO_ID: Record<TipoEntidad, string> = {
   EVENTO: 'idEvento',
@@ -20,6 +21,7 @@ const CAMPO_ID: Record<TipoEntidad, string> = {
   SALON: 'idSalon',
   SUBSALON: 'idSubsalon',
   CONFIGURACION: 'idConfiguracion',
+  EXPOSITOR: 'idExpositor',
 };
 
 /**
@@ -64,7 +66,7 @@ export class NasService {
     } catch (err) {
       this.logger.error(`NAS inalcanzable: ${String(err)}`);
       throw new BadGatewayException(
-        'El servidor de archivos no está disponible; intenta de nuevo.',
+        'The file server is unavailable; please try again.',
       );
     }
     const body = (await res.json().catch(() => null)) as {
@@ -75,12 +77,12 @@ export class NasService {
       // el NAS aún no soporta las entidades nuevas (SALON/SUBSALON/CONFIGURACION)
       if (body?.mensaje?.toLowerCase().includes('entidad')) {
         throw new BadGatewayException(
-          `El servidor de archivos (NAS) aún no soporta imágenes de ${opts.tipoEntidad}. ` +
-            `Comparte la especificación docs/nas-espacios.md con el equipo del NAS para habilitarlo.`,
+          `The file server (NAS) does not yet support ${opts.tipoEntidad} images. ` +
+            `Share the docs/nas-espacios.md specification with the NAS team to enable it.`,
         );
       }
       throw new BadGatewayException(
-        `El servidor de archivos rechazó la carga (${res.status})` +
+        `The file server rejected the upload (${res.status})` +
           `${body?.mensaje ? `: ${body.mensaje}` : '.'}`,
       );
     }

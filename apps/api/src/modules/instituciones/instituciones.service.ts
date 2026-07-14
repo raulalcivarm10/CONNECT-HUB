@@ -26,7 +26,7 @@ export class InstitucionesService {
   private assertSuper(actor: JwtUser) {
     if (!actor.esSuper) {
       throw new ForbiddenException(
-        'Solo el superadmin puede gestionar instituciones',
+        'Only the superadmin can manage institutions',
       );
     }
   }
@@ -57,7 +57,9 @@ export class InstitucionesService {
       { nombre },
     );
     if (dup.length) {
-      throw new ConflictException('Ya existe una institución con ese nombre');
+      throw new ConflictException(
+        'An institution with that name already exists',
+      );
     }
     const result = await this.oracle.execute(
       `INSERT INTO INSTITUCIONES (NOMBRE, CIUDAD, PAIS, DIRECCION, ESTADO)
@@ -80,7 +82,7 @@ export class InstitucionesService {
       `SELECT ESTADO FROM INSTITUCIONES WHERE ID_INSTITUCION = :id`,
       { id },
     );
-    if (!rows[0]) throw new NotFoundException('Institución no encontrada');
+    if (!rows[0]) throw new NotFoundException('Institution not found');
     return rows[0].ESTADO;
   }
 
@@ -92,7 +94,7 @@ export class InstitucionesService {
     this.assertSuper(actor);
     const estado = await this.getEstado(id);
     if (estado === 'APROBADA') {
-      throw new BadRequestException('La institución ya está aprobada');
+      throw new BadRequestException('The institution is already approved');
     }
 
     const cod = dto.emailUsuarioSistema.toUpperCase();
@@ -102,7 +104,7 @@ export class InstitucionesService {
     );
     if (existe.length) {
       throw new ConflictException(
-        'Ya existe un usuario con ese correo de login',
+        'A user with that login email already exists',
       );
     }
 
@@ -111,7 +113,9 @@ export class InstitucionesService {
       { n: ROL.SYSTEM },
     );
     if (!rolSystem[0]) {
-      throw new BadRequestException('No existe el rol SYSTEM en la BD');
+      throw new BadRequestException(
+        'The SYSTEM role does not exist in the database',
+      );
     }
 
     const passwordTemporal = generateTempPassword();
@@ -174,15 +178,29 @@ export class InstitucionesService {
         actor.roles.some((r) => r === ROL.SYSTEM || r === ROL.ADMINISTRATIVO));
     if (!permitido) {
       throw new ForbiddenException(
-        `Solo el superadmin o un usuario SYSTEM/ADMINISTRATIVO de la institución puede ${accion}`,
+        `Only the superadmin or a SYSTEM/ADMINISTRATIVE user of the institution can ${accion}`,
       );
     }
   }
 
   /** Edición del perfil; las credenciales de pasarela son write-only */
   async editarPerfil(actor: JwtUser, id: number, dto: EditarInstitucionDto) {
-    this.assertGestionInstitucion(actor, id, 'editar el perfil');
+    this.assertGestionInstitucion(actor, id, 'edit the profile');
     await this.getEstado(id); // valida existencia
+    // El código de conexión debe ser único entre instituciones. El frontend lo
+    // hará de solo-lectura, pero validamos aquí para proteger de llamadas directas.
+    if (dto.codigoConexion) {
+      const dup = await this.oracle.query(
+        `SELECT 1 FROM INSTITUCIONES
+          WHERE UPPER(CODIGO_CONEXION) = UPPER(:c) AND ID_INSTITUCION != :id`,
+        { c: dto.codigoConexion, id },
+      );
+      if (dup.length) {
+        throw new ConflictException(
+          'That connection code is already used by another institution',
+        );
+      }
+    }
     await this.oracle.execute(
       `UPDATE INSTITUCIONES SET
          NOMBRE = NVL(:nombre, NOMBRE),
@@ -244,13 +262,13 @@ export class InstitucionesService {
          FROM INSTITUCIONES WHERE ID_INSTITUCION = :id`,
       { id },
     );
-    if (!filas[0]) throw new NotFoundException('Institución no encontrada');
+    if (!filas[0]) throw new NotFoundException('Institution not found');
     return filas[0];
   }
 
   /** Perfil (sin credenciales) para la página Mi Institución */
   async perfil(actor: JwtUser, id: number) {
-    this.assertGestionInstitucion(actor, id, 'ver el perfil');
+    this.assertGestionInstitucion(actor, id, 'view the profile');
     return this.leerPerfil(id);
   }
 
@@ -261,33 +279,34 @@ export class InstitucionesService {
       `SELECT NOMBRE FROM INSTITUCIONES WHERE ID_INSTITUCION = :id`,
       { id },
     );
-    if (!nom[0]) throw new NotFoundException('Institución no encontrada');
+    if (!nom[0]) throw new NotFoundException('Institution not found');
     const nombre = nom[0].NOMBRE;
 
     const usos: Array<{ sql: string; msg: (n: number) => string }> = [
       {
         sql: `SELECT COUNT(*) AS N FROM USUARIOS_INSTITUCIONES WHERE ID_INSTITUCION = :id`,
         msg: (n) =>
-          `No se puede eliminar «${nombre}»: tiene ${n} usuario(s) del panel. Elimínalos primero.`,
+          `Cannot delete "${nombre}": it has ${n} panel user(s). Delete them first.`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM LOCALES WHERE ID_INSTITUCION = :id`,
         msg: (n) =>
-          `No se puede eliminar «${nombre}»: tiene ${n} local(es) con su infraestructura. Elimínalos primero.`,
+          `Cannot delete "${nombre}": it has ${n} venue(s) with their infrastructure. Delete them first.`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM INSTITUCION_MAPAS WHERE ID_INSTITUCION = :id`,
-        msg: (n) => `No se puede eliminar «${nombre}»: tiene ${n} mapa(s)/croquis.`,
+        msg: (n) =>
+          `Cannot delete "${nombre}": it has ${n} map(s)/floor plan(s).`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM TARJETAS_USUARIO WHERE ID_INSTITUCION = :id`,
         msg: (n) =>
-          `No se puede eliminar «${nombre}»: tiene ${n} tarjeta(s) tokenizada(s) de clientes.`,
+          `Cannot delete "${nombre}": it has ${n} tokenized client card(s).`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM USUARIO_INSTITUCIONES WHERE ID_INSTITUCION = :id`,
         msg: (n) =>
-          `No se puede eliminar «${nombre}»: tiene ${n} cliente(s) vinculado(s) desde la app móvil.`,
+          `Cannot delete "${nombre}": it has ${n} client(s) linked from the mobile app.`,
       },
     ];
     for (const uso of usos) {
@@ -321,7 +340,7 @@ export class InstitucionesService {
         ));
     if (!puedeGestionar) {
       throw new ForbiddenException(
-        'Solo el superadmin o un usuario SYSTEM/ADMINISTRATIVO de la institución puede cambiar el logo',
+        'Only the superadmin or a SYSTEM/ADMINISTRATIVE user of the institution can change the logo',
       );
     }
     await this.getEstado(id); // valida existencia
@@ -336,7 +355,7 @@ export class InstitucionesService {
 
   /** Quita el logo de la institución */
   async eliminarLogo(actor: JwtUser, id: number) {
-    this.assertGestionInstitucion(actor, id, 'quitar el logo');
+    this.assertGestionInstitucion(actor, id, 'remove the logo');
     await this.getEstado(id);
     const r = await this.archivos.eliminarImagen('INSTITUCION', id, 'LOGO');
     return { idInstitucion: id, ...r };

@@ -18,13 +18,13 @@ export function ImagenNas({
   tipoArchivo,
   uploadPath,
   deletePath = null,
-  etiqueta = 'Subir',
+  etiqueta,
   className = 'h-10 w-14',
   onChanged,
 }: {
   tipoEntidad: NasEntidad;
   id: number;
-  tipoArchivo: 'PORTADA' | 'BANNER' | 'GALERIA' | 'LOGO' | 'CROQUIS';
+  tipoArchivo: 'PORTADA' | 'BANNER' | 'GALERIA' | 'LOGO' | 'CROQUIS' | 'FOTO';
   /** ruta de la API propia que hace proxy al NAS; null = solo lectura */
   uploadPath: string | null;
   /** ruta DELETE de la API para quitar la imagen; null = sin borrado */
@@ -134,7 +134,7 @@ export function ImagenNas({
               disabled={subiendo}
               className="rounded-lg border border-border-app px-2 py-1 text-xs text-text-2 transition hover:bg-surface-2 disabled:opacity-50"
             >
-              {subiendo ? t('img.processing') : etiqueta}
+              {subiendo ? t('img.processing') : (etiqueta ?? t('c.upload'))}
             </button>
             {deletePath && tieneImagen && (
               <button

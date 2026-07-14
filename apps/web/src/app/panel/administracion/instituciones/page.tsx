@@ -317,7 +317,7 @@ function AprobarForm({
       });
       onDone(res, institucion.ID_INSTITUCION);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar');
+      setError(err instanceof Error ? err.message : t('err.approve'));
       setSending(false);
     }
   }
@@ -342,7 +342,7 @@ function AprobarForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
-            placeholder="sistema@institucion.com"
+            placeholder={t('in.sysEmailPh')}
           />
         </div>
         <button
@@ -401,7 +401,7 @@ function NuevaInstitucionForm({
       });
       onDone(res.idInstitucion, nombre.trim());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear');
+      setError(err instanceof Error ? err.message : t('err.create'));
       setSending(false);
     }
   }
@@ -423,7 +423,7 @@ function NuevaInstitucionForm({
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             className={inputCls}
-            placeholder="Universidad Ejemplo"
+            placeholder={t('in.namePh')}
           />
         </div>
         <div>

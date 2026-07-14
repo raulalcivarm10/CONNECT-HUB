@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 /** Campo de contraseña con botón para mostrar/ocultar (ojo) */
 export function PasswordInput({
@@ -23,6 +24,7 @@ export function PasswordInput({
   className?: string;
 }) {
   const [visible, setVisible] = useState(false);
+  const { t } = useI18n();
 
   return (
     <div className={`relative ${className}`}>
@@ -41,8 +43,8 @@ export function PasswordInput({
         type="button"
         tabIndex={-1}
         onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-        title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        aria-label={visible ? t('pw.hide') : t('pw.show')}
+        title={visible ? t('pw.hide') : t('pw.show')}
         className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-text-muted transition hover:bg-surface hover:text-text"
       >
         {visible ? (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 type DependencyHealth =
   | { ok: true; latencyMs: number }
@@ -16,16 +17,19 @@ type Health = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 function StatusRow({ name, dep }: { name: string; dep?: DependencyHealth }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center justify-between rounded-lg border border-border-app bg-surface-2 px-4 py-3">
       <span className="font-medium text-text">{name}</span>
       {dep === undefined ? (
         <span className="text-text-muted">…</span>
       ) : dep.ok ? (
-        <span className="text-success">● conectado · {dep.latencyMs} ms</span>
+        <span className="text-success">
+          {t('status.connected', { ms: dep.latencyMs })}
+        </span>
       ) : (
         <span className="text-danger" title={dep.error}>
-          ● sin conexión
+          {t('status.offline')}
         </span>
       )}
     </div>
@@ -33,6 +37,7 @@ function StatusRow({ name, dep }: { name: string; dep?: DependencyHealth }) {
 }
 
 export default function EstadoPage() {
+  const { t } = useI18n();
   const [health, setHealth] = useState<Health | null>(null);
   const [apiDown, setApiDown] = useState(false);
 
@@ -63,7 +68,7 @@ export default function EstadoPage() {
           Connect-Hub
         </div>
         <h1 className="mb-6 text-2xl font-bold text-text">
-          Estado del sistema
+          {t('status.title')}
         </h1>
 
         <div className="space-y-3">
@@ -71,14 +76,14 @@ export default function EstadoPage() {
             name="API"
             dep={
               apiDown
-                ? { ok: false, error: 'API no responde' }
+                ? { ok: false, error: t('status.apiDown') }
                 : health
                   ? { ok: true, latencyMs: 0 }
                   : undefined
             }
           />
           <StatusRow name="Oracle (CONNECT_HUB)" dep={health?.oracle} />
-          <StatusRow name="Redis (caché)" dep={health?.redis} />
+          <StatusRow name={t('status.redis')} dep={health?.redis} />
         </div>
       </div>
     </main>

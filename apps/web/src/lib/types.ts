@@ -141,6 +141,14 @@ export interface EventoRow {
   TITULO: string;
   DESCRIPCION: string | null;
   FECHA_EVENTO: string;
+  /** fecha de fin (YYYY-MM-DD); NULL o = FECHA_EVENTO => evento de un solo día */
+  FECHA_FIN?: string | null;
+  /** días reales del evento: 'YYYY-MM-DD' coma-separados y ordenados (desde EVENTO_HORAS) */
+  DIAS?: string | null;
+  /** NULL => evento principal; con valor => es workshop (evento hijo) */
+  ID_EVENTO_PADRE?: number | null;
+  /** título del evento padre (solo si ID_EVENTO_PADRE != null) */
+  PADRE_TITULO?: string | null;
   HORA_INICIO: string | null;
   HORA_FIN: string | null;
   TIEMPO_SETUP_MIN: number | null;

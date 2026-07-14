@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsInt,
   IsNumber,
@@ -9,10 +12,25 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 const HORA_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export class DiaDto {
+  @ApiProperty({ example: '2026-08-15' })
+  @Matches(FECHA_REGEX, { message: 'fecha must be in YYYY-MM-DD format' })
+  fecha: string;
+
+  @ApiProperty({ example: '09:00' })
+  @Matches(HORA_REGEX, { message: 'horaInicio must be in HH:MM (24h) format' })
+  horaInicio: string;
+
+  @ApiProperty({ example: '13:00' })
+  @Matches(HORA_REGEX, { message: 'horaFin must be in HH:MM (24h) format' })
+  horaFin: string;
+}
 
 export class CreateEventoDto {
   @ApiProperty() @IsString() @MaxLength(200) titulo: string;
@@ -20,17 +38,21 @@ export class CreateEventoDto {
   @ApiPropertyOptional()
   @IsOptional() @IsString() @MaxLength(2000) descripcion?: string;
 
-  @ApiProperty({ example: '2026-08-15' })
-  @Matches(FECHA_REGEX, { message: 'fechaEvento debe ser YYYY-MM-DD' })
-  fechaEvento: string;
+  @ApiProperty({
+    type: [DiaDto],
+    description: 'Días del evento (mínimo 1), cada uno con su rango horario',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => DiaDto)
+  dias: DiaDto[];
 
-  @ApiProperty({ example: '09:00' })
-  @Matches(HORA_REGEX, { message: 'horaInicio debe ser HH:MM (24h)' })
-  horaInicio: string;
-
-  @ApiProperty({ example: '13:00' })
-  @Matches(HORA_REGEX, { message: 'horaFin debe ser HH:MM (24h)' })
-  horaFin: string;
+  @ApiPropertyOptional({
+    description:
+      'Si viene, este evento es un workshop hijo del evento indicado (omite el chequeo de choque de espacio)',
+  })
+  @IsOptional() @IsInt() idEventoPadre?: number;
 
   @ApiProperty() @IsInt() idLocal: number;
 
@@ -76,9 +98,25 @@ export class CreateEventoDto {
 export class UpdateEventoDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) titulo?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descripcion?: string;
-  @ApiPropertyOptional() @IsOptional() @Matches(FECHA_REGEX) fechaEvento?: string;
-  @ApiPropertyOptional() @IsOptional() @Matches(HORA_REGEX) horaInicio?: string;
-  @ApiPropertyOptional() @IsOptional() @Matches(HORA_REGEX) horaFin?: string;
+
+  @ApiPropertyOptional({
+    type: [DiaDto],
+    description: 'Si viene, reemplaza los días del evento (mínimo 1)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => DiaDto)
+  dias?: DiaDto[];
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'Evento padre (workshop). null para desasociar y volverlo evento principal',
+  })
+  @IsOptional() @IsInt() idEventoPadre?: number | null;
+
   @ApiPropertyOptional() @IsOptional() @IsInt() idLocal?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() idSalon?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() idConfiguracion?: number;

@@ -51,8 +51,8 @@ function claveDia(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const money = (v: number) =>
-  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(
+const money = (v: number, locale: string) =>
+  new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(
     v ?? 0,
   );
 
@@ -78,9 +78,15 @@ export default function CalendarioPage() {
   const porDia = useMemo(() => {
     const map = new Map<string, EventoRow[]>();
     for (const ev of eventos) {
-      const lista = map.get(ev.FECHA_EVENTO) ?? [];
-      lista.push(ev);
-      map.set(ev.FECHA_EVENTO, lista);
+      // el evento ocupa SOLO sus días reales (EVENTO_HORAS), no un rango contiguo
+      const dias = (ev.DIAS ? ev.DIAS.split(',') : [ev.FECHA_EVENTO]).filter(
+        Boolean,
+      );
+      for (const clave of dias) {
+        const lista = map.get(clave) ?? [];
+        lista.push(ev);
+        map.set(clave, lista);
+      }
     }
     for (const lista of map.values()) {
       lista.sort((a, b) => (a.HORA_INICIO ?? '').localeCompare(b.HORA_INICIO ?? ''));
@@ -100,6 +106,8 @@ export default function CalendarioPage() {
     });
   }, [anio, mes]);
 
+  // cuenta cada evento UNA sola vez (por su fecha de inicio), aunque abarque
+  // varios días en el calendario: se filtra el arreglo plano, no las celdas.
   const eventosDelMes = useMemo(() => {
     const pref = `${anio}-${String(mes + 1).padStart(2, '0')}`;
     return eventos.filter((e) => e.FECHA_EVENTO?.startsWith(pref)).length;
@@ -149,7 +157,7 @@ export default function CalendarioPage() {
               <button
                 onClick={() => moverMes(-1)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-app text-text-2 hover:bg-surface-2"
-                aria-label="Mes anterior"
+                aria-label={t('cal.prevMonth')}
               >
                 ‹
               </button>
@@ -166,7 +174,7 @@ export default function CalendarioPage() {
               <button
                 onClick={() => moverMes(1)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-app text-text-2 hover:bg-surface-2"
-                aria-label="Mes siguiente"
+                aria-label={t('cal.nextMonth')}
               >
                 ›
               </button>
@@ -227,7 +235,8 @@ export default function CalendarioPage() {
                         className={`truncate rounded px-1 py-0.5 text-[10px] font-medium text-white ${colorSalon(ev.ID_SALON).chip}`}
                         title={`${ev.TITULO} · ${ev.SALON_NOMBRE ?? ''}`}
                       >
-                        {ev.HORA_INICIO} {ev.TITULO}
+                        {ev.HORA_INICIO ? `${ev.HORA_INICIO} ` : ''}
+                        {ev.TITULO}
                       </span>
                     ))}
                     {lista.length > 3 && (
@@ -286,20 +295,20 @@ export default function CalendarioPage() {
                     <Link
                       key={ev.ID_EVENTO}
                       href={`/panel/eventos?editar=${ev.ID_EVENTO}`}
-                      title="Clic para editar este evento"
+                      title={t('cal.clickEdit')}
                       className={`group block cursor-pointer rounded-xl border border-border-app border-l-4 bg-surface-2 p-3 transition hover:border-brand hover:shadow-md ${colorSalon(ev.ID_SALON).borde}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="font-semibold text-text">
                           {ev.DESTACADO === 1 && (
-                            <span title="Destacado en la app">★ </span>
+                            <span title={t('cal.featured')}>★ </span>
                           )}
                           {ev.TITULO}
                         </div>
                         <span className="whitespace-nowrap text-xs font-bold text-text">
-                          {ev.PRECIO > 0 ? money(ev.PRECIO) : 'Gratis'}
+                          {ev.PRECIO > 0 ? money(ev.PRECIO, locale) : t('c.free')}
                           <span className="ml-2 hidden font-semibold text-brand group-hover:inline">
-                            ✏ Editar
+                            {t('cal.editHover')}
                           </span>
                         </span>
                       </div>

@@ -19,3 +19,11 @@ export class EstadoFeedbackDto {
   @IsIn(['NEW', 'REVIEWED', 'PLANNED', 'DONE'])
   estado: 'NEW' | 'REVIEWED' | 'PLANNED' | 'DONE';
 }
+
+export class ResponderFeedbackDto {
+  @ApiProperty({ description: 'Respuesta del superadmin al feedback' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  respuesta: string;
+}

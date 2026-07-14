@@ -87,6 +87,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(aMayusculas(data ?? {})),
     }),
+  put: <T>(path: string, data?: unknown) =>
+    request<T>(path, {
+      method: 'PUT',
+      body: JSON.stringify(aMayusculas(data ?? {})),
+    }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 
   /** multipart: el navegador arma el boundary, no fijar Content-Type */

@@ -30,8 +30,8 @@ const PROVEEDORES: Record<
   NUVEI: {
     label: 'Nuvei',
     campos: [
-      ['appCodeTokenization', 'App Code (tokenización)'],
-      ['appKeyTokenization', 'App Key (tokenización)'],
+      ['appCodeTokenization', 'pf.appCodeTok'],
+      ['appKeyTokenization', 'pf.appKeyTok'],
       ['appCodeCheckout', 'App Code (checkout)'],
       ['appKeyCheckout', 'App Key (checkout)'],
       ['usuarioPasarela', 'Server App Code'],
@@ -106,9 +106,9 @@ export function PerfilInstitucionForm({
   const [direccion, setDireccion] = useState(perfil.DIRECCION ?? '');
   const [ciudad, setCiudad] = useState(perfil.CIUDAD ?? '');
   const [pais, setPais] = useState(perfil.PAIS ?? '');
-  const [codigoConexion, setCodigoConexion] = useState(
-    perfil.CODIGO_CONEXION ?? '',
-  );
+  // Solo lectura: el código de conexión es único y lo genera el sistema.
+  // Se mantiene en estado únicamente para MOSTRAR el valor, nunca se edita ni se envía.
+  const [codigoConexion] = useState(perfil.CODIGO_CONEXION ?? '');
   const provInicial = (perfil.PROVEEDOR_PAGO ?? '').toUpperCase();
   const [proveedorPago, setProveedorPago] = useState(
     PROVEEDORES[provInicial] ? provInicial : 'NUVEI',
@@ -152,7 +152,6 @@ export function PerfilInstitucionForm({
         direccion: direccion.trim() || undefined,
         ciudad: ciudad.trim() || undefined,
         pais: pais.trim() || undefined,
-        codigoConexion: codigoConexion.trim() || undefined,
         proveedorPago: proveedorPago.trim() || undefined,
         paymentEnvironment: paymentEnvironment.trim() || undefined,
         urlCodPago: urlCodPago.trim() || undefined,
@@ -191,7 +190,15 @@ export function PerfilInstitucionForm({
       </div>
       <div>
         <label className={labelCls}>{t('pf.connCode')}</label>
-        <input maxLength={20} value={codigoConexion} onChange={(e) => setCodigoConexion(e.target.value)} className={`${inputCls} normal-case`} />
+        <input
+          readOnly
+          maxLength={20}
+          value={codigoConexion}
+          className={`${inputCls} normal-case bg-surface-2 text-text-muted cursor-not-allowed`}
+        />
+        <p className="mt-1 text-xs text-text-muted">
+          Unique, system-generated — not editable
+        </p>
       </div>
       <div className="sm:col-span-2">
         <label className={labelCls}>{t('pf.address')}</label>
@@ -264,7 +271,7 @@ export function PerfilInstitucionForm({
                 return (
                   <div key={campo}>
                     <label className={`${labelCls} flex items-center justify-between`}>
-                      <span>{etiqueta}</span>
+                      <span>{t(etiqueta)}</span>
                       <span
                         className={`text-[10px] font-semibold ${
                           configurada ? 'text-success' : 'text-text-muted'

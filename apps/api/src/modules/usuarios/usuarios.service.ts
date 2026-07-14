@@ -23,13 +23,13 @@ export class UsuariosService {
     if (actor.esSuper) {
       if (requested == null) {
         throw new BadRequestException(
-          'Como superadmin debes indicar idInstitucion',
+          'As a superadmin you must provide idInstitucion',
         );
       }
       return requested;
     }
     if (actor.idInstitucion == null) {
-      throw new ForbiddenException('Usuario sin institución');
+      throw new ForbiddenException('User has no institution');
     }
     return actor.idInstitucion;
   }
@@ -63,7 +63,9 @@ export class UsuariosService {
     const map = new Map(rows.map((r) => [r.NOMBRE, r.ID_ROL]));
     const faltantes = nombres.filter((n) => !map.has(n));
     if (faltantes.length) {
-      throw new BadRequestException(`Roles inexistentes: ${faltantes.join(', ')}`);
+      throw new BadRequestException(
+        `The following roles do not exist: ${faltantes.join(', ')}`,
+      );
     }
     return map;
   }
@@ -76,9 +78,9 @@ export class UsuariosService {
       `SELECT ESTADO FROM INSTITUCIONES WHERE ID_INSTITUCION = :id`,
       { id: idInstitucion },
     );
-    if (!inst[0]) throw new NotFoundException('Institución no encontrada');
+    if (!inst[0]) throw new NotFoundException('Institution not found');
     if (inst[0].ESTADO !== 'APROBADA') {
-      throw new BadRequestException('La institución no está aprobada');
+      throw new BadRequestException('The institution is not approved');
     }
 
     const existe = await this.oracle.query(
@@ -86,7 +88,9 @@ export class UsuariosService {
       { cod },
     );
     if (existe.length) {
-      throw new ConflictException('Ya existe un usuario con ese correo de login');
+      throw new ConflictException(
+        'A user with that login email already exists',
+      );
     }
 
     const roles = await this.rolIds(dto.roles);
@@ -153,12 +157,12 @@ export class UsuariosService {
       { cod },
     );
     const target = rows[0];
-    if (!target) throw new NotFoundException('Usuario no encontrado');
+    if (!target) throw new NotFoundException('User not found');
     if (target.ES_SUPER === 'S' && !actor.esSuper) {
-      throw new ForbiddenException('No puedes modificar un superadmin');
+      throw new ForbiddenException('You cannot modify a superadmin');
     }
     if (!actor.esSuper && target.ID_INSTITUCION !== actor.idInstitucion) {
-      throw new ForbiddenException('El usuario pertenece a otra institución');
+      throw new ForbiddenException('The user belongs to another institution');
     }
     return target;
   }
@@ -199,7 +203,7 @@ export class UsuariosService {
   /** Eliminación definitiva (para desactivar temporalmente usa setEstado) */
   async remove(actor: JwtUser, cod: string) {
     if (cod.toUpperCase() === actor.sub.toUpperCase()) {
-      throw new BadRequestException('No puedes eliminar tu propio usuario');
+      throw new BadRequestException('You cannot delete your own user account');
     }
     const target = await this.targetUsuario(actor, cod);
     const superRow = await this.oracle.query<{ ES_SUPER: string }>(
@@ -208,7 +212,7 @@ export class UsuariosService {
     );
     if (superRow[0]?.ES_SUPER === 'S') {
       throw new ForbiddenException(
-        'Un superadmin de plataforma no puede eliminarse desde el panel',
+        'A platform superadmin cannot be deleted from the panel',
       );
     }
     await this.oracle.withConnection(async (conn) => {
@@ -227,7 +231,9 @@ export class UsuariosService {
 
   async setEstado(actor: JwtUser, cod: string, estado: 'A' | 'I') {
     if (cod.toUpperCase() === actor.sub.toUpperCase()) {
-      throw new BadRequestException('No puedes desactivar tu propio usuario');
+      throw new BadRequestException(
+        'You cannot deactivate your own user account',
+      );
     }
     const target = await this.targetUsuario(actor, cod);
     await this.oracle.execute(

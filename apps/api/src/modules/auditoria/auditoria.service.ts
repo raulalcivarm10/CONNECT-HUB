@@ -73,7 +73,7 @@ export class AuditoriaService {
   ) {
     if (!actor.esSuper) {
       throw new ForbiddenException(
-        'Solo el superadmin puede ver el registro de actividad',
+        'Only the superadmin can view the activity log',
       );
     }
     const limit = Math.min(Math.max(Number(filtros.limit) || 100, 1), 500);

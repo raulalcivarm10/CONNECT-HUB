@@ -66,7 +66,7 @@ export class MapasService {
     );
     if (!MIMES_PERMITIDOS.includes(mapa.mimeType)) {
       throw new BadRequestException(
-        `Tipo de imagen no permitido (${mapa.mimeType}). Usa JPG, PNG, WebP o SVG.`,
+        `Image type not allowed (${mapa.mimeType}). Use a JPG, PNG, WebP or SVG image.`,
       );
     }
     if (mapa.idLocal) await this.scope.local(actor, mapa.idLocal);
@@ -131,7 +131,7 @@ export class MapasService {
          FROM INSTITUCION_MAPAS WHERE ID_MAPA = :id`,
       { id: idMapa },
     );
-    if (!meta[0]) throw new NotFoundException('Mapa no encontrado');
+    if (!meta[0]) throw new NotFoundException('Map not found');
     const etag = `"m${idMapa}-${meta[0].IMAGEN_LAST_UPDATE?.getTime() ?? 0}"`;
     const mime = meta[0].IMAGEN_MIME_TYPE ?? 'application/octet-stream';
     const filename = meta[0].IMAGEN_FILENAME ?? `mapa-${idMapa}`;
@@ -145,7 +145,7 @@ export class MapasService {
       { id: idMapa },
     );
     const buffer = rows[0]?.IMAGEN;
-    if (!buffer) throw new NotFoundException('El mapa no tiene imagen');
+    if (!buffer) throw new NotFoundException('The map has no image');
     await this.redis.client.set(cacheKey, buffer, 'EX', CACHE_TTL);
     return { buffer, mime, etag, filename };
   }

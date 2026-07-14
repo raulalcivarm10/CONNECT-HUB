@@ -68,7 +68,7 @@ export function InstitucionFilterProvider({
       nombreFiltro:
         efectivo != null
           ? (instituciones.find((i) => i.ID_INSTITUCION === efectivo)?.NOMBRE ??
-            `Institución ${efectivo}`)
+            `Institution ${efectivo}`)
           : null,
     };
   }, [user?.esSuper, idInstitucion, instituciones]);

@@ -11,12 +11,19 @@ export type NasEntidad =
   | 'LOCAL'
   | 'SALON'
   | 'SUBSALON'
-  | 'CONFIGURACION';
+  | 'CONFIGURACION'
+  | 'EXPOSITOR';
 
 export function nasImagenUrl(
   tipoEntidad: NasEntidad,
   id: number,
-  tipoArchivo: 'PORTADA' | 'BANNER' | 'GALERIA' | 'LOGO' | 'CROQUIS' = 'PORTADA',
+  tipoArchivo:
+    | 'PORTADA'
+    | 'BANNER'
+    | 'GALERIA'
+    | 'LOGO'
+    | 'CROQUIS'
+    | 'FOTO' = 'PORTADA',
   version?: number,
 ): string {
   return (

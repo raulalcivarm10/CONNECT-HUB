@@ -79,8 +79,8 @@ export class LocalesService {
     );
     if (eventos[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar el local «${nombre}»: tiene ${eventos[0].N} evento(s) creado(s). ` +
-          `Un local con eventos no puede eliminarse.`,
+        `Cannot delete venue '${nombre}': it has ${eventos[0].N} created event(s). ` +
+          `A venue with events cannot be deleted.`,
       );
     }
     const salones = await this.oracle.query<{ N: number }>(
@@ -89,8 +89,8 @@ export class LocalesService {
     );
     if (salones[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar el local «${nombre}»: tiene ${salones[0].N} salón(es). ` +
-          `Elimina primero sus salones.`,
+        `Cannot delete venue '${nombre}': it has ${salones[0].N} hall(s). ` +
+          `Delete its halls first.`,
       );
     }
     const mapas = await this.oracle.query<{ N: number }>(
@@ -99,8 +99,8 @@ export class LocalesService {
     );
     if (mapas[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar el local «${nombre}»: tiene ${mapas[0].N} mapa(s)/croquis asignado(s). ` +
-          `Desasígnalos primero.`,
+        `Cannot delete venue '${nombre}': it has ${mapas[0].N} assigned map(s)/floor plan(s). ` +
+          `Unassign them first.`,
       );
     }
     await this.oracle.withConnection(async (conn) => {

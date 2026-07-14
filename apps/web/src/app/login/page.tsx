@@ -37,7 +37,7 @@ export default function LoginPage() {
       const user = await login(usuario.trim(), password);
       router.replace(user.debeCambiarClave ? '/cambiar-clave' : '/panel');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
+      setError(err instanceof Error ? err.message : t('login.error'));
       setSending(false);
     }
   }
@@ -54,7 +54,7 @@ export default function LoginPage() {
       );
       setRecResultado(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al recuperar');
+      setError(err instanceof Error ? err.message : t('login.recoverError'));
     } finally {
       setSending(false);
     }
@@ -103,7 +103,7 @@ export default function LoginPage() {
                   value={usuario}
                   onChange={(e) => setUsuario(e.target.value)}
                   className={inputCls}
-                  placeholder="usuario@institucion.com"
+                  placeholder={t('login.emailPh')}
                 />
               </div>
 
@@ -168,7 +168,7 @@ export default function LoginPage() {
                   value={usuarioRec}
                   onChange={(e) => setUsuarioRec(e.target.value)}
                   className={inputCls}
-                  placeholder="usuario@institucion.com"
+                  placeholder={t('login.emailPh')}
                 />
               </div>
 

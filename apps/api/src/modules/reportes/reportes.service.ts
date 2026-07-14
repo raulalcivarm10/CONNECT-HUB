@@ -146,9 +146,9 @@ export class ReportesService {
         WHERE e.ID_EVENTO = :id`,
       { id: idEvento },
     );
-    if (!amb[0]) throw new BadRequestException('Evento no encontrado');
+    if (!amb[0]) throw new BadRequestException('Event not found');
     if (!actor.esSuper && amb[0].ID_INSTITUCION !== actor.idInstitucion) {
-      throw new BadRequestException('El evento pertenece a otra institución');
+      throw new BadRequestException('The event belongs to another institution');
     }
 
     return this.oracle.query(

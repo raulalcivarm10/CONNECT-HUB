@@ -70,22 +70,22 @@ export class AuthService {
   async validateUser(codUsuario: string, password: string): Promise<JwtUser> {
     const row = await this.loadUsuario(codUsuario);
     if (!row || !verifyPassword(password, row.CLAVE, row.SALT)) {
-      throw new UnauthorizedException('Usuario o contraseña incorrectos');
+      throw new UnauthorizedException('Incorrect username or password');
     }
     if (row.ESTADOS !== 'A') {
-      throw new ForbiddenException('El usuario está inactivo');
+      throw new ForbiddenException('The user account is inactive');
     }
     const esSuper = row.ES_SUPER === 'S';
     if (!esSuper) {
       if (row.ESTADO_INSTITUCION !== 'APROBADA') {
         throw new ForbiddenException(
-          `La institución no está habilitada (estado: ${row.ESTADO_INSTITUCION ?? 'sin institución'})`,
+          `The institution is not enabled (status: ${row.ESTADO_INSTITUCION ?? 'no institution'})`,
         );
       }
     }
     const roles = await this.loadRoles(row.COD_USUARIO);
     if (!esSuper && roles.length === 0) {
-      throw new ForbiddenException('El usuario no tiene roles asignados');
+      throw new ForbiddenException('The user has no roles assigned');
     }
     return {
       sub: row.COD_USUARIO,
@@ -115,7 +115,7 @@ export class AuthService {
     // respuesta genérica para no revelar qué usuarios existen
     const generico = {
       mensaje:
-        'Si el usuario existe, se envió una contraseña temporal a su correo.',
+        'If the user exists, a temporary password has been sent to their email.',
     };
     if (!row || row.ESTADOS !== 'A') return generico;
 
@@ -138,7 +138,7 @@ export class AuthService {
     // sin SMTP configurado: modo desarrollo, se entrega en la respuesta
     return {
       mensaje:
-        'SMTP no configurado: entrega esta contraseña temporal al usuario de forma segura.',
+        'SMTP is not configured: deliver this temporary password to the user securely.',
       passwordTemporal,
     };
   }
@@ -151,11 +151,11 @@ export class AuthService {
   ): Promise<{ user: JwtUser; accessToken: string; refreshToken: string }> {
     const row = await this.loadUsuario(codUsuario);
     if (!row || !verifyPassword(claveActual, row.CLAVE, row.SALT)) {
-      throw new UnauthorizedException('La contraseña actual es incorrecta');
+      throw new UnauthorizedException('The current password is incorrect');
     }
     if (claveActual === claveNueva) {
       throw new BadRequestException(
-        'La contraseña nueva debe ser distinta de la actual',
+        'The new password must be different from the current one',
       );
     }
     const { clave, salt } = hashPassword(claveNueva);
@@ -171,7 +171,7 @@ export class AuthService {
 
   private async refreshFromRow(codUsuario: string) {
     const row = await this.loadUsuario(codUsuario);
-    if (!row) throw new UnauthorizedException('Usuario no disponible');
+    if (!row) throw new UnauthorizedException('User not available');
     const esSuper = row.ES_SUPER === 'S';
     const roles = await this.loadRoles(row.COD_USUARIO);
     const user: JwtUser = {
@@ -216,7 +216,7 @@ export class AuthService {
     refreshToken: string;
   }> {
     if (!refreshToken) {
-      throw new UnauthorizedException('Sesión expirada');
+      throw new UnauthorizedException('Session expired');
     }
     let payload: { sub: string; typ?: string };
     try {
@@ -224,18 +224,18 @@ export class AuthService {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Sesión expirada');
+      throw new UnauthorizedException('Session expired');
     }
     if (payload.typ !== 'refresh') {
-      throw new UnauthorizedException('Token inválido');
+      throw new UnauthorizedException('Invalid token');
     }
     const row = await this.loadUsuario(payload.sub);
     if (!row || row.ESTADOS !== 'A') {
-      throw new UnauthorizedException('Usuario no disponible');
+      throw new UnauthorizedException('User not available');
     }
     const esSuper = row.ES_SUPER === 'S';
     if (!esSuper && row.ESTADO_INSTITUCION !== 'APROBADA') {
-      throw new ForbiddenException('La institución no está habilitada');
+      throw new ForbiddenException('The institution is not enabled');
     }
     const roles = await this.loadRoles(row.COD_USUARIO);
     const user: JwtUser = {

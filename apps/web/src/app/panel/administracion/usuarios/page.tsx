@@ -247,7 +247,7 @@ function EditarUsuarioForm({
           : t('us.updated', { user: usuario.COD_USUARIO }),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
+      setError(err instanceof Error ? err.message : t('err.save'));
       setSending(false);
     }
   }
@@ -391,7 +391,7 @@ function NuevoUsuarioForm({
           : t('us.createdManual', { user, pwd: res.passwordTemporal }),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear');
+      setError(err instanceof Error ? err.message : t('err.create'));
       setSending(false);
     }
   }

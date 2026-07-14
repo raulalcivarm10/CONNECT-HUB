@@ -52,7 +52,7 @@ export class MapasController {
   })
   async create(@CurrentUser() user: JwtUser, @Req() req: FastifyRequest) {
     if (!req.isMultipart()) {
-      throw new BadRequestException('Se espera multipart/form-data');
+      throw new BadRequestException('Expected multipart/form-data');
     }
     const campos: Record<string, string> = {};
     let imagen: Buffer | undefined;
@@ -69,10 +69,10 @@ export class MapasController {
       }
     }
     if (!imagen?.length) {
-      throw new BadRequestException('Falta el archivo de imagen (campo file)');
+      throw new BadRequestException("Missing image file (field 'file')");
     }
     if (!campos.nombreMapa?.trim()) {
-      throw new BadRequestException('Falta el campo nombreMapa');
+      throw new BadRequestException("Missing field 'nombreMapa'");
     }
 
     const num = (v?: string) => (v ? Number(v) : undefined);

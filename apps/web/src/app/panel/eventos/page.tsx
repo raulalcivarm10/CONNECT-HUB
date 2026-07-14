@@ -17,8 +17,8 @@ import type {
   SubsalonRow,
 } from '@/lib/types';
 
-const money = (v: number) =>
-  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(
+const money = (v: number, locale: string) =>
+  new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(
     v ?? 0,
   );
 
@@ -33,6 +33,22 @@ interface AgendaItem {
   SUBSALONES_NOMBRES: string | null;
 }
 
+/** Un día del evento (tabla EVENTO_HORAS) con su propio rango horario */
+interface DiaRow {
+  ID_HORA: number;
+  FECHA: string; // YYYY-MM-DD
+  HORA_INICIO: string;
+  HORA_FIN: string;
+  ORDEN: number;
+}
+
+/** Día en edición dentro del formulario (repetidor) */
+interface DiaEditable {
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
 const toMin = (h: string) => {
   const [hh, mm] = h.split(':').map(Number);
   return hh * 60 + mm;
@@ -41,6 +57,59 @@ const toHora = (min: number) => {
   const m = Math.max(0, Math.min(min, 24 * 60 - 1));
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
+
+/** parsea 'YYYY-MM-DD' como fecha LOCAL (evita el corrimiento de zona de new Date(str)) */
+function parseFechaLocal(f: string): Date {
+  const [y, m, d] = f.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** suma un día a 'YYYY-MM-DD' con aritmética local y devuelve 'YYYY-MM-DD' */
+function sumarUnDia(f: string): string {
+  const [y, m, d] = f.split('-').map(Number);
+  const nx = new Date(y, m - 1, d + 1);
+  const yy = nx.getFullYear();
+  const mm = String(nx.getMonth() + 1).padStart(2, '0');
+  const dd = String(nx.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+/** fecha corta legible (p. ej. «14 jul») a partir de 'YYYY-MM-DD' */
+function fechaCorta(f: string, locale: string): string {
+  return parseFechaLocal(f).toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+/** días reales del evento: usa ev.DIAS ('YYYY-MM-DD' coma-separados); fallback a FECHA_EVENTO */
+function diasDeEvento(ev: {
+  DIAS?: string | null;
+  FECHA_EVENTO: string;
+}): string[] {
+  const dias = (ev.DIAS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return dias.length > 0 ? dias : [ev.FECHA_EVENTO].filter(Boolean);
+}
+
+/**
+ * Muestra los DÍAS INDIVIDUALES del evento (NUNCA un rango con guion):
+ *  - 1 día  -> esa fecha
+ *  - varios -> fechas separadas por ', '
+ *  - muchas (>3) -> las primeras + '+N' (p. ej. «14 jul, 19 jul +2»)
+ */
+function mostrarDias(dias: string[], locale: string): string {
+  const fechas = dias.filter(Boolean);
+  if (fechas.length === 0) return '—';
+  if (fechas.length === 1) return fechaCorta(fechas[0], locale);
+  if (fechas.length <= 3) {
+    return fechas.map((f) => fechaCorta(f, locale)).join(', ');
+  }
+  const visibles = fechas.slice(0, 2).map((f) => fechaCorta(f, locale));
+  return `${visibles.join(', ')} +${fechas.length - 2}`;
+}
 
 /** ventana real que ocupa un evento: inicio − preparación → fin + limpieza */
 function ventanaReal(a: {
@@ -57,7 +126,7 @@ function ventanaReal(a: {
 
 export default function EventosPage() {
   const { qs, nombreFiltro } = useInstitucionFiltro();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const lightbox = useLightbox();
   const dialogo = useDialogo();
   const [eventos, setEventos] = useState<EventoRow[]>([]);
@@ -200,6 +269,7 @@ export default function EventosPage() {
 
       {ver && !editar && !showForm && (
         <DetalleEvento
+          key={ver.ID_EVENTO}
           evento={ver}
           imgVersion={imgVersion}
           onEditar={() => {
@@ -264,15 +334,26 @@ export default function EventosPage() {
                       }}
                     />
                     <div>
-                      <div className="font-medium text-text">{ev.TITULO}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-text">
+                          {ev.TITULO}
+                        </span>
+                        {ev.ID_EVENTO_PADRE != null && (
+                          <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                            {t('ev.workshopBadge')}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-text-muted">
-                        {ev.INSTITUCION ?? ''}
+                        {ev.ID_EVENTO_PADRE != null && ev.PADRE_TITULO
+                          ? `↳ ${ev.PADRE_TITULO}`
+                          : (ev.INSTITUCION ?? '')}
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-text-2">
-                  {ev.FECHA_EVENTO}
+                  {mostrarDias(diasDeEvento(ev), locale)}
                   <div className="text-xs text-text-muted">
                     {ev.HORA_INICIO}–{ev.HORA_FIN}
                     {ev.TIEMPO_SETUP_MIN || ev.TIEMPO_CLEAN_MIN
@@ -282,7 +363,7 @@ export default function EventosPage() {
                 </td>
                 <td className="px-4 py-3 text-text-2">{espacio(ev)}</td>
                 <td className="px-4 py-3 text-text">
-                  {ev.PRECIO > 0 ? money(ev.PRECIO) : t('c.free')}
+                  {ev.PRECIO > 0 ? money(ev.PRECIO, locale) : t('c.free')}
                 </td>
                 <td className="px-4 py-3 text-text-2">{ev.INSCRITOS}</td>
                 <td className="px-4 py-3">
@@ -361,11 +442,19 @@ function DetalleEvento({
   onCerrar: () => void;
 }) {
   const [sinImagen, setSinImagen] = useState(false);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const lightbox = useLightbox();
   const datos: Array<[string, string]> = [
-    [t('ev.date'), evento.FECHA_EVENTO],
+    [t('ev.date'), mostrarDias(diasDeEvento(evento), locale)],
     [t('ev.schedule'), `${evento.HORA_INICIO ?? '—'}–${evento.HORA_FIN ?? '—'}`],
+    ...(evento.ID_EVENTO_PADRE != null
+      ? [
+          [
+            t('ev.parentEvent'),
+            evento.PADRE_TITULO ?? String(evento.ID_EVENTO_PADRE),
+          ] as [string, string],
+        ]
+      : []),
     [
       t('ev.realOccupation'),
       ventanaReal(evento)
@@ -387,7 +476,7 @@ function DetalleEvento({
           : (evento.SUBSALONES_NOMBRES ?? t('ev.fullHallOpt')),
     ],
     [t('ev.itemCode'), evento.COD_ITEM ?? '—'],
-    [t('ev.price'), evento.PRECIO > 0 ? money(evento.PRECIO) : t('c.free')],
+    [t('ev.price'), evento.PRECIO > 0 ? money(evento.PRECIO, locale) : t('c.free')],
     [
       t('ev.expectedAudience'),
       evento.PUBLICO_ESPERADO ? String(evento.PUBLICO_ESPERADO) : '—',
@@ -410,6 +499,11 @@ function DetalleEvento({
         <h2 className="text-xl font-bold text-text">
           {evento.DESTACADO === 1 && <span className="text-brand">★ </span>}
           {evento.TITULO}
+          {evento.ID_EVENTO_PADRE != null && (
+            <span className="ml-2 align-middle rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-brand">
+              {t('ev.workshopBadge')}
+            </span>
+          )}
         </h2>
         <div className="flex gap-2">
           <button
@@ -436,7 +530,7 @@ function DetalleEvento({
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={nasImagenUrl('EVENTO', evento.ID_EVENTO, 'PORTADA', imgVersion)}
-            alt="Portada"
+            alt={t('ev.coverAlt')}
             onClick={() =>
               lightbox.open(
                 nasImagenUrl('EVENTO', evento.ID_EVENTO, 'PORTADA', imgVersion),
@@ -520,11 +614,25 @@ function EventoForm({
   const { t } = useI18n();
   const [titulo, setTitulo] = useState(evento?.TITULO ?? '');
   const [descripcion, setDescripcion] = useState(evento?.DESCRIPCION ?? '');
-  const [fecha, setFecha] = useState(
-    evento?.FECHA_EVENTO ?? fechaInicial ?? '',
+  // Horario POR DÍA: un evento tiene 1+ días, cada uno con su rango horario.
+  // Inicia con 1 día (al editar se reemplaza con GET /eventos/:id/dias).
+  const [dias, setDias] = useState<DiaEditable[]>(
+    evento
+      ? [
+          {
+            fecha: evento.FECHA_EVENTO ?? '',
+            horaInicio: evento.HORA_INICIO ?? '09:00',
+            horaFin: evento.HORA_FIN ?? '13:00',
+          },
+        ]
+      : [{ fecha: fechaInicial ?? '', horaInicio: '09:00', horaFin: '13:00' }],
   );
-  const [horaInicio, setHoraInicio] = useState(evento?.HORA_INICIO ?? '09:00');
-  const [horaFin, setHoraFin] = useState(evento?.HORA_FIN ?? '13:00');
+  // Evento padre (si se elige, este evento es un workshop / hijo)
+  const [idEventoPadre, setIdEventoPadre] = useState(
+    evento?.ID_EVENTO_PADRE ? String(evento.ID_EVENTO_PADRE) : '',
+  );
+  // Candidatos a padre: eventos PRINCIPALES (sin padre), excluyendo el actual
+  const [eventosPrincipales, setEventosPrincipales] = useState<EventoRow[]>([]);
   const [precio, setPrecio] = useState(String(evento?.PRECIO ?? '0'));
   const [incluyeIva, setIncluyeIva] = useState(evento?.INCLUYE_IVA === 'S');
   const [montoIva, setMontoIva] = useState(
@@ -573,15 +681,85 @@ function EventoForm({
     evento?.ID_SUBSALON ? String(evento.ID_SUBSALON) : '',
   );
 
-  const [agenda, setAgenda] = useState<AgendaItem[]>([]);
+  // ocupación ya existente, agrupada por cada fecha del evento
+  const [agendaPorDia, setAgendaPorDia] = useState<
+    { fecha: string; items: AgendaItem[] }[]
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  // secciones colapsables (colapsadas por defecto), patrón igual a certOpen
+  const [cuponesOpen, setCuponesOpen] = useState(false);
+  const [detalleOpen, setDetalleOpen] = useState(false);
+  const [expositoresOpen, setExpositoresOpen] = useState(false);
+
+  // clave estable de fechas: solo cambia al añadir/quitar/cambiar una fecha
+  const fechasKey = dias
+    .map((d) => d.fecha)
+    .filter(Boolean)
+    .join(',');
+
+  function actualizarDia(i: number, campo: keyof DiaEditable, valor: string) {
+    setDias((ds) => ds.map((d, j) => (j === i ? { ...d, [campo]: valor } : d)));
+  }
+  function agregarDia() {
+    setDias((ds) => {
+      const ultima = ds[ds.length - 1];
+      // fecha del nuevo día = último día + 1 (aritmética local), editable;
+      // si el último no tiene fecha, se deja vacío
+      const fecha = ultima?.fecha ? sumarUnDia(ultima.fecha) : '';
+      return [
+        ...ds,
+        {
+          fecha,
+          horaInicio: ultima?.horaInicio ?? '09:00',
+          horaFin: ultima?.horaFin ?? '13:00',
+        },
+      ];
+    });
+  }
+  function quitarDia(i: number) {
+    setDias((ds) => (ds.length <= 1 ? ds : ds.filter((_, j) => j !== i)));
+  }
 
   // locales (respeta el filtro global del superadmin)
   useEffect(() => {
     const q = idInstitucion != null ? `?idInstitucion=${idInstitucion}` : '';
     api.get<LocalRow[]>(`/locales${q}`).then(setLocales).catch(() => undefined);
   }, [idInstitucion]);
+
+  // al editar, cargar los días reales del evento (tabla EVENTO_HORAS)
+  useEffect(() => {
+    if (!evento) return;
+    api
+      .get<DiaRow[]>(`/eventos/${evento.ID_EVENTO}/dias`)
+      .then((ds) => {
+        if (ds.length > 0) {
+          setDias(
+            ds.map((d) => ({
+              fecha: d.FECHA,
+              horaInicio: d.HORA_INICIO,
+              horaFin: d.HORA_FIN,
+            })),
+          );
+        }
+      })
+      .catch(() => undefined);
+  }, [evento]);
+
+  // candidatos a evento padre: eventos principales (sin padre), sin el actual
+  useEffect(() => {
+    const q = idInstitucion != null ? `?idInstitucion=${idInstitucion}` : '';
+    api
+      .get<EventoRow[]>(`/eventos${q}`)
+      .then((list) =>
+        setEventosPrincipales(
+          list.filter(
+            (e) => e.ID_EVENTO_PADRE == null && e.ID_EVENTO !== evento?.ID_EVENTO,
+          ),
+        ),
+      )
+      .catch(() => undefined);
+  }, [idInstitucion, evento]);
 
   // cascada local -> salones
   useEffect(() => {
@@ -608,27 +786,60 @@ function EventoForm({
       .catch(() => undefined);
   }, [idSalon]);
 
-  // agenda de la fecha elegida (horarios ya ocupados): por salón o por local
+  // agenda por cada día elegido (horarios ya ocupados): por salón o por local
   useEffect(() => {
-    setAgenda([]);
-    if (!fecha || (!idSalon && !idLocal)) return;
+    setAgendaPorDia([]);
+    if (!idSalon && !idLocal) return;
+    const fechas = [...new Set(fechasKey.split(',').filter(Boolean))];
+    if (fechas.length === 0) return;
     const filtro = idSalon ? `idSalon=${idSalon}` : `idLocal=${idLocal}`;
-    api
-      .get<AgendaItem[]>(`/eventos/agenda?${filtro}&fecha=${fecha}`)
-      .then(setAgenda)
-      .catch(() => undefined);
-  }, [idSalon, idLocal, fecha]);
+    let cancelado = false;
+    Promise.all(
+      fechas.map((f) =>
+        api
+          .get<AgendaItem[]>(`/eventos/agenda?${filtro}&fecha=${f}`)
+          .then((items) => ({ fecha: f, items }))
+          .catch(() => ({ fecha: f, items: [] as AgendaItem[] })),
+      ),
+    ).then((rs) => {
+      if (!cancelado) setAgendaPorDia(rs.filter((r) => r.items.length > 0));
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [idSalon, idLocal, fechasKey]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    // Validación de días: al menos 1 y cada horaFin > horaInicio (por minutos)
+    if (dias.length < 1) {
+      setError(t('c.error'));
+      return;
+    }
+    for (const d of dias) {
+      if (
+        !d.fecha ||
+        !d.horaInicio ||
+        !d.horaFin ||
+        toMin(d.horaFin) <= toMin(d.horaInicio)
+      ) {
+        setError(t('c.error'));
+        return;
+      }
+    }
     setSending(true);
     const data = {
       titulo: titulo.trim(),
       descripcion: descripcion.trim() || undefined,
-      fechaEvento: fecha,
-      horaInicio,
-      horaFin,
+      // horario POR DÍA (tabla EVENTO_HORAS); reemplaza fechaEvento/horaInicio/...
+      dias: dias.map((d) => ({
+        fecha: d.fecha,
+        horaInicio: d.horaInicio,
+        horaFin: d.horaFin,
+      })),
+      // si viene, este evento es un workshop (hijo); null = evento principal
+      idEventoPadre: idEventoPadre ? Number(idEventoPadre) : null,
       idLocal: Number(idLocal),
       // sin salón = reservar el local completo
       idSalon: idSalon ? Number(idSalon) : undefined,
@@ -685,6 +896,7 @@ function EventoForm({
       onSubmit={onSubmit}
       className="mt-5 grid gap-4 rounded-2xl border border-border-app bg-surface p-5 sm:grid-cols-2 lg:grid-cols-3"
     >
+      {/* ── 1. Datos básicos ── */}
       <div className="font-semibold text-text sm:col-span-2 lg:col-span-3">
         {evento
           ? t('ev.editingTitle', { name: evento.TITULO })
@@ -701,6 +913,299 @@ function EventoForm({
           className={inputCls}
         />
       </div>
+
+      <div className="sm:col-span-2 lg:col-span-3">
+        <label className={labelCls}>{t('ev.descField')}</label>
+        <textarea
+          rows={2}
+          maxLength={2000}
+          value={descripcion}
+          onChange={(e) => setDescripcion(e.target.value)}
+          className={inputCls}
+        />
+      </div>
+
+      {/* Evento padre: si se elige, este evento es un workshop (hijo) */}
+      <div className="sm:col-span-2 lg:col-span-3">
+        <label className={labelCls}>{t('ev.parentEvent')}</label>
+        <select
+          value={idEventoPadre}
+          onChange={(e) => setIdEventoPadre(e.target.value)}
+          className={inputCls}
+        >
+          <option value="">{t('ev.parentNone')}</option>
+          {eventosPrincipales.map((e) => (
+            <option key={e.ID_EVENTO} value={e.ID_EVENTO}>
+              {e.TITULO}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-text-muted">{t('ev.parentHint')}</p>
+      </div>
+
+      <div>
+        <label className={labelCls}>{t('ev.itemCode')}</label>
+        <input
+          maxLength={50}
+          value={codItem}
+          onChange={(e) => setCodItem(e.target.value)}
+          placeholder={t('ev.itemCodePh')}
+          className={inputCls}
+        />
+      </div>
+
+      {/* ── 2. Fechas: horario POR DÍA (repetidor de días) ── */}
+      <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
+        <div className="mb-1 text-sm font-medium text-text-2">
+          {t('ev.days')}
+        </div>
+        <p className="mb-3 text-xs text-text-muted">{t('ev.daysHint')}</p>
+        <div className="flex flex-col gap-2">
+          {dias.map((d, i) => (
+            <div
+              key={i}
+              className="flex flex-wrap items-end gap-2 rounded-lg border border-border-app bg-surface p-2"
+            >
+              <div className="min-w-40 flex-1">
+                <label className="mb-1 block text-xs font-medium text-text-2">
+                  {t('ev.day')} {i + 1}
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={d.fecha}
+                  onChange={(e) => actualizarDia(i, 'fecha', e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div className="w-32">
+                <label className="mb-1 block text-xs font-medium text-text-2">
+                  {t('ev.startTime')}
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={d.horaInicio}
+                  onChange={(e) =>
+                    actualizarDia(i, 'horaInicio', e.target.value)
+                  }
+                  className={inputCls}
+                />
+              </div>
+              <div className="w-32">
+                <label className="mb-1 block text-xs font-medium text-text-2">
+                  {t('ev.endTime')}
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={d.horaFin}
+                  onChange={(e) => actualizarDia(i, 'horaFin', e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => quitarDia(i)}
+                disabled={dias.length <= 1}
+                className="rounded-lg border border-border-app px-3 py-2 text-xs text-danger hover:bg-surface-2 disabled:opacity-40"
+              >
+                {t('ev.removeDay')}
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={agregarDia}
+          className="mt-3 rounded-lg bg-brand/10 px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/20"
+        >
+          {t('ev.addDay')}
+        </button>
+      </div>
+
+      {/* ── 3. Espacio + referencias visuales + agenda de ocupación ── */}
+      <div>
+        <label className={labelCls}>{t('ev.venue')}</label>
+        <select
+          required
+          value={idLocal}
+          onChange={(e) => {
+            setIdLocal(e.target.value);
+            setIdSalon('');
+            setIdConfiguracion('');
+            setIdSubsalon('');
+          }}
+          className={inputCls}
+        >
+          <option value="">{t('c.select')}</option>
+          {locales.map((l) => (
+            <option key={l.ID_LOCAL} value={l.ID_LOCAL}>
+              {l.NOMBRE}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className={labelCls}>{t('ev.hall')}</label>
+        <select
+          value={idSalon}
+          onChange={(e) => {
+            setIdSalon(e.target.value);
+            setTipoEspacio('salon');
+            setIdConfiguracion('');
+            setIdSubsalon('');
+          }}
+          className={inputCls}
+          disabled={!idLocal}
+        >
+          <option value="">{t('ev.wholeVenueOpt')}</option>
+          {salones.map((s) => (
+            <option key={s.ID_SALON} value={s.ID_SALON}>
+              {s.NOMBRE} ({t('ld.cap')} {s.CAPACIDAD_MAX ?? t('c.na')})
+            </option>
+          ))}
+        </select>
+        {idLocal && !idSalon && (
+          <p className="mt-1 text-xs text-text-muted">
+            {t('ev.wholeVenueHint')}
+            {salones.length === 0 ? t('ev.noHallsHint') : ''}
+          </p>
+        )}
+      </div>
+      <div>
+        <label className={labelCls}>{t('ev.spaceToReserve')}</label>
+        <select
+          value={tipoEspacio}
+          onChange={(e) => {
+            setTipoEspacio(e.target.value as TipoEspacio);
+            setIdConfiguracion('');
+            setIdSubsalon('');
+          }}
+          className={inputCls}
+          disabled={!idSalon}
+        >
+          <option value="salon">{t('ev.fullHallOpt')}</option>
+          <option value="configuracion" disabled={configuraciones.length === 0}>
+            {t('ev.layoutOpt', { n: configuraciones.length })}
+          </option>
+          <option value="subsalon" disabled={subsalones.length === 0}>
+            {t('ev.subhallOpt', { n: subsalones.length })}
+          </option>
+        </select>
+      </div>
+
+      {tipoEspacio === 'configuracion' && (
+        <div className="sm:col-span-2">
+          <label className={labelCls}>{t('ev.layout')}</label>
+          <select
+            required
+            value={idConfiguracion}
+            onChange={(e) => setIdConfiguracion(e.target.value)}
+            className={inputCls}
+          >
+            <option value="">{t('c.select')}</option>
+            {configuraciones.map((c) => (
+              <option key={c.ID_CONFIGURACION} value={c.ID_CONFIGURACION}>
+                {c.NOMBRE} — {c.SUBSALONES_NOMBRES}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {tipoEspacio === 'subsalon' && (
+        <div className="sm:col-span-2">
+          <label className={labelCls}>{t('ev.subhall')}</label>
+          <select
+            required
+            value={idSubsalon}
+            onChange={(e) => setIdSubsalon(e.target.value)}
+            className={inputCls}
+          >
+            <option value="">{t('c.select')}</option>
+            {subsalones.map((s) => (
+              <option key={s.ID_SUBSALON} value={s.ID_SUBSALON}>
+                {s.NOMBRE} ({t('ld.cap')} {s.CAPACIDAD_MAX ?? t('c.na')})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {(idLocal || idSalon) && (
+        <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
+          <div className="mb-2 text-sm font-medium text-text-2">
+            {t('ev.visualRef')}
+          </div>
+          <div className="flex flex-wrap gap-4">
+            {idLocal && (
+              <RefEspacio
+                key={`L${idLocal}`}
+                tipo="LOCAL"
+                id={Number(idLocal)}
+                etiqueta={t('ev.venue')}
+              />
+            )}
+            {idSalon && (
+              <RefEspacio
+                key={`S${idSalon}`}
+                tipo="SALON"
+                id={Number(idSalon)}
+                etiqueta={t('ev.hall')}
+              />
+            )}
+            {tipoEspacio === 'configuracion' && idConfiguracion && (
+              <RefEspacio
+                key={`C${idConfiguracion}`}
+                tipo="CONFIGURACION"
+                id={Number(idConfiguracion)}
+                etiqueta={t('ev.layout')}
+              />
+            )}
+            {tipoEspacio === 'subsalon' && idSubsalon && (
+              <RefEspacio
+                key={`SS${idSubsalon}`}
+                tipo="SUBSALON"
+                id={Number(idSubsalon)}
+                etiqueta={t('ev.subhall')}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {agendaPorDia.length > 0 && (
+        <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 text-sm sm:col-span-2 lg:col-span-3">
+          <div className="mb-1 font-semibold text-brand">
+            {t('ev.agendaTitle', {
+              n: agendaPorDia.reduce((s, g) => s + g.items.length, 0),
+            })}
+          </div>
+          {agendaPorDia.map((g) => (
+            <div key={g.fecha} className="mt-1">
+              <div className="text-xs font-semibold text-text-2">{g.fecha}</div>
+              {g.items.map((a) => (
+                <div key={a.ID_EVENTO} className="text-text-2">
+                  • «{a.TITULO}» {a.HORA_INICIO}–{a.HORA_FIN}
+                  {ventanaReal(a) && (
+                    <span className="font-semibold">
+                      {' '}
+                      {t('ev.occupies', { w: ventanaReal(a)! })}
+                    </span>
+                  )}
+                  {!a.SALON_NOMBRE
+                    ? ` ${t('ev.allVenue')}`
+                    : a.SUBSALONES_NOMBRES
+                      ? ` (${a.SALON_NOMBRE}: ${a.SUBSALONES_NOMBRES})`
+                      : ` (${a.SALON_NOMBRE})`}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── 4. Precio y aforo ── */}
       <div>
         <label className={labelCls}>{t('ev.priceField')}</label>
         <input
@@ -731,60 +1236,6 @@ function EventoForm({
           />
         )}
       </div>
-
-      <div>
-        <label className={labelCls}>{t('ev.itemCode')}</label>
-        <input
-          maxLength={50}
-          value={codItem}
-          onChange={(e) => setCodItem(e.target.value)}
-          placeholder="p. ej. ITM-0001"
-          className={inputCls}
-        />
-      </div>
-
-      <div className="sm:col-span-2 lg:col-span-3">
-        <label className={labelCls}>{t('ev.descField')}</label>
-        <textarea
-          rows={2}
-          maxLength={2000}
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-          className={inputCls}
-        />
-      </div>
-
-      <div>
-        <label className={labelCls}>{t('ev.date')}</label>
-        <input
-          type="date"
-          required
-          value={fecha}
-          onChange={(e) => setFecha(e.target.value)}
-          className={inputCls}
-        />
-      </div>
-      <div>
-        <label className={labelCls}>{t('ev.startTime')}</label>
-        <input
-          type="time"
-          required
-          value={horaInicio}
-          onChange={(e) => setHoraInicio(e.target.value)}
-          className={inputCls}
-        />
-      </div>
-      <div>
-        <label className={labelCls}>{t('ev.endTime')}</label>
-        <input
-          type="time"
-          required
-          value={horaFin}
-          onChange={(e) => setHoraFin(e.target.value)}
-          className={inputCls}
-        />
-      </div>
-
       <div>
         <label className={labelCls}>{t('ev.prepMin')}</label>
         <input
@@ -853,113 +1304,7 @@ function EventoForm({
         </div>
       </div>
 
-      <div>
-        <label className={labelCls}>{t('ev.venue')}</label>
-        <select
-          required
-          value={idLocal}
-          onChange={(e) => {
-            setIdLocal(e.target.value);
-            setIdSalon('');
-            setIdConfiguracion('');
-            setIdSubsalon('');
-          }}
-          className={inputCls}
-        >
-          <option value="">Seleccionar…</option>
-          {locales.map((l) => (
-            <option key={l.ID_LOCAL} value={l.ID_LOCAL}>
-              {l.NOMBRE}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className={labelCls}>{t('ev.hall')}</label>
-        <select
-          value={idSalon}
-          onChange={(e) => {
-            setIdSalon(e.target.value);
-            setTipoEspacio('salon');
-            setIdConfiguracion('');
-            setIdSubsalon('');
-          }}
-          className={inputCls}
-          disabled={!idLocal}
-        >
-          <option value="">{t('ev.wholeVenueOpt')}</option>
-          {salones.map((s) => (
-            <option key={s.ID_SALON} value={s.ID_SALON}>
-              {s.NOMBRE} (cap. {s.CAPACIDAD_MAX ?? 's/d'})
-            </option>
-          ))}
-        </select>
-        {idLocal && !idSalon && (
-          <p className="mt-1 text-xs text-text-muted">
-            {t('ev.wholeVenueHint')}
-            {salones.length === 0 ? t('ev.noHallsHint') : ''}
-          </p>
-        )}
-      </div>
-      <div>
-        <label className={labelCls}>{t('ev.spaceToReserve')}</label>
-        <select
-          value={tipoEspacio}
-          onChange={(e) => {
-            setTipoEspacio(e.target.value as TipoEspacio);
-            setIdConfiguracion('');
-            setIdSubsalon('');
-          }}
-          className={inputCls}
-          disabled={!idSalon}
-        >
-          <option value="salon">{t('ev.fullHallOpt')}</option>
-          <option value="configuracion" disabled={configuraciones.length === 0}>
-            {t('ev.layoutOpt', { n: configuraciones.length })}
-          </option>
-          <option value="subsalon" disabled={subsalones.length === 0}>
-            {t('ev.subhallOpt', { n: subsalones.length })}
-          </option>
-        </select>
-      </div>
-
-      {tipoEspacio === 'configuracion' && (
-        <div className="sm:col-span-2">
-          <label className={labelCls}>{t('ev.layout')}</label>
-          <select
-            required
-            value={idConfiguracion}
-            onChange={(e) => setIdConfiguracion(e.target.value)}
-            className={inputCls}
-          >
-            <option value="">Seleccionar…</option>
-            {configuraciones.map((c) => (
-              <option key={c.ID_CONFIGURACION} value={c.ID_CONFIGURACION}>
-                {c.NOMBRE} — {c.SUBSALONES_NOMBRES}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      {tipoEspacio === 'subsalon' && (
-        <div className="sm:col-span-2">
-          <label className={labelCls}>{t('ev.subhall')}</label>
-          <select
-            required
-            value={idSubsalon}
-            onChange={(e) => setIdSubsalon(e.target.value)}
-            className={inputCls}
-          >
-            <option value="">Seleccionar…</option>
-            {subsalones.map((s) => (
-              <option key={s.ID_SUBSALON} value={s.ID_SUBSALON}>
-                {s.NOMBRE} (cap. {s.CAPACIDAD_MAX ?? 's/d'})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
+      {/* ── 5. Portada ── */}
       {evento && (
         <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
           <div className="mb-2 text-sm font-medium text-text-2">
@@ -978,74 +1323,60 @@ function EventoForm({
         </div>
       )}
 
-      {evento && <CuponesEvento idEvento={evento.ID_EVENTO} />}
+      {/* ── 6. Secciones colapsables (colapsadas por defecto) ── */}
+      {evento && (
+        <>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <button
+              type="button"
+              onClick={() => setCuponesOpen((v) => !v)}
+              className="flex w-full items-center gap-2 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-left text-sm font-semibold text-text-2 transition hover:bg-surface"
+            >
+              <span className="text-brand">{cuponesOpen ? '▾' : '▸'}</span>
+              {t('cup.title')}
+            </button>
+            {cuponesOpen && (
+              <div className="mt-2">
+                <CuponesEvento idEvento={evento.ID_EVENTO} />
+              </div>
+            )}
+          </div>
 
-      {(idLocal || idSalon) && (
-        <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
-          <div className="mb-2 text-sm font-medium text-text-2">
-            {t('ev.visualRef')}
-          </div>
-          <div className="flex flex-wrap gap-4">
-            {idLocal && (
-              <RefEspacio
-                key={`L${idLocal}`}
-                tipo="LOCAL"
-                id={Number(idLocal)}
-                etiqueta={t('ev.venue')}
-              />
-            )}
-            {idSalon && (
-              <RefEspacio
-                key={`S${idSalon}`}
-                tipo="SALON"
-                id={Number(idSalon)}
-                etiqueta={t('ev.hall')}
-              />
-            )}
-            {tipoEspacio === 'configuracion' && idConfiguracion && (
-              <RefEspacio
-                key={`C${idConfiguracion}`}
-                tipo="CONFIGURACION"
-                id={Number(idConfiguracion)}
-                etiqueta={t('ev.layout')}
-              />
-            )}
-            {tipoEspacio === 'subsalon' && idSubsalon && (
-              <RefEspacio
-                key={`SS${idSubsalon}`}
-                tipo="SUBSALON"
-                id={Number(idSubsalon)}
-                etiqueta={t('ev.subhall')}
-              />
+          <div className="sm:col-span-2 lg:col-span-3">
+            <button
+              type="button"
+              onClick={() => setDetalleOpen((v) => !v)}
+              className="flex w-full items-center gap-2 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-left text-sm font-semibold text-text-2 transition hover:bg-surface"
+            >
+              <span className="text-brand">{detalleOpen ? '▾' : '▸'}</span>
+              {t('ev.detailSection')}
+            </button>
+            {detalleOpen && (
+              <div className="mt-2">
+                <EventoDetalleForm idEvento={evento.ID_EVENTO} />
+              </div>
             )}
           </div>
-        </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <button
+              type="button"
+              onClick={() => setExpositoresOpen((v) => !v)}
+              className="flex w-full items-center gap-2 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-left text-sm font-semibold text-text-2 transition hover:bg-surface"
+            >
+              <span className="text-brand">{expositoresOpen ? '▾' : '▸'}</span>
+              {t('exp.section')}
+            </button>
+            {expositoresOpen && (
+              <div className="mt-2">
+                <ExpositoresEvento idEvento={evento.ID_EVENTO} />
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {agenda.length > 0 && (
-        <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 text-sm sm:col-span-2 lg:col-span-3">
-          <div className="mb-1 font-semibold text-brand">
-            {t('ev.agendaTitle', { n: agenda.length })}
-          </div>
-          {agenda.map((a) => (
-            <div key={a.ID_EVENTO} className="text-text-2">
-              • «{a.TITULO}» {a.HORA_INICIO}–{a.HORA_FIN}
-              {ventanaReal(a) && (
-                <span className="font-semibold">
-                  {' '}
-                  {t('ev.occupies', { w: ventanaReal(a)! })}
-                </span>
-              )}
-              {!a.SALON_NOMBRE
-                ? ` ${t('ev.allVenue')}`
-                : a.SUBSALONES_NOMBRES
-                  ? ` (${a.SALON_NOMBRE}: ${a.SUBSALONES_NOMBRES})`
-                  : ` (${a.SALON_NOMBRE})`}
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* ── 7. Cierre: error + acciones ── */}
       {error && (
         <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger sm:col-span-2 lg:col-span-3">
           {error}
@@ -1065,7 +1396,7 @@ function EventoForm({
           onClick={onCancel}
           className="rounded-lg border border-border-app px-4 py-2 text-text-2 hover:bg-surface-2"
         >
-          Cancelar
+          {t('c.cancel')}
         </button>
       </div>
     </form>
@@ -1076,14 +1407,19 @@ interface CuponRow {
   ID_CUPON: number;
   CODIGO: string;
   MONTO_DESCUENTO: number;
+  TIPO_DESCUENTO: 'M' | 'P';
+  MAX_USOS: number | null;
+  USOS: number;
 }
 
 function CuponesEvento({ idEvento }: { idEvento: number }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const dialogo = useDialogo();
   const [cupones, setCupones] = useState<CuponRow[]>([]);
   const [codigo, setCodigo] = useState('');
   const [monto, setMonto] = useState('');
+  const [tipo, setTipo] = useState<'M' | 'P'>('M');
+  const [maxUsos, setMaxUsos] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -1095,18 +1431,22 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
     cargar().catch((e) => setError(e.message));
   }, [cargar]);
 
-  async function crear(e: FormEvent) {
-    e.preventDefault();
+  async function crear() {
     if (sending) return;
+    if (!codigo.trim() || !monto) return;
     setError(null);
     setSending(true);
     try {
       await api.post(`/eventos/${idEvento}/cupones`, {
         codigo: codigo.trim(),
         montoDescuento: Number(monto),
+        tipoDescuento: tipo,
+        maxUsos: maxUsos ? Number(maxUsos) : null,
       });
       setCodigo('');
       setMonto('');
+      setTipo('M');
+      setMaxUsos('');
       await cargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -1132,33 +1472,52 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
 
   return (
     <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
-      <div className="mb-2 text-sm font-medium text-text-2">{t('cup.title')}</div>
-      <form onSubmit={crear} className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <input
-          required
           maxLength={50}
           placeholder={t('cup.code')}
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
           className="min-w-40 flex-1 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
         />
+        <select
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value as 'M' | 'P')}
+          aria-label={t('cup.type')}
+          className="rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
+        >
+          <option value="M">{t('cup.typeAmount')}</option>
+          <option value="P">{t('cup.typePercent')}</option>
+        </select>
         <input
-          required
           type="number"
           min={0.01}
+          max={tipo === 'P' ? 100 : undefined}
           step="0.01"
-          placeholder={t('cup.amount')}
+          placeholder={tipo === 'P' ? t('cup.typePercent') : t('cup.amount')}
           value={monto}
           onChange={(e) => setMonto(e.target.value)}
-          className="w-40 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
+          className="w-32 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
+        />
+        <input
+          type="number"
+          min={1}
+          step="1"
+          placeholder={t('cup.maxUses')}
+          title={t('cup.maxUsesHint')}
+          value={maxUsos}
+          onChange={(e) => setMaxUsos(e.target.value)}
+          className="w-32 rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand"
         />
         <button
+          type="button"
+          onClick={() => crear()}
           disabled={sending}
           className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
           {sending ? t('c.saving') : t('cup.add')}
         </button>
-      </form>
+      </div>
       {error && (
         <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
       )}
@@ -1169,7 +1528,16 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
             className="flex items-center gap-2 rounded-full border border-border-app bg-surface px-3 py-1 text-xs"
           >
             <span className="font-mono font-semibold text-text">{c.CODIGO}</span>
-            <span className="text-success">-{money(c.MONTO_DESCUENTO)}</span>
+            <span className="text-success">
+              {c.TIPO_DESCUENTO === 'P'
+                ? `${c.MONTO_DESCUENTO}${t('cup.percentSuffix')}`
+                : `-${money(c.MONTO_DESCUENTO, locale)}`}
+            </span>
+            {c.MAX_USOS != null && (
+              <span className="text-text-muted">
+                {t('cup.uses', { used: c.USOS ?? 0, max: c.MAX_USOS })}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => eliminar(c)}
@@ -1184,6 +1552,665 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
           <span className="text-xs text-text-muted">{t('cup.empty')}</span>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Detalle 1:1 del evento (EVENTO_DETALLE): descripción, temas, nivel/modalidad,
+ *  duración y config de certificado. Se guarda con PUT (upsert). Es un <div>
+ *  (no <form>) porque vive dentro del <form> del evento. */
+interface DetalleData {
+  descripcionCorta?: string | null;
+  descripcionLarga?: string | null;
+  queAprenderas?: string[];
+  temas?: string[];
+  requisitos?: string[];
+  nivel?: string | null;
+  modalidad?: string | null;
+  duracionValor?: number | null;
+  duracionUnidad?: string | null;
+  certHabilitado?: boolean;
+  certTipo?: string | null;
+  certEntrega?: string | null;
+  [k: string]: unknown; // campos que el panel no edita se conservan tal cual
+}
+
+/** Lista editable de bullets (+Añadir / quitar) reutilizada por el detalle. */
+function ListaEditable({
+  label,
+  items,
+  onChange,
+}: {
+  label: string;
+  items: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const { t } = useI18n();
+  const fieldCls =
+    'w-full rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand';
+  return (
+    <div className="sm:col-span-2">
+      <label className="mb-1 block text-sm font-medium text-text-2">{label}</label>
+      <div className="flex flex-col gap-2">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={it}
+              onChange={(e) => {
+                const next = [...items];
+                next[i] = e.target.value;
+                onChange(next);
+              }}
+              className={fieldCls}
+            />
+            <button
+              type="button"
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+              className="shrink-0 rounded-lg border border-border-app px-2 py-2 text-xs text-danger hover:bg-surface-2"
+            >
+              {t('det.remove')}
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => onChange([...items, ''])}
+          className="self-start rounded-lg border border-border-app px-3 py-1.5 text-xs font-medium text-brand hover:bg-surface-2"
+        >
+          {t('det.addItem')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EventoDetalleForm({ idEvento }: { idEvento: number }) {
+  const { t } = useI18n();
+  const [loaded, setLoaded] = useState<DetalleData>({});
+  const [descCorta, setDescCorta] = useState('');
+  const [descLarga, setDescLarga] = useState('');
+  const [queAprenderas, setQueAprenderas] = useState<string[]>([]);
+  const [temas, setTemas] = useState<string[]>([]);
+  const [requisitos, setRequisitos] = useState<string[]>([]);
+  const [nivel, setNivel] = useState('');
+  const [modalidad, setModalidad] = useState('');
+  const [duracionValor, setDuracionValor] = useState('');
+  const [duracionUnidad, setDuracionUnidad] = useState('');
+  const [certOpen, setCertOpen] = useState(false);
+  const [certHabilitado, setCertHabilitado] = useState(false);
+  const [certTipo, setCertTipo] = useState('');
+  const [certEntrega, setCertEntrega] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .get<DetalleData>(`/eventos/${idEvento}/detalle`)
+      .then((d) => {
+        if (!alive) return;
+        const data = d ?? {};
+        setLoaded(data);
+        setDescCorta(data.descripcionCorta ?? '');
+        setDescLarga(data.descripcionLarga ?? '');
+        setQueAprenderas(data.queAprenderas ?? []);
+        setTemas(data.temas ?? []);
+        setRequisitos(data.requisitos ?? []);
+        setNivel(data.nivel ?? '');
+        setModalidad(data.modalidad ?? '');
+        setDuracionValor(
+          data.duracionValor != null ? String(data.duracionValor) : '',
+        );
+        setDuracionUnidad(data.duracionUnidad ?? '');
+        setCertHabilitado(!!data.certHabilitado);
+        setCertTipo(data.certTipo ?? '');
+        setCertEntrega(data.certEntrega ?? '');
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Error'))
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [idEvento]);
+
+  async function guardar() {
+    if (sending) return;
+    setError(null);
+    setOkMsg(null);
+    setSending(true);
+    try {
+      // se parte de lo cargado para no perder campos que el panel no edita
+      const payload = {
+        ...loaded,
+        descripcionCorta: descCorta.trim() || null,
+        descripcionLarga: descLarga.trim() || null,
+        queAprenderas: queAprenderas.map((s) => s.trim()).filter(Boolean),
+        temas: temas.map((s) => s.trim()).filter(Boolean),
+        requisitos: requisitos.map((s) => s.trim()).filter(Boolean),
+        nivel: nivel || null,
+        modalidad: modalidad || null,
+        duracionValor: duracionValor ? Number(duracionValor) : null,
+        duracionUnidad: duracionUnidad || null,
+        certHabilitado,
+        certTipo: certTipo || null,
+        certEntrega: certEntrega || null,
+      };
+      const res = await api.put<DetalleData>(
+        `/eventos/${idEvento}/detalle`,
+        payload,
+      );
+      setLoaded(res ?? {});
+      setOkMsg(t('det.saved'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const fieldCls =
+    'w-full rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand';
+  const lblCls = 'mb-1 block text-sm font-medium text-text-2';
+
+  return (
+    <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
+      <p className="mb-3 mt-0.5 text-xs text-text-muted">{t('ev.detailDesc')}</p>
+
+      {!loading && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className={lblCls}>{t('det.shortDesc')}</label>
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={descCorta}
+              onChange={(e) => setDescCorta(e.target.value)}
+              className={fieldCls}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={lblCls}>{t('det.longDesc')}</label>
+            <textarea
+              rows={4}
+              value={descLarga}
+              onChange={(e) => setDescLarga(e.target.value)}
+              className={fieldCls}
+            />
+          </div>
+
+          <ListaEditable
+            label={t('det.learn')}
+            items={queAprenderas}
+            onChange={setQueAprenderas}
+          />
+          <ListaEditable
+            label={t('det.topics')}
+            items={temas}
+            onChange={setTemas}
+          />
+          <ListaEditable
+            label={t('det.requirements')}
+            items={requisitos}
+            onChange={setRequisitos}
+          />
+
+          <div>
+            <label className={lblCls}>{t('det.level')}</label>
+            <select
+              value={nivel}
+              onChange={(e) => setNivel(e.target.value)}
+              className={fieldCls}
+            >
+              <option value="">{t('det.none')}</option>
+              <option value="PRINCIPIANTE">{t('det.levelPRINCIPIANTE')}</option>
+              <option value="INTERMEDIO">{t('det.levelINTERMEDIO')}</option>
+              <option value="AVANZADO">{t('det.levelAVANZADO')}</option>
+            </select>
+          </div>
+          <div>
+            <label className={lblCls}>{t('det.modality')}</label>
+            <select
+              value={modalidad}
+              onChange={(e) => setModalidad(e.target.value)}
+              className={fieldCls}
+            >
+              <option value="">{t('det.none')}</option>
+              <option value="PRESENCIAL">{t('det.modPRESENCIAL')}</option>
+              <option value="ONLINE">{t('det.modONLINE')}</option>
+              <option value="HIBRIDO">{t('det.modHIBRIDO')}</option>
+            </select>
+          </div>
+          <div>
+            <label className={lblCls}>{t('det.duration')}</label>
+            <input
+              type="number"
+              min={0}
+              step="0.5"
+              value={duracionValor}
+              onChange={(e) => setDuracionValor(e.target.value)}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={lblCls}>{t('det.unit')}</label>
+            <select
+              value={duracionUnidad}
+              onChange={(e) => setDuracionUnidad(e.target.value)}
+              className={fieldCls}
+            >
+              <option value="">{t('det.none')}</option>
+              <option value="HORAS">{t('det.uHORAS')}</option>
+              <option value="SEMANAS">{t('det.uSEMANAS')}</option>
+              <option value="SESIONES">{t('det.uSESIONES')}</option>
+              <option value="DIAS">{t('det.uDIAS')}</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setCertOpen((v) => !v)}
+          className="text-sm font-semibold text-brand hover:underline"
+        >
+          {certOpen ? '▾' : '▸'} {t('det.certSection')}
+        </button>
+        {certOpen && (
+          <div className="mt-2 grid gap-3 rounded-lg border border-border-app bg-surface p-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm text-text-2 sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={certHabilitado}
+                onChange={(e) => setCertHabilitado(e.target.checked)}
+                className="h-4 w-4 rounded border-border-app text-brand focus:ring-brand"
+              />
+              {t('det.certEnabled')}
+            </label>
+            <div>
+              <label className={lblCls}>{t('det.certType')}</label>
+              <select
+                value={certTipo}
+                onChange={(e) => setCertTipo(e.target.value)}
+                className={fieldCls}
+              >
+                <option value="">{t('det.none')}</option>
+                <option value="ASISTENCIA">{t('det.ctASISTENCIA')}</option>
+                <option value="PARTICIPACION">{t('det.ctPARTICIPACION')}</option>
+                <option value="FINALIZACION">{t('det.ctFINALIZACION')}</option>
+              </select>
+            </div>
+            <div>
+              <label className={lblCls}>{t('det.certDelivery')}</label>
+              <select
+                value={certEntrega}
+                onChange={(e) => setCertEntrega(e.target.value)}
+                className={fieldCls}
+              >
+                <option value="">{t('det.none')}</option>
+                <option value="DESCARGA">{t('det.cdDESCARGA')}</option>
+                <option value="EMAIL">{t('det.cdEMAIL')}</option>
+                <option value="APP">{t('det.cdAPP')}</option>
+              </select>
+            </div>
+            <p className="text-xs text-text-muted sm:col-span-2">
+              {t('det.certNote')}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => guardar()}
+          disabled={sending || loading}
+          className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {sending ? t('c.saving') : t('det.save')}
+        </button>
+        {okMsg && <span className="text-xs font-medium text-success">{okMsg}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Un expositor tal como lo devuelve la API (camelCase). */
+interface ExpositorRow {
+  idExpositor: number;
+  nombreCompleto: string;
+  cargo: string | null;
+  organizacion: string | null;
+  bio: string | null;
+  fotoUrl: string | null;
+  rol: string | null;
+  esDestacado: boolean;
+}
+
+/** Sub-editor de un expositor (alta o edición). <div>, no <form>. */
+function ExpositorForm({
+  idEvento,
+  expositor,
+  onDone,
+  onCancel,
+}: {
+  idEvento: number;
+  expositor: ExpositorRow | null;
+  onDone: () => void | Promise<void>;
+  onCancel: () => void;
+}) {
+  const { t } = useI18n();
+  const [nombre, setNombre] = useState(expositor?.nombreCompleto ?? '');
+  const [cargo, setCargo] = useState(expositor?.cargo ?? '');
+  const [organizacion, setOrganizacion] = useState(expositor?.organizacion ?? '');
+  const [rol, setRol] = useState(expositor?.rol ?? 'EXPOSITOR');
+  const [bio, setBio] = useState(expositor?.bio ?? '');
+  const [destacado, setDestacado] = useState(!!expositor?.esDestacado);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fieldCls =
+    'w-full rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text outline-none focus:border-brand';
+  const lblCls = 'mb-1 block text-sm font-medium text-text-2';
+
+  async function guardar() {
+    if (sending) return;
+    // validación en JS (sin 'required' HTML para no romper el submit del evento padre)
+    if (!nombre.trim()) {
+      setError(t('exp.name'));
+      return;
+    }
+    setError(null);
+    setSending(true);
+    try {
+      const payload = {
+        nombreCompleto: nombre.trim(),
+        cargo: cargo.trim() || null,
+        organizacion: organizacion.trim() || null,
+        rol: rol || null,
+        bio: bio.trim() || null,
+        esDestacado: destacado,
+      };
+      if (expositor) {
+        await api.patch(
+          `/eventos/${idEvento}/expositores/${expositor.idExpositor}`,
+          payload,
+        );
+      } else {
+        await api.post(`/eventos/${idEvento}/expositores`, payload);
+      }
+      await onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 grid gap-3 rounded-lg border border-brand/30 bg-surface p-3 sm:grid-cols-2">
+      <div>
+        <label className={lblCls}>{t('exp.name')}</label>
+        <input
+          maxLength={150}
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          className={fieldCls}
+        />
+      </div>
+      <div>
+        <label className={lblCls}>{t('exp.role')}</label>
+        <input
+          maxLength={150}
+          value={cargo}
+          onChange={(e) => setCargo(e.target.value)}
+          className={fieldCls}
+        />
+      </div>
+      <div>
+        <label className={lblCls}>{t('exp.org')}</label>
+        <input
+          maxLength={150}
+          value={organizacion}
+          onChange={(e) => setOrganizacion(e.target.value)}
+          className={fieldCls}
+        />
+      </div>
+      <div>
+        <label className={lblCls}>{t('exp.roleType')}</label>
+        <select
+          value={rol}
+          onChange={(e) => setRol(e.target.value)}
+          className={fieldCls}
+        >
+          <option value="EXPOSITOR">{t('exp.rEXPOSITOR')}</option>
+          <option value="CO_EXPOSITOR">{t('exp.rCO_EXPOSITOR')}</option>
+          <option value="MODERADOR">{t('exp.rMODERADOR')}</option>
+          <option value="KEYNOTE">{t('exp.rKEYNOTE')}</option>
+        </select>
+      </div>
+      {/* Foto del expositor: solo botón de carga al NAS (como la portada del evento).
+          Aparece únicamente al editar, cuando ya existe idExpositor para subir. */}
+      {expositor ? (
+        <div className="sm:col-span-2">
+          <label className={lblCls}>{t('exp.photo')}</label>
+          <ImagenNas
+            tipoEntidad="EXPOSITOR"
+            id={expositor.idExpositor}
+            tipoArchivo="PORTADA"
+            uploadPath={`/eventos/${idEvento}/expositores/${expositor.idExpositor}/imagen`}
+            deletePath={`/eventos/${idEvento}/expositores/${expositor.idExpositor}/imagen`}
+            etiqueta={t('exp.photo')}
+            className="h-20 w-20 rounded-full"
+          />
+        </div>
+      ) : (
+        <div className="sm:col-span-2">
+          <label className={lblCls}>{t('exp.photo')}</label>
+          <p className="text-xs text-text-muted">{t('exp.photoSaveFirst')}</p>
+        </div>
+      )}
+      <div className="sm:col-span-2">
+        <label className={lblCls}>{t('exp.bio')}</label>
+        <textarea
+          rows={3}
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          className={fieldCls}
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-text-2 sm:col-span-2">
+        <input
+          type="checkbox"
+          checked={destacado}
+          onChange={(e) => setDestacado(e.target.checked)}
+          className="h-4 w-4 rounded border-border-app text-brand focus:ring-brand"
+        />
+        {t('exp.featured')}
+      </label>
+
+      {error && (
+        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger sm:col-span-2">
+          {error}
+        </p>
+      )}
+
+      <div className="flex gap-2 sm:col-span-2">
+        <button
+          type="button"
+          onClick={() => guardar()}
+          disabled={sending}
+          className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {sending ? t('c.saving') : t('exp.save')}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg border border-border-app px-3 py-2 text-sm text-text-2 hover:bg-surface-2"
+        >
+          {t('c.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Avatar del expositor: intenta la foto del NAS ('EXPOSITOR'/'PORTADA'); si falla
+ *  cae a la fotoUrl externa; si esa también falla, muestra la inicial. */
+function ExpositorAvatar({ expositor }: { expositor: ExpositorRow }) {
+  const nasSrc = nasImagenUrl('EXPOSITOR', expositor.idExpositor, 'PORTADA');
+  const [src, setSrc] = useState(nasSrc);
+  const [fallbackUsado, setFallbackUsado] = useState(false);
+  const [sinImagen, setSinImagen] = useState(false);
+
+  if (sinImagen) {
+    return (
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border-app bg-surface-2 text-sm font-semibold text-text-muted">
+        {(expositor.nombreCompleto || '?').charAt(0)}
+      </div>
+    );
+  }
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={src}
+      alt=""
+      className="h-12 w-12 shrink-0 rounded-full border border-border-app object-cover"
+      loading="lazy"
+      onError={() => {
+        if (!fallbackUsado && expositor.fotoUrl) {
+          setFallbackUsado(true);
+          setSrc(expositor.fotoUrl);
+        } else {
+          setSinImagen(true);
+        }
+      }}
+    />
+  );
+}
+
+function ExpositoresEvento({ idEvento }: { idEvento: number }) {
+  const { t } = useI18n();
+  const dialogo = useDialogo();
+  const [lista, setLista] = useState<ExpositorRow[]>([]);
+  const [editando, setEditando] = useState<ExpositorRow | 'nuevo' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const cargar = useCallback(async () => {
+    setLista(await api.get<ExpositorRow[]>(`/eventos/${idEvento}/expositores`));
+  }, [idEvento]);
+
+  useEffect(() => {
+    cargar().catch((e) => setError(e instanceof Error ? e.message : 'Error'));
+  }, [cargar]);
+
+  async function eliminar(e: ExpositorRow) {
+    const ok = await dialogo.confirmar({
+      titulo: t('exp.deleteTitle'),
+      mensaje: t('exp.deleteMsg'),
+      tono: 'danger',
+      confirmar: t('c.delete'),
+    });
+    if (!ok) return;
+    try {
+      await api.del(`/eventos/${idEvento}/expositores/${e.idExpositor}`);
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    }
+  }
+
+  const roleLabel = (rol: string | null) => t(`exp.r${rol || 'EXPOSITOR'}`);
+
+  return (
+    <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
+      <p className="mb-3 mt-0.5 text-xs text-text-muted">{t('exp.desc')}</p>
+
+      {error && (
+        <p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-col gap-2">
+        {lista.map((e) => (
+          <div
+            key={e.idExpositor}
+            className="flex items-center gap-3 rounded-lg border border-border-app bg-surface p-2"
+          >
+            <ExpositorAvatar expositor={e} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-text">{e.nombreCompleto}</span>
+                <span className="rounded-full border border-border-app px-2 py-0.5 text-[10px] text-text-2">
+                  {roleLabel(e.rol)}
+                </span>
+                {e.esDestacado && (
+                  <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand">
+                    {t('exp.featured')}
+                  </span>
+                )}
+              </div>
+              {(e.cargo || e.organizacion) && (
+                <div className="truncate text-xs text-text-muted">
+                  {[e.cargo, e.organizacion].filter(Boolean).join(' · ')}
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => setEditando(e)}
+                className="rounded-lg border border-border-app px-2 py-1 text-xs text-text-2 hover:bg-surface-2"
+              >
+                {t('c.edit')}
+              </button>
+              <button
+                type="button"
+                onClick={() => eliminar(e)}
+                className="rounded-lg border border-border-app px-2 py-1 text-xs text-danger hover:bg-surface-2"
+                title={t('c.delete')}
+              >
+                &#10005;
+              </button>
+            </div>
+          </div>
+        ))}
+        {lista.length === 0 && !editando && (
+          <span className="text-xs text-text-muted">{t('exp.empty')}</span>
+        )}
+      </div>
+
+      {editando ? (
+        <ExpositorForm
+          idEvento={idEvento}
+          expositor={editando === 'nuevo' ? null : editando}
+          onCancel={() => setEditando(null)}
+          onDone={async () => {
+            setEditando(null);
+            await cargar();
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditando('nuevo')}
+          className="mt-2 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          {t('exp.add')}
+        </button>
+      )}
     </div>
   );
 }

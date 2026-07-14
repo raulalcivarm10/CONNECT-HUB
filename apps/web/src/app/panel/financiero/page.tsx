@@ -43,12 +43,6 @@ interface Resumen {
   }>;
 }
 
-const money = (v: number) =>
-  new Intl.NumberFormat('es-EC', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(v ?? 0);
-
 const ESTADO_COLOR: Record<string, string> = {
   APPROVED: 'text-success',
   PENDIENTE: 'text-brand',
@@ -71,6 +65,17 @@ export default function FinancieroPage() {
   const [datos, setDatos] = useState<Resumen | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const money = (v: number) =>
+    new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'USD',
+    }).format(v ?? 0);
+
+  const estadoPago = (estado: string) => {
+    const traducido = t(`pay.${estado}`);
+    return traducido === `pay.${estado}` ? estado : traducido;
+  };
+
   const cargar = useCallback(async () => {
     setDatos(await api.get<Resumen>(`/finanzas/resumen${qs}`));
   }, [qs]);
@@ -84,11 +89,11 @@ export default function FinancieroPage() {
       .filter((e) => e.RECAUDADO > 0 || e.PENDIENTE > 0)
       .map((e) => ({
         nombre:
-          (e.TITULO ?? `Evento ${e.ID_EVENTO}`).length > 22
+          (e.TITULO ?? t('fin.eventN', { id: e.ID_EVENTO })).length > 22
             ? `${(e.TITULO ?? '').slice(0, 22)}…`
-            : (e.TITULO ?? `Evento ${e.ID_EVENTO}`),
-        Recaudado: e.RECAUDADO,
-        Pendiente: e.PENDIENTE,
+            : (e.TITULO ?? t('fin.eventN', { id: e.ID_EVENTO })),
+        [t('fin.collectedSeries')]: e.RECAUDADO,
+        [t('fin.pendingSeries')]: e.PENDIENTE,
       })) ?? [];
 
   return (
@@ -145,8 +150,8 @@ export default function FinancieroPage() {
                   color: 'var(--text)',
                 }}
               />
-              <Bar dataKey="Recaudado" fill="var(--success)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Pendiente" fill="var(--brand)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey={t('fin.collectedSeries')} fill="var(--success)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey={t('fin.pendingSeries')} fill="var(--brand)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -180,7 +185,7 @@ export default function FinancieroPage() {
                   {money(p.MONTO)}
                 </td>
                 <td className={`px-4 py-3 ${ESTADO_COLOR[p.ESTADO] ?? 'text-text-2'}`}>
-                  {p.ESTADO}
+                  {estadoPago(p.ESTADO)}
                 </td>
                 <td className="px-4 py-3 text-text-2">
                   {p.METODO_PAGO ?? '—'}

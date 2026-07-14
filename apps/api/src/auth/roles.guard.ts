@@ -23,6 +23,6 @@ export class RolesGuard implements CanActivate {
       | undefined;
     if (user?.esSuper) return true;
     if (user?.roles?.some((r) => required.includes(r))) return true;
-    throw new ForbiddenException('No tienes permiso para este módulo');
+    throw new ForbiddenException('You do not have permission to access this module');
   }
 }

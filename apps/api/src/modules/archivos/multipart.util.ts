@@ -17,7 +17,7 @@ export async function leerImagenMultipart(req: FastifyRequest): Promise<{
   campos: Record<string, string>;
 }> {
   if (!req.isMultipart()) {
-    throw new BadRequestException('Se espera multipart/form-data');
+    throw new BadRequestException('Expected multipart/form-data');
   }
   let archivo: ArchivoSubido | undefined;
   const campos: Record<string, string> = {};
@@ -40,19 +40,19 @@ export async function leerImagenMultipart(req: FastifyRequest): Promise<{
       e.message?.includes('file too large')
     ) {
       throw new BadRequestException(
-        `La imagen supera el tamaño máximo de ${MAX_IMAGEN_MB} MB. ` +
-          `Comprímela o usa una resolución menor.`,
+        `The image exceeds the maximum size of ${MAX_IMAGEN_MB} MB. ` +
+          `Compress it or use a lower resolution.`,
       );
     }
     throw err;
   }
   if (!archivo?.buffer.length) {
-    throw new BadRequestException('Falta el archivo de imagen (campo file)');
+    throw new BadRequestException("Missing image file (field 'file')");
   }
   if (!MIMES_IMAGEN.includes(archivo.mimetype)) {
     throw new BadRequestException(
-      `El archivo «${archivo.filename}» no es un formato permitido. ` +
-        `Usa una imagen PNG, JPG/JPEG o WebP.`,
+      `The file "${archivo.filename}" is not an allowed format. ` +
+        `Use a PNG, JPG/JPEG or WebP image.`,
     );
   }
   return { archivo, campos };

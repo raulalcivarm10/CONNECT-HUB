@@ -13,6 +13,9 @@ interface FeedbackRow {
   MENSAJE: string;
   ESTADO: string;
   FECHA: string;
+  RESPUESTA?: string | null;
+  FECHA_RESPUESTA?: string | null;
+  RESPONDIDO_POR?: string | null;
 }
 
 const TIPOS = ['SUGGESTION', 'PROBLEM', 'OTHER'] as const;
@@ -165,6 +168,24 @@ export default function FeedbackPage() {
               )}
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm text-text">{f.MENSAJE}</p>
+
+            {user?.esSuper ? (
+              <RespuestaEditor f={f} inp={inp} onSaved={cargar} />
+            ) : (
+              f.RESPUESTA && (
+                <div className="mt-3 rounded-lg border border-border-app bg-surface-2 p-3">
+                  <p className="text-xs font-semibold text-text-2">
+                    {t('fb.response')}
+                    {f.FECHA_RESPUESTA
+                      ? ` · ${t('fb.respondedOn', { date: f.FECHA_RESPUESTA })}`
+                      : ''}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-text">
+                    {f.RESPUESTA}
+                  </p>
+                </div>
+              )
+            )}
           </div>
         ))}
         {items.length === 0 && (
@@ -173,6 +194,70 @@ export default function FeedbackPage() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function RespuestaEditor({
+  f,
+  inp,
+  onSaved,
+}: {
+  f: FeedbackRow;
+  inp: string;
+  onSaved: () => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [respuesta, setRespuesta] = useState(f.RESPUESTA ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  async function guardar() {
+    if (saving || !respuesta.trim()) return;
+    setErr(null);
+    setOk(null);
+    setSaving(true);
+    try {
+      await api.patch(`/feedback/${f.ID_FEEDBACK}/responder`, {
+        respuesta: respuesta.trim(),
+      });
+      setOk(t('fb.responseSaved'));
+      await onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <textarea
+        rows={3}
+        maxLength={4000}
+        placeholder={t('fb.responsePh')}
+        value={respuesta}
+        onChange={(e) => setRespuesta(e.target.value)}
+        className={`${inp} w-full`}
+      />
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={saving || !respuesta.trim()}
+          onClick={guardar}
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? t('c.saving') : t('fb.respond')}
+        </button>
+        {f.FECHA_RESPUESTA && (
+          <span className="text-xs text-text-muted">
+            {t('fb.respondedOn', { date: f.FECHA_RESPUESTA })}
+          </span>
+        )}
+      </div>
+      {err && <p className="mt-1 text-xs text-danger">{err}</p>}
+      {ok && <p className="mt-1 text-xs text-success">{ok}</p>}
     </div>
   );
 }

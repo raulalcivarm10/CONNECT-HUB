@@ -25,7 +25,7 @@ export default function CambiarClavePage() {
   if (loading || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center text-text-muted">
-        Cargando…
+        {t('c.loading')}
       </main>
     );
   }
@@ -38,7 +38,7 @@ export default function CambiarClavePage() {
       return;
     }
     if (claveNueva === claveActual) {
-      setError('La contraseña nueva debe ser distinta de la actual');
+      setError(t('clave.mustDiffer'));
       return;
     }
     setSending(true);
@@ -47,7 +47,7 @@ export default function CambiarClavePage() {
       // recarga completa: la sesión se renueva sin el bloqueo de cambio
       window.location.assign('/panel');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar');
+      setError(err instanceof Error ? err.message : t('clave.error'));
       setSending(false);
     }
   }
@@ -69,8 +69,8 @@ export default function CambiarClavePage() {
           </h1>
           <p className="mt-1 text-sm text-text-2">
             {user.debeCambiarClave
-              ? 'Ingresaste con una contraseña temporal. Por seguridad, debes cambiarla para continuar.'
-              : 'Actualiza tu contraseña de acceso.'}
+              ? t('clave.tempIntro')
+              : t('clave.updateIntro')}
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export default function CambiarClavePage() {
             onClick={onSalir}
             className="w-full rounded-lg border border-border-app px-4 py-2 text-sm text-text-2 transition hover:bg-surface-2"
           >
-            Cancelar y salir
+            {t('clave.cancelExit')}
           </button>
         </form>
       </div>

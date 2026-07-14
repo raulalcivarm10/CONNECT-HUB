@@ -21,13 +21,13 @@ export class ScopeService {
     if (actor.esSuper) {
       if (requested == null) {
         throw new BadRequestException(
-          'Como superadmin debes indicar idInstitucion',
+          'As superadmin you must provide idInstitucion',
         );
       }
       return requested;
     }
     if (actor.idInstitucion == null) {
-      throw new ForbiddenException('Usuario sin institución');
+      throw new ForbiddenException('User has no institution');
     }
     return actor.idInstitucion;
   }
@@ -36,7 +36,7 @@ export class ScopeService {
   institucionForRead(actor: JwtUser, requested?: number): number | null {
     if (actor.esSuper) return requested ?? null;
     if (actor.idInstitucion == null) {
-      throw new ForbiddenException('Usuario sin institución');
+      throw new ForbiddenException('User has no institution');
     }
     return actor.idInstitucion;
   }
@@ -44,7 +44,7 @@ export class ScopeService {
   private assertScope(actor: JwtUser, idInstitucion: number | null) {
     if (actor.esSuper) return;
     if (idInstitucion !== actor.idInstitucion) {
-      throw new ForbiddenException('El recurso pertenece a otra institución');
+      throw new ForbiddenException('The resource belongs to another institution');
     }
   }
 
@@ -53,7 +53,7 @@ export class ScopeService {
       `SELECT ID_INSTITUCION FROM LOCALES WHERE ID_LOCAL = :id`,
       { id: idLocal },
     );
-    if (!rows[0]) throw new NotFoundException('Local no encontrado');
+    if (!rows[0]) throw new NotFoundException('Venue not found');
     this.assertScope(actor, rows[0].ID_INSTITUCION);
     return rows[0];
   }
@@ -71,7 +71,7 @@ export class ScopeService {
         WHERE s.ID_SALON = :id`,
       { id: idSalon },
     );
-    if (!rows[0]) throw new NotFoundException('Salón no encontrado');
+    if (!rows[0]) throw new NotFoundException('Hall not found');
     this.assertScope(actor, rows[0].ID_INSTITUCION);
     return rows[0];
   }
@@ -91,7 +91,7 @@ export class ScopeService {
         WHERE ss.ID_SUBSALON = :id`,
       { id: idSubsalon },
     );
-    if (!rows[0]) throw new NotFoundException('Subsalón no encontrado');
+    if (!rows[0]) throw new NotFoundException('Sub-hall not found');
     this.assertScope(actor, rows[0].ID_INSTITUCION);
     return rows[0];
   }
@@ -111,7 +111,7 @@ export class ScopeService {
         WHERE c.ID_CONFIGURACION = :id`,
       { id: idConfiguracion },
     );
-    if (!rows[0]) throw new NotFoundException('Configuración no encontrada');
+    if (!rows[0]) throw new NotFoundException('Configuration not found');
     this.assertScope(actor, rows[0].ID_INSTITUCION);
     return rows[0];
   }
@@ -124,7 +124,7 @@ export class ScopeService {
       `SELECT ID_INSTITUCION FROM INSTITUCION_MAPAS WHERE ID_MAPA = :id`,
       { id: idMapa },
     );
-    if (!rows[0]) throw new NotFoundException('Mapa no encontrado');
+    if (!rows[0]) throw new NotFoundException('Map not found');
     this.assertScope(actor, rows[0].ID_INSTITUCION);
     return rows[0];
   }

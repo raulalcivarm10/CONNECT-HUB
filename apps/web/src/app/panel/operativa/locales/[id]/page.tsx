@@ -13,9 +13,9 @@ export default function LocalDetallePage() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const idLocal = Number(params.id);
-  const nombreLocal = search.get('nombre') ?? `Local ${idLocal}`;
   const dialogo = useDialogo();
   const { t } = useI18n();
+  const nombreLocal = search.get('nombre') ?? t('ld.venueN', { id: idLocal });
 
   const [salones, setSalones] = useState<SalonRow[]>([]);
   const [abierto, setAbierto] = useState<number | null>(null);
@@ -122,7 +122,7 @@ export default function LocalDetallePage() {
                   </div>
                   <div className="text-sm text-text-2">
                     {t('sal.stats', {
-                      cap: s.CAPACIDAD_MAX ?? 's/d',
+                      cap: s.CAPACIDAD_MAX ?? t('c.na'),
                       subs: s.TOTAL_SUBSALONES,
                       confs: s.TOTAL_CONFIGURACIONES,
                     })}
@@ -489,7 +489,7 @@ function SubsalonItem({
         <span className="truncate text-text">
           {subsalon.NOMBRE}
           <span className="ml-2 text-xs text-text-muted">
-            cap. {subsalon.CAPACIDAD_MAX ?? 's/d'}
+            cap. {subsalon.CAPACIDAD_MAX ?? t('c.na')}
           </span>
         </span>
       </span>
@@ -725,7 +725,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
           </div>
         ))}
         {items.length === 0 && (
-          <p className="text-sm text-text-muted">Sin configuraciones</p>
+          <p className="text-sm text-text-muted">{t('ld.noLayouts')}</p>
         )}
       </div>
     </div>

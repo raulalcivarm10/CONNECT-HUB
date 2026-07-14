@@ -55,7 +55,7 @@ export class ConfiguracionesService {
       );
       if (porNombre[0].N > 0) {
         throw new ConflictException(
-          `Ya existe una configuración llamada «${nombre}» en este salón.`,
+          `A configuration named '${nombre}' already exists in this hall.`,
         );
       }
     }
@@ -77,8 +77,8 @@ export class ConfiguracionesService {
       const igual = existentes.find((e) => e.SUBS === set);
       if (igual) {
         throw new ConflictException(
-          `Ya existe una configuración con exactamente esos subsalones: ` +
-            `«${igual.NOMBRE ?? `#${igual.ID_CONFIGURACION}`}».`,
+          `A configuration with exactly those sub-halls already exists: ` +
+            `'${igual.NOMBRE ?? `#${igual.ID_CONFIGURACION}`}'.`,
         );
       }
     }
@@ -96,7 +96,7 @@ export class ConfiguracionesService {
     );
     if (rows[0].N !== subsalones.length) {
       throw new BadRequestException(
-        'Todos los subsalones deben existir y pertenecer al mismo salón',
+        'All sub-halls must exist and belong to the same hall',
       );
     }
   }
@@ -179,7 +179,7 @@ export class ConfiguracionesService {
     );
     if (eventos[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar la configuración «${nombre}»: ${eventos[0].N} evento(s) creado(s) la usan como espacio reservado.`,
+        `Cannot delete configuration '${nombre}': ${eventos[0].N} created event(s) use it as their reserved space.`,
       );
     }
     const mapas = await this.oracle.query<{ N: number }>(
@@ -188,8 +188,8 @@ export class ConfiguracionesService {
     );
     if (mapas[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar la configuración «${nombre}»: está asignada a ${mapas[0].N} mapa(s)/croquis. ` +
-          `Desasígnala de los mapas primero.`,
+        `Cannot delete configuration '${nombre}': it is assigned to ${mapas[0].N} map(s)/floor plan(s). ` +
+          `Unassign it from the maps first.`,
       );
     }
     await this.oracle.withConnection(async (conn) => {

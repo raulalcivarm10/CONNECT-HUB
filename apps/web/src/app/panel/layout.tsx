@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useI18n } from '@/lib/i18n';
 import { InstitucionFilterProvider } from '@/lib/institucion-context';
 import { LightboxProvider } from '@/lib/lightbox';
 import { DialogoProvider } from '@/lib/dialogo';
@@ -15,6 +16,7 @@ export default function PanelLayout({
   children: React.ReactNode;
 }) {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function PanelLayout({
   if (loading || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center text-text-muted">
-        Cargando…
+        {t('c.loading')}
       </main>
     );
   }

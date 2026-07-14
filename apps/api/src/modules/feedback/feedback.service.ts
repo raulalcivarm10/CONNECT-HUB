@@ -38,7 +38,10 @@ export class FeedbackService {
     return this.oracle.query(
       `SELECT f.ID_FEEDBACK, f.USUARIO, f.ID_INSTITUCION, f.TIPO, f.MENSAJE,
               f.ESTADO, TO_CHAR(f.FECHA_REGISTRO, 'YYYY-MM-DD HH24:MI') AS FECHA,
-              i.NOMBRE AS INSTITUCION
+              i.NOMBRE AS INSTITUCION,
+              f.RESPUESTA,
+              TO_CHAR(f.FECHA_RESPUESTA, 'YYYY-MM-DD') AS FECHA_RESPUESTA,
+              f.RESPONDIDO_POR
          FROM FEEDBACK f
          LEFT JOIN INSTITUCIONES i ON i.ID_INSTITUCION = f.ID_INSTITUCION
         WHERE (:soloDe IS NULL OR f.USUARIO = :soloDe)
@@ -52,17 +55,37 @@ export class FeedbackService {
   async cambiarEstado(actor: JwtUser, id: number, estado: string) {
     if (!actor.esSuper) {
       throw new ForbiddenException(
-        'Solo el superadmin puede gestionar el feedback',
+        'Only the superadmin can manage feedback',
       );
     }
     if (!ESTADOS.includes(estado as (typeof ESTADOS)[number])) {
-      throw new NotFoundException(`Estado inválido: ${estado}`);
+      throw new NotFoundException(`Invalid status: ${estado}`);
     }
     const r = await this.oracle.execute(
       `UPDATE FEEDBACK SET ESTADO = :estado WHERE ID_FEEDBACK = :id`,
       { estado, id },
     );
-    if (!r.rowsAffected) throw new NotFoundException('Feedback no encontrado');
+    if (!r.rowsAffected) throw new NotFoundException('Feedback not found');
     return { idFeedback: id, estado };
+  }
+
+  /** el superadmin responde el feedback */
+  async responder(actor: JwtUser, id: number, respuesta: string) {
+    if (!actor.esSuper) {
+      throw new ForbiddenException(
+        'Only the superadmin can manage feedback',
+      );
+    }
+    const r = await this.oracle.execute(
+      `UPDATE FEEDBACK
+          SET RESPUESTA = :respuesta,
+              FECHA_RESPUESTA = SYSDATE,
+              RESPONDIDO_POR = :actor,
+              ESTADO = CASE WHEN ESTADO = 'NEW' THEN 'REVIEWED' ELSE ESTADO END
+        WHERE ID_FEEDBACK = :id`,
+      { respuesta: respuesta.trim(), actor: actor.sub, id },
+    );
+    if (!r.rowsAffected) throw new NotFoundException('Feedback not found');
+    return { idFeedback: id };
   }
 }

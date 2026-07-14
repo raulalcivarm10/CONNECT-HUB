@@ -37,7 +37,7 @@ export class RateLimitGuard implements CanActivate {
       if (n > MAX_INTENTOS) {
         this.logger.warn(`Rate limit superado: ${ip} en ${ruta} (${n})`);
         throw new HttpException(
-          'Demasiados intentos; espera un minuto e inténtalo de nuevo.',
+          'Too many attempts; please wait a minute and try again.',
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }

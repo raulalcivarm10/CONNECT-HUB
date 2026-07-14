@@ -13,7 +13,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { JwtUser } from '../../auth/types';
-import { CrearFeedbackDto, EstadoFeedbackDto } from './dto/feedback.dto';
+import {
+  CrearFeedbackDto,
+  EstadoFeedbackDto,
+  ResponderFeedbackDto,
+} from './dto/feedback.dto';
 import { FeedbackService } from './feedback.service';
 
 @ApiTags('feedback')
@@ -45,5 +49,15 @@ export class FeedbackController {
     @Body() dto: EstadoFeedbackDto,
   ) {
     return this.feedback.cambiarEstado(user, id, dto.estado);
+  }
+
+  @Patch(':id/responder')
+  @ApiOperation({ summary: 'Responder feedback (solo superadmin)' })
+  responder(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ResponderFeedbackDto,
+  ) {
+    return this.feedback.responder(user, id, dto.respuesta);
   }
 }

@@ -80,7 +80,14 @@ export function Topbar() {
             {user?.nombreCompleto}
           </div>
           <div className="text-xs leading-tight text-text-muted">
-            {user?.esSuper ? t('top.superadmin') : user?.roles.join(' · ')}
+            {user?.esSuper
+              ? t('top.superadmin')
+              : user?.roles
+                  .map((r) => {
+                    const label = t(`role.${r}`);
+                    return label === `role.${r}` ? r : label;
+                  })
+                  .join(' · ')}
           </div>
         </div>
         <button

@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 interface LightboxState {
   /** abre el visor con la imagen indicada */
@@ -17,6 +18,7 @@ const Ctx = createContext<LightboxState | null>(null);
 
 export function LightboxProvider({ children }: { children: React.ReactNode }) {
   const [img, setImg] = useState<{ src: string; alt: string } | null>(null);
+  const { t } = useI18n();
 
   const open = useCallback((src: string, alt = '') => {
     setImg({ src, alt });
@@ -39,7 +41,7 @@ export function LightboxProvider({ children }: { children: React.ReactNode }) {
         >
           <button
             onClick={() => setImg(null)}
-            aria-label="Cerrar"
+            aria-label={t('c.close')}
             className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-2xl text-white transition hover:bg-white/25"
           >
             ✕

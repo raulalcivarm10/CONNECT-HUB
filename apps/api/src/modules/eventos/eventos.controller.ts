@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -33,6 +34,11 @@ import {
   DestacarDto,
   UpdateEventoDto,
 } from './dto/evento.dto';
+import {
+  EventoDetalleDto,
+  CreateExpositorDto,
+  UpdateExpositorDto,
+} from './dto/detalle.dto';
 
 @ApiTags('eventos')
 @ApiBearerAuth()
@@ -167,5 +173,104 @@ export class EventosController {
     @Param('idCupon', ParseIntPipe) idCupon: number,
   ) {
     return this.eventos.eliminarCupon(user, id, idCupon);
+  }
+
+  @Get(':id/dias')
+  @ApiOperation({ summary: 'Days and time ranges of the event (EVENTO_HORAS)' })
+  listarDias(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.eventos.listarDias(user, id);
+  }
+
+  @Get(':id/detalle')
+  @ApiOperation({ summary: 'Event detail (returns {} if not created yet)' })
+  getDetalle(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.eventos.getDetalle(user, id);
+  }
+
+  @Put(':id/detalle')
+  @ApiOperation({ summary: 'Create or update the event detail (upsert 1:1)' })
+  upsertDetalle(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: EventoDetalleDto,
+  ) {
+    return this.eventos.upsertDetalle(user, id, dto);
+  }
+
+  @Get(':id/expositores')
+  @ApiOperation({ summary: 'Speakers of the event (ordered)' })
+  listarExpositores(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.eventos.listarExpositores(user, id);
+  }
+
+  @Post(':id/expositores')
+  @ApiOperation({ summary: 'Add a speaker to the event' })
+  crearExpositor(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateExpositorDto,
+  ) {
+    return this.eventos.crearExpositor(user, id, dto);
+  }
+
+  @Patch(':id/expositores/:idExp')
+  @ApiOperation({ summary: 'Edit a speaker of the event' })
+  actualizarExpositor(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idExp', ParseIntPipe) idExp: number,
+    @Body() dto: UpdateExpositorDto,
+  ) {
+    return this.eventos.actualizarExpositor(user, id, idExp, dto);
+  }
+
+  @Delete(':id/expositores/:idExp')
+  @ApiOperation({ summary: 'Delete a speaker of the event' })
+  eliminarExpositor(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idExp', ParseIntPipe) idExp: number,
+  ) {
+    return this.eventos.eliminarExpositor(user, id, idExp);
+  }
+
+  @Post(':id/expositores/:idExp/imagen')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: "Upload a speaker's photo to the NAS (field: file; tipoArchivo FOTO)",
+  })
+  async subirImagenExpositor(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idExp', ParseIntPipe) idExp: number,
+    @Req() req: FastifyRequest,
+  ) {
+    const { archivo, campos } = await leerImagenMultipart(req);
+    return this.eventos.subirImagenExpositor(
+      user,
+      id,
+      idExp,
+      archivo,
+      campos.tipoArchivo ?? 'PORTADA',
+    );
+  }
+
+  @Delete(':id/expositores/:idExp/imagen')
+  @ApiOperation({ summary: "Remove the speaker's photo" })
+  eliminarImagenExpositor(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idExp', ParseIntPipe) idExp: number,
+  ) {
+    return this.eventos.eliminarImagenExpositor(user, id, idExp);
   }
 }

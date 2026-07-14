@@ -10,6 +10,7 @@ const COLUMNA_ID: Record<TipoEntidad, string> = {
   SALON: 'ID_SALON',
   SUBSALON: 'ID_SUBSALON',
   CONFIGURACION: 'ID_CONFIGURACION',
+  EXPOSITOR: 'ID_EXPOSITOR',
 };
 
 interface FilaArchivo {

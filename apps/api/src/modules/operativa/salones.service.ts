@@ -79,9 +79,9 @@ export class SalonesService {
     if (ocupado + capacidadNueva > capSalon) {
       const disponible = Math.max(0, capSalon - ocupado);
       throw new BadRequestException(
-        `La capacidad del salón «${salon[0].NOMBRE}» es ${capSalon} y sus ` +
-          `subsalones ya suman ${ocupado}: solo quedan ${disponible} de capacidad ` +
-          `disponible, no puedes asignar ${capacidadNueva}.`,
+        `The capacity of hall '${salon[0].NOMBRE}' is ${capSalon} and its ` +
+          `sub-halls already total ${ocupado}: only ${disponible} capacity ` +
+          `remains, so you cannot assign ${capacidadNueva}.`,
       );
     }
   }
@@ -96,9 +96,9 @@ export class SalonesService {
       );
       if (suma[0].TOTAL > dto.capacidadMax) {
         throw new BadRequestException(
-          `No puedes fijar la capacidad del salón en ${dto.capacidadMax}: ` +
-            `sus subsalones actuales suman ${suma[0].TOTAL}. ` +
-            `Ajusta primero las capacidades de los subsalones.`,
+          `You cannot set the hall capacity to ${dto.capacidadMax}: ` +
+            `its current sub-halls total ${suma[0].TOTAL}. ` +
+            `Adjust the sub-hall capacities first.`,
         );
       }
     }
@@ -138,8 +138,8 @@ export class SalonesService {
     );
     if (eventos[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar el salón «${nombre}»: tiene ${eventos[0].N} evento(s) creado(s). ` +
-          `Un salón con eventos no puede eliminarse.`,
+        `Cannot delete hall '${nombre}': it has ${eventos[0].N} created event(s). ` +
+          `A hall with events cannot be deleted.`,
       );
     }
     const subsalones = await this.oracle.query<{ N: number }>(
@@ -148,8 +148,8 @@ export class SalonesService {
     );
     if (subsalones[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar el salón «${nombre}»: tiene ${subsalones[0].N} subsalón(es). ` +
-          `Elimina primero sus subsalones.`,
+        `Cannot delete hall '${nombre}': it has ${subsalones[0].N} sub-hall(s). ` +
+          `Delete its sub-halls first.`,
       );
     }
     const configuraciones = await this.oracle.query<{ N: number }>(
@@ -158,8 +158,8 @@ export class SalonesService {
     );
     if (configuraciones[0].N > 0) {
       throw new ConflictException(
-        `No se puede eliminar el salón «${nombre}»: tiene ${configuraciones[0].N} configuración(es) de subdivisión. ` +
-          `Elimina primero sus configuraciones.`,
+        `Cannot delete hall '${nombre}': it has ${configuraciones[0].N} subdivision configuration(s). ` +
+          `Delete its configurations first.`,
       );
     }
     await this.oracle.execute(`DELETE FROM SALONES WHERE ID_SALON = :id`, {
@@ -225,24 +225,24 @@ export class SalonesService {
       {
         sql: `SELECT COUNT(*) AS N FROM SUBSALON_CONFIGURACION_SUBSALONES WHERE ID_SUBSALON = :id`,
         msg: (n) =>
-          `No se puede eliminar el subsalón «${nombre}»: forma parte de ${n} configuración(es). ` +
-          `Edita o elimina esas configuraciones primero.`,
+          `Cannot delete sub-hall '${nombre}': it is part of ${n} configuration(s). ` +
+          `Edit or delete those configurations first.`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM EVENTO_SUBSALONES WHERE ID_SUBSALON = :id`,
         msg: (n) =>
-          `No se puede eliminar el subsalón «${nombre}»: está reservado por ${n} evento(s) creado(s).`,
+          `Cannot delete sub-hall '${nombre}': it is reserved by ${n} created event(s).`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM EVENTOS WHERE ID_SUBSALON = :id`,
         msg: (n) =>
-          `No se puede eliminar el subsalón «${nombre}»: ${n} evento(s) lo usan como espacio principal.`,
+          `Cannot delete sub-hall '${nombre}': ${n} event(s) use it as their main space.`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM INSTITUCION_MAPA_SUBSALONES WHERE ID_SUBSALON = :id`,
         msg: (n) =>
-          `No se puede eliminar el subsalón «${nombre}»: está asignado a ${n} mapa(s)/croquis. ` +
-          `Desasígnalo de los mapas primero.`,
+          `Cannot delete sub-hall '${nombre}': it is assigned to ${n} map(s)/floor plan(s). ` +
+          `Unassign it from the maps first.`,
       },
     ];
     for (const uso of usos) {

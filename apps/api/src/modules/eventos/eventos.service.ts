@@ -8,10 +8,16 @@ import { OracleService } from '../../database/oracle.service';
 import { JwtUser } from '../../auth/types';
 import { ScopeService } from '../operativa/scope.service';
 import { ArchivosService } from '../archivos/archivos.service';
-import { CreateEventoDto, UpdateEventoDto } from './dto/evento.dto';
+import { CreateEventoDto, UpdateEventoDto, DiaDto } from './dto/evento.dto';
 import { CrearCuponDto } from './dto/cupon.dto';
+import {
+  EventoDetalleDto,
+  CreateExpositorDto,
+  UpdateExpositorDto,
+} from './dto/detalle.dto';
 
 const TIPOS_IMAGEN_EVENTO = ['PORTADA', 'BANNER', 'GALERIA'];
+const TIPOS_IMAGEN_EXPOSITOR = ['PORTADA'];
 const MIMES_IMAGEN = ['image/jpeg', 'image/png', 'image/webp'];
 
 const toMin = (h: string): number => {
@@ -19,17 +25,13 @@ const toMin = (h: string): number => {
   return hh * 60 + mm;
 };
 
-const toHora = (min: number): string => {
-  const m = Math.max(0, Math.min(min, 24 * 60 - 1));
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-};
-
-interface EventoConflicto {
+/** Fila de EVENTO_HORAS de un evento candidato al comparar choques por día */
+interface DiaConflicto {
   ID_EVENTO: number;
   TITULO: string;
   ID_SALON: number | null;
-  HORA_INICIO: string | null;
-  HORA_FIN: string | null;
+  HORA_INICIO: string;
+  HORA_FIN: string;
   TIEMPO_SETUP_MIN: number | null;
   TIEMPO_CLEAN_MIN: number | null;
   SUBS: string | null;
@@ -48,10 +50,12 @@ export class EventosService {
     return this.oracle.query(
       `SELECT e.ID_EVENTO, e.TITULO, e.DESCRIPCION,
               TO_CHAR(e.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
+              TO_CHAR(NVL(e.FECHA_FIN, e.FECHA_EVENTO), 'YYYY-MM-DD') AS FECHA_FIN,
               e.HORA_INICIO, e.HORA_FIN, e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN,
               e.PRECIO, e.PUBLICO_ESPERADO, e.DESTACADO, e.ORDEN_DESTACADO,
               e.COD_ITEM, e.NO_PUBLICAR, e.INCLUYE_IVA, e.MONTO_IVA,
               e.IMAGEN_URL, e.FECHA_REGISTRO,
+              e.ID_EVENTO_PADRE, p.TITULO AS PADRE_TITULO,
               e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               l.NOMBRE AS LOCAL_NOMBRE, s.NOMBRE AS SALON_NOMBRE,
               ss.NOMBRE AS SUBSALON_NOMBRE, c.NOMBRE AS CONFIGURACION_NOMBRE,
@@ -60,6 +64,8 @@ export class EventosService {
               (SELECT LISTAGG(sx.NOMBRE, ' + ') WITHIN GROUP (ORDER BY sx.NOMBRE)
                  FROM EVENTO_SUBSALONES es JOIN SUBSALONES sx ON sx.ID_SUBSALON = es.ID_SUBSALON
                 WHERE es.ID_EVENTO = e.ID_EVENTO) AS SUBSALONES_NOMBRES,
+              (SELECT LISTAGG(TO_CHAR(h.FECHA, 'YYYY-MM-DD'), ',') WITHIN GROUP (ORDER BY h.FECHA)
+                 FROM EVENTO_HORAS h WHERE h.ID_EVENTO = e.ID_EVENTO) AS DIAS,
               (SELECT COUNT(*) FROM EVENTOS_USUARIOS eu WHERE eu.ID_EVENTO = e.ID_EVENTO) AS INSCRITOS
          FROM EVENTOS e
          LEFT JOIN LOCALES l ON l.ID_LOCAL = e.ID_LOCAL
@@ -67,6 +73,7 @@ export class EventosService {
          LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
          LEFT JOIN SUBSALONES ss ON ss.ID_SUBSALON = e.ID_SUBSALON
          LEFT JOIN SUBSALON_CONFIGURACIONES c ON c.ID_CONFIGURACION = e.ID_CONFIGURACION
+         LEFT JOIN EVENTOS p ON p.ID_EVENTO = e.ID_EVENTO_PADRE
          LEFT JOIN INSTITUCIONES i ON i.ID_INSTITUCION = COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION)
         WHERE (:filtro IS NULL OR COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) = :filtro)
         ORDER BY e.FECHA_EVENTO DESC, e.HORA_INICIO`,
@@ -82,7 +89,7 @@ export class EventosService {
   ): Promise<number[]> {
     if (idConfiguracion && idSubsalon) {
       throw new BadRequestException(
-        'Elige configuración O subsalón, no ambos',
+        'Choose either a configuration OR a sub-hall, not both',
       );
     }
     if (idConfiguracion) {
@@ -99,15 +106,15 @@ export class EventosService {
         { id: idConfiguracion },
       );
       if (!rows.length) {
-        throw new NotFoundException('La configuración elegida no existe');
+        throw new NotFoundException('The selected configuration does not exist');
       }
       if (rows[0].ID_SALON !== idSalon) {
         throw new BadRequestException(
-          'La configuración elegida no pertenece a ese salón',
+          'The selected configuration does not belong to that hall',
         );
       }
       if (rows[0].ACTIVO !== 'Y') {
-        throw new BadRequestException('La configuración elegida está inactiva');
+        throw new BadRequestException('The selected configuration is inactive');
       }
       return rows.map((r) => r.ID_SUBSALON).filter((x) => x != null);
     }
@@ -116,10 +123,10 @@ export class EventosService {
         `SELECT ID_SALON FROM SUBSALONES WHERE ID_SUBSALON = :id`,
         { id: idSubsalon },
       );
-      if (!rows.length) throw new NotFoundException('El subsalón no existe');
+      if (!rows.length) throw new NotFoundException('The sub-hall does not exist');
       if (rows[0].ID_SALON !== idSalon) {
         throw new BadRequestException(
-          'El subsalón elegido no pertenece a ese salón',
+          'The selected sub-hall does not belong to that hall',
         );
       }
       return [idSubsalon];
@@ -128,86 +135,128 @@ export class EventosService {
   }
 
   /**
-   * Disponibilidad: el trigger TRG_VALIDAR_EVENTO de la BD está vacío (cuerpo
-   * comentado), así que la validación de choques se hace aquí. Se evalúa a
-   * nivel de LOCAL: un evento sin salón reserva el local completo y choca con
-   * todo; con salón, choca con eventos del mismo salón (o de local completo),
-   * afinado por subsalones compartidos. Ventanas = [inicio-setup, fin+limpieza].
+   * Valida y normaliza los días del evento:
+   *  - al menos 1 día
+   *  - por día horaFin > horaInicio (en minutos)
+   *  - fechas no repetidas
+   * Devuelve los días ordenados por fecha y los valores sincronizados a EVENTOS:
+   * FECHA_EVENTO = primer día, FECHA_FIN = último, HORA_INICIO/HORA_FIN = del
+   * día más temprano.
+   */
+  private validarDias(dias: DiaDto[]) {
+    if (!dias || dias.length === 0) {
+      throw new BadRequestException('The event needs at least one day');
+    }
+    const vistas = new Set<string>();
+    for (const d of dias) {
+      if (vistas.has(d.fecha)) {
+        throw new BadRequestException(
+          `The day ${d.fecha} is repeated; each date can appear only once`,
+        );
+      }
+      vistas.add(d.fecha);
+      if (toMin(d.horaFin) <= toMin(d.horaInicio)) {
+        throw new BadRequestException(
+          `On ${d.fecha}, the end time must be after the start time`,
+        );
+      }
+    }
+    const ordenados = [...dias].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const primero = ordenados[0];
+    const ultimo = ordenados[ordenados.length - 1];
+    return {
+      ordenados,
+      fechaEvento: primero.fecha,
+      fechaFin: ultimo.fecha,
+      horaInicio: primero.horaInicio,
+      horaFin: primero.horaFin,
+    };
+  }
+
+  /**
+   * Disponibilidad POR DÍA: para cada día del evento (EVENTO_HORAS que se va a
+   * escribir) se busca choque contra los días de OTROS eventos PRINCIPALES del
+   * mismo local en esa misma FECHA con horas solapadas. Se excluyen los eventos
+   * hijos/workshops (ID_EVENTO_PADRE IS NOT NULL) y el propio evento. La ventana
+   * ocupada de cada día es [inicio-setup, fin+limpieza] en minutos del día.
+   * La lógica de 'comparten espacio' (local completo vs salón vs subsalones) se
+   * mantiene igual que antes.
+   *
+   * Sólo debe llamarse para eventos PRINCIPALES (idEventoPadre == null); los
+   * hijos no validan choque.
    */
   private async validarDisponibilidad(opts: {
     idLocal: number;
     idSalon: number | null;
-    fecha: string;
-    horaInicio: string;
-    horaFin: string;
+    dias: DiaDto[];
     setupMin: number;
     cleanMin: number;
     subsalones: number[];
     excluirEvento?: number;
   }) {
-    const ini = toMin(opts.horaInicio);
-    const fin = toMin(opts.horaFin);
-    if (fin <= ini) {
-      throw new BadRequestException(
-        'La hora de fin debe ser mayor que la hora de inicio',
+    for (const dia of opts.dias) {
+      const occStart = toMin(dia.horaInicio) - opts.setupMin;
+      const occEnd = toMin(dia.horaFin) + opts.cleanMin;
+
+      const existentes = await this.oracle.query<DiaConflicto>(
+        `SELECT eh.ID_EVENTO, e.TITULO, e.ID_SALON,
+                eh.HORA_INICIO, eh.HORA_FIN,
+                e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN,
+                (SELECT LISTAGG(es.ID_SUBSALON, ',') WITHIN GROUP (ORDER BY es.ID_SUBSALON)
+                   FROM EVENTO_SUBSALONES es WHERE es.ID_EVENTO = e.ID_EVENTO) AS SUBS
+           FROM EVENTO_HORAS eh
+           JOIN EVENTOS e ON e.ID_EVENTO = eh.ID_EVENTO
+          WHERE e.ID_LOCAL = :idLocal
+            AND eh.FECHA = TO_DATE(:fecha, 'YYYY-MM-DD')
+            AND e.ID_EVENTO_PADRE IS NULL
+            AND e.ID_EVENTO != :excluir`,
+        {
+          idLocal: opts.idLocal,
+          fecha: dia.fecha,
+          excluir: opts.excluirEvento ?? -1,
+        },
       );
-    }
-    const nuevoIni = ini - opts.setupMin;
-    const nuevoFin = fin + opts.cleanMin;
 
-    const existentes = await this.oracle.query<EventoConflicto>(
-      `SELECT e.ID_EVENTO, e.TITULO, e.ID_SALON, e.HORA_INICIO, e.HORA_FIN,
-              e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN,
-              (SELECT LISTAGG(es.ID_SUBSALON, ',') WITHIN GROUP (ORDER BY es.ID_SUBSALON)
-                 FROM EVENTO_SUBSALONES es WHERE es.ID_EVENTO = e.ID_EVENTO) AS SUBS
-         FROM EVENTOS e
-        WHERE e.ID_LOCAL = :idLocal
-          AND TRUNC(e.FECHA_EVENTO) = TO_DATE(:fecha, 'YYYY-MM-DD')
-          AND e.ID_EVENTO != :excluir`,
-      {
-        idLocal: opts.idLocal,
-        fecha: opts.fecha,
-        excluir: opts.excluirEvento ?? -1,
-      },
-    );
+      for (const ev of existentes) {
+        const oIni = toMin(ev.HORA_INICIO);
+        const oFin = toMin(ev.HORA_FIN);
+        if (oFin <= oIni) continue; // datos legados sin horario real
 
-    for (const ev of existentes) {
-      if (!ev.HORA_INICIO || !ev.HORA_FIN) continue;
-      const evIni = toMin(ev.HORA_INICIO);
-      const evFin = toMin(ev.HORA_FIN);
-      if (evFin <= evIni) continue; // datos legados sin horario real
+        // ¿comparten espacio? (local completo vs salón vs subsalones)
+        let compartenEspacio: boolean;
+        let notaEspacio = '';
+        if (!opts.idSalon || !ev.ID_SALON) {
+          compartenEspacio = true;
+          notaEspacio = !ev.ID_SALON
+            ? ' (that event reserves the whole venue)'
+            : ' (your event would reserve the whole venue)';
+        } else if (ev.ID_SALON !== opts.idSalon) {
+          compartenEspacio = false; // salones distintos del mismo local
+        } else {
+          const evSubs = (ev.SUBS ?? '').split(',').filter(Boolean).map(Number);
+          compartenEspacio =
+            opts.subsalones.length === 0 ||
+            evSubs.length === 0 ||
+            opts.subsalones.some((s) => evSubs.includes(s));
+        }
+        if (!compartenEspacio) continue;
 
-      // ¿comparten espacio?
-      let compartenEspacio: boolean;
-      let notaEspacio = '';
-      if (!opts.idSalon || !ev.ID_SALON) {
-        // alguno de los dos reserva el local completo → choca con todo el local
-        compartenEspacio = true;
-        notaEspacio = !ev.ID_SALON
-          ? ' (ese evento reserva el local completo)'
-          : ' (tu evento reservaría el local completo)';
-      } else if (ev.ID_SALON !== opts.idSalon) {
-        compartenEspacio = false; // salones distintos del mismo local
-      } else {
-        // mismo salón: salón completo (sin subsalones) choca con todo
-        const evSubs = (ev.SUBS ?? '').split(',').filter(Boolean).map(Number);
-        compartenEspacio =
-          opts.subsalones.length === 0 ||
-          evSubs.length === 0 ||
-          opts.subsalones.some((s) => evSubs.includes(s));
-      }
-      if (!compartenEspacio) continue;
-
-      const ocupadoIni = evIni - (ev.TIEMPO_SETUP_MIN ?? 0);
-      const ocupadoFin = evFin + (ev.TIEMPO_CLEAN_MIN ?? 0);
-      if (nuevoIni < ocupadoFin && nuevoFin > ocupadoIni) {
-        throw new ConflictException(
-          `El espacio no está disponible: «${ev.TITULO}» ocupa realmente de ` +
-            `${toHora(ocupadoIni)} a ${toHora(ocupadoFin)} (evento ${ev.HORA_INICIO}–${ev.HORA_FIN} ` +
-            `+ ${ev.TIEMPO_SETUP_MIN ?? 0} min de preparación y ${ev.TIEMPO_CLEAN_MIN ?? 0} min de limpieza)${notaEspacio}, ` +
-            `y tu evento necesitaría el espacio de ${toHora(nuevoIni)} a ${toHora(nuevoFin)} ` +
-            `(incluyendo tu preparación y limpieza). Ajusta el horario, la fecha o el espacio.`,
-        );
+        const evOccStart = oIni - (ev.TIEMPO_SETUP_MIN ?? 0);
+        const evOccEnd = oFin + (ev.TIEMPO_CLEAN_MIN ?? 0);
+        const fmt = (m: number) => {
+          const hh = Math.floor(m / 60);
+          const mm = m % 60;
+          return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+        };
+        if (occStart < evOccEnd && occEnd > evOccStart) {
+          throw new ConflictException(
+            `The space is not available on ${dia.fecha}: "${ev.TITULO}" actually occupies it from ` +
+              `${fmt(evOccStart)} to ${fmt(evOccEnd)} (event ${fmt(oIni)} → ${fmt(oFin)} ` +
+              `+ ${ev.TIEMPO_SETUP_MIN ?? 0} min of setup and ${ev.TIEMPO_CLEAN_MIN ?? 0} min of cleanup)${notaEspacio}, ` +
+              `and your event would need the space from ${fmt(occStart)} to ${fmt(occEnd)} ` +
+              `(including your setup and cleanup). Adjust the time, the date, or the space.`,
+          );
+        }
       }
     }
   }
@@ -220,7 +269,7 @@ export class EventosService {
     if (dto.idSalon) {
       const salon = await this.scope.salon(actor, dto.idSalon);
       if (salon.ID_LOCAL !== dto.idLocal) {
-        throw new BadRequestException('El salón no pertenece a ese local');
+        throw new BadRequestException('The hall does not belong to that venue');
       }
       subsalones = await this.resolverSubsalones(
         dto.idSalon,
@@ -229,39 +278,53 @@ export class EventosService {
       );
     } else if (dto.idConfiguracion || dto.idSubsalon) {
       throw new BadRequestException(
-        'Para reservar un modelo o subsalón primero elige un salón',
+        'To reserve a layout or sub-hall, first choose a hall',
       );
     }
-    await this.validarDisponibilidad({
-      idLocal: dto.idLocal,
-      idSalon: dto.idSalon ?? null,
-      fecha: dto.fechaEvento,
-      horaInicio: dto.horaInicio,
-      horaFin: dto.horaFin,
-      setupMin: dto.tiempoSetupMin ?? 0,
-      cleanMin: dto.tiempoCleanMin ?? 0,
-      subsalones,
-    });
+
+    const { ordenados, fechaEvento, fechaFin, horaInicio, horaFin } =
+      this.validarDias(dto.dias);
+
+    const idEventoPadre = dto.idEventoPadre ?? null;
+    if (idEventoPadre != null) {
+      await this.validarEventoPadre(actor, idEventoPadre);
+    }
+
+    // Sólo los eventos PRINCIPALES (sin padre) validan choque de espacio;
+    // los hijos/workshops se saltan la validación.
+    if (idEventoPadre == null) {
+      await this.validarDisponibilidad({
+        idLocal: dto.idLocal,
+        idSalon: dto.idSalon ?? null,
+        dias: ordenados,
+        setupMin: dto.tiempoSetupMin ?? 0,
+        cleanMin: dto.tiempoCleanMin ?? 0,
+        subsalones,
+      });
+    }
 
     return this.oracle.withConnection(async (conn) => {
       const result = await conn.execute(
         `INSERT INTO EVENTOS
-           (TITULO, DESCRIPCION, FECHA_EVENTO, HORA_INICIO, HORA_FIN,
-            ID_LOCAL, ID_SALON, ID_SUBSALON, ID_CONFIGURACION,
+           (TITULO, DESCRIPCION, FECHA_EVENTO, FECHA_FIN, HORA_INICIO, HORA_FIN,
+            ID_EVENTO_PADRE, ID_LOCAL, ID_SALON, ID_SUBSALON, ID_CONFIGURACION,
             PRECIO, PUBLICO_ESPERADO, TIEMPO_SETUP_MIN, TIEMPO_CLEAN_MIN,
             COD_ITEM, NO_PUBLICAR, INCLUYE_IVA, MONTO_IVA, IMAGEN_URL)
          VALUES
-           (:titulo, :descripcion, TO_DATE(:fecha, 'YYYY-MM-DD'), :horaInicio, :horaFin,
-            :idLocal, :idSalon, :idSubsalon, :idConfiguracion,
+           (:titulo, :descripcion, TO_DATE(:fecha, 'YYYY-MM-DD'),
+            TO_DATE(:fechaFin, 'YYYY-MM-DD'), :horaInicio, :horaFin,
+            :idEventoPadre, :idLocal, :idSalon, :idSubsalon, :idConfiguracion,
             :precio, :publico, :setupMin, :cleanMin, :codItem, :noPublicar,
             :incluyeIva, :montoIva, :imagenUrl)
          RETURNING ID_EVENTO INTO :out`,
         {
           titulo: dto.titulo,
           descripcion: dto.descripcion ?? null,
-          fecha: dto.fechaEvento,
-          horaInicio: dto.horaInicio,
-          horaFin: dto.horaFin,
+          fecha: fechaEvento,
+          fechaFin,
+          horaInicio,
+          horaFin,
+          idEventoPadre: { val: idEventoPadre, type: this.oracle.NUMBER },
           idLocal: dto.idLocal,
           idSalon: { val: dto.idSalon ?? null, type: this.oracle.NUMBER },
           idSubsalon: { val: dto.idSubsalon ?? null, type: this.oracle.NUMBER },
@@ -291,6 +354,20 @@ export class EventosService {
           { idEvento, idSubsalon },
         );
       }
+      let orden = 0;
+      for (const dia of ordenados) {
+        await conn.execute(
+          `INSERT INTO EVENTO_HORAS (ID_EVENTO, FECHA, HORA_INICIO, HORA_FIN, ORDEN)
+           VALUES (:idEvento, TO_DATE(:fecha, 'YYYY-MM-DD'), :horaInicio, :horaFin, :orden)`,
+          {
+            idEvento,
+            fecha: dia.fecha,
+            horaInicio: dia.horaInicio,
+            horaFin: dia.horaFin,
+            orden: orden++,
+          },
+        );
+      }
       await conn.commit();
       return { idEvento, subsalonesReservados: subsalones };
     });
@@ -305,30 +382,59 @@ export class EventosService {
       ID_SUBSALON: number | null;
       ID_CONFIGURACION: number | null;
       FECHA_EVENTO: string;
+      FECHA_FIN: string;
       HORA_INICIO: string | null;
       HORA_FIN: string | null;
       TIEMPO_SETUP_MIN: number | null;
       TIEMPO_CLEAN_MIN: number | null;
       TITULO: string;
+      ID_EVENTO_PADRE: number | null;
+      PADRE_TITULO: string | null;
       ID_INSTITUCION: number | null;
+      DIAS: string | null;
     }>(
       `SELECT e.ID_EVENTO, e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               TO_CHAR(e.FECHA_EVENTO,'YYYY-MM-DD') AS FECHA_EVENTO,
+              TO_CHAR(NVL(e.FECHA_FIN, e.FECHA_EVENTO),'YYYY-MM-DD') AS FECHA_FIN,
               e.HORA_INICIO, e.HORA_FIN, e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN, e.TITULO,
-              COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) AS ID_INSTITUCION
+              e.ID_EVENTO_PADRE, p.TITULO AS PADRE_TITULO,
+              COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) AS ID_INSTITUCION,
+              (SELECT LISTAGG(TO_CHAR(h.FECHA, 'YYYY-MM-DD'), ',') WITHIN GROUP (ORDER BY h.FECHA)
+                 FROM EVENTO_HORAS h WHERE h.ID_EVENTO = e.ID_EVENTO) AS DIAS
          FROM EVENTOS e
          LEFT JOIN LOCALES l ON l.ID_LOCAL = e.ID_LOCAL
          LEFT JOIN SALONES s ON s.ID_SALON = e.ID_SALON
          LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
+         LEFT JOIN EVENTOS p ON p.ID_EVENTO = e.ID_EVENTO_PADRE
         WHERE e.ID_EVENTO = :id`,
       { id: idEvento },
     );
     const ev = rows[0];
-    if (!ev) throw new NotFoundException('Evento no encontrado');
+    if (!ev) throw new NotFoundException('Event not found');
     if (!actor.esSuper && ev.ID_INSTITUCION !== actor.idInstitucion) {
-      throw new NotFoundException('Evento no encontrado');
+      throw new NotFoundException('Event not found');
     }
     return ev;
+  }
+
+  /**
+   * Valida el evento padre de un workshop: debe existir y estar en el ámbito del
+   * actor, ser un evento PRINCIPAL (no se anidan workshops) y no ser el propio evento.
+   */
+  private async validarEventoPadre(
+    actor: JwtUser,
+    idEventoPadre: number,
+    idEventoActual?: number,
+  ) {
+    if (idEventoActual && idEventoPadre === idEventoActual) {
+      throw new BadRequestException('An event cannot be its own parent');
+    }
+    const padre = await this.eventoEnAmbito(actor, idEventoPadre);
+    if (padre.ID_EVENTO_PADRE != null) {
+      throw new BadRequestException(
+        'The parent must be a main event (workshops cannot be nested)',
+      );
+    }
   }
 
   async update(actor: JwtUser, idEvento: number, dto: UpdateEventoDto) {
@@ -336,7 +442,7 @@ export class EventosService {
 
     const idLocal = dto.idLocal ?? actual.ID_LOCAL;
     if (!idLocal) {
-      throw new BadRequestException('El evento necesita un local');
+      throw new BadRequestException('The event needs a venue');
     }
     await this.scope.local(actor, idLocal);
 
@@ -351,7 +457,7 @@ export class EventosService {
     if (idSalon) {
       const salon = await this.scope.salon(actor, idSalon);
       if (salon.ID_LOCAL !== idLocal) {
-        throw new BadRequestException('El salón no pertenece a ese local');
+        throw new BadRequestException('The hall does not belong to that venue');
       }
       const cambiaEspacio =
         dto.idSalon != null ||
@@ -370,24 +476,78 @@ export class EventosService {
       );
     } else if (dto.idConfiguracion || dto.idSubsalon) {
       throw new BadRequestException(
-        'Para reservar un modelo o subsalón primero elige un salón',
+        'To reserve a layout or sub-hall, first choose a hall',
       );
     }
 
-    const fecha = dto.fechaEvento ?? actual.FECHA_EVENTO;
-    const horaInicio = dto.horaInicio ?? actual.HORA_INICIO ?? '00:00';
-    const horaFin = dto.horaFin ?? actual.HORA_FIN ?? '00:00';
-    await this.validarDisponibilidad({
-      idLocal,
-      idSalon: idSalon ?? null,
-      fecha,
-      horaInicio,
-      horaFin,
-      setupMin: dto.tiempoSetupMin ?? actual.TIEMPO_SETUP_MIN ?? 0,
-      cleanMin: dto.tiempoCleanMin ?? actual.TIEMPO_CLEAN_MIN ?? 0,
-      subsalones,
-      excluirEvento: idEvento,
-    });
+    // idEventoPadre: undefined = mantener el actual; null = desasociar (principal);
+    // número = asociar como workshop de ese padre.
+    const idEventoPadre =
+      dto.idEventoPadre === undefined
+        ? (actual.ID_EVENTO_PADRE ?? null)
+        : (dto.idEventoPadre ?? null);
+    if (idEventoPadre != null) {
+      await this.validarEventoPadre(actor, idEventoPadre, idEvento);
+    }
+
+    // días efectivos: los del body si vienen; si no, los actuales de EVENTO_HORAS.
+    let diasCambian = false;
+    let diasEfectivos: DiaDto[];
+    let fecha: string;
+    let fechaFin: string;
+    let horaInicio: string;
+    let horaFin: string;
+    if (dto.dias !== undefined) {
+      diasCambian = true;
+      const norm = this.validarDias(dto.dias);
+      diasEfectivos = norm.ordenados;
+      fecha = norm.fechaEvento;
+      fechaFin = norm.fechaFin;
+      horaInicio = norm.horaInicio;
+      horaFin = norm.horaFin;
+    } else {
+      const existentes = await this.oracle.query<{
+        FECHA: string;
+        HORA_INICIO: string;
+        HORA_FIN: string;
+      }>(
+        `SELECT TO_CHAR(FECHA, 'YYYY-MM-DD') AS FECHA, HORA_INICIO, HORA_FIN
+           FROM EVENTO_HORAS
+          WHERE ID_EVENTO = :id
+          ORDER BY FECHA`,
+        { id: idEvento },
+      );
+      diasEfectivos = existentes.length
+        ? existentes.map((r) => ({
+            fecha: r.FECHA,
+            horaInicio: r.HORA_INICIO,
+            horaFin: r.HORA_FIN,
+          }))
+        : [
+            {
+              fecha: actual.FECHA_EVENTO,
+              horaInicio: actual.HORA_INICIO ?? '00:00',
+              horaFin: actual.HORA_FIN ?? '00:00',
+            },
+          ];
+      fecha = diasEfectivos[0].fecha;
+      fechaFin = diasEfectivos[diasEfectivos.length - 1].fecha;
+      horaInicio = diasEfectivos[0].horaInicio;
+      horaFin = diasEfectivos[0].horaFin;
+    }
+
+    // Sólo los eventos PRINCIPALES revalidan choque; los hijos se saltan.
+    if (idEventoPadre == null) {
+      await this.validarDisponibilidad({
+        idLocal,
+        idSalon: idSalon ?? null,
+        dias: diasEfectivos,
+        setupMin: dto.tiempoSetupMin ?? actual.TIEMPO_SETUP_MIN ?? 0,
+        cleanMin: dto.tiempoCleanMin ?? actual.TIEMPO_CLEAN_MIN ?? 0,
+        subsalones,
+        excluirEvento: idEvento,
+      });
+    }
 
     await this.oracle.withConnection(async (conn) => {
       await conn.execute(
@@ -395,8 +555,10 @@ export class EventosService {
            TITULO = NVL(:titulo, TITULO),
            DESCRIPCION = COALESCE(:descripcion, DESCRIPCION),
            FECHA_EVENTO = TO_DATE(:fecha, 'YYYY-MM-DD'),
+           FECHA_FIN = TO_DATE(:fechaFin, 'YYYY-MM-DD'),
            HORA_INICIO = :horaInicio,
            HORA_FIN = :horaFin,
+           ID_EVENTO_PADRE = :idEventoPadre,
            ID_LOCAL = :idLocal,
            ID_SALON = :idSalon,
            COD_ITEM = COALESCE(:codItem, COD_ITEM),
@@ -416,8 +578,10 @@ export class EventosService {
           titulo: dto.titulo ?? null,
           descripcion: dto.descripcion ?? null,
           fecha,
+          fechaFin,
           horaInicio,
           horaFin,
+          idEventoPadre: { val: idEventoPadre, type: this.oracle.NUMBER },
           idLocal,
           idSalon: { val: idSalon ?? null, type: this.oracle.NUMBER },
           codItem: dto.codItem ?? null,
@@ -460,6 +624,26 @@ export class EventosService {
           { id: idEvento, s },
         );
       }
+      // Sólo reescribimos los días si el body los trae (DELETE + reinsert).
+      if (diasCambian) {
+        await conn.execute(`DELETE FROM EVENTO_HORAS WHERE ID_EVENTO = :id`, {
+          id: idEvento,
+        });
+        let orden = 0;
+        for (const dia of diasEfectivos) {
+          await conn.execute(
+            `INSERT INTO EVENTO_HORAS (ID_EVENTO, FECHA, HORA_INICIO, HORA_FIN, ORDEN)
+             VALUES (:id, TO_DATE(:fecha, 'YYYY-MM-DD'), :horaInicio, :horaFin, :orden)`,
+            {
+              id: idEvento,
+              fecha: dia.fecha,
+              horaInicio: dia.horaInicio,
+              horaFin: dia.horaFin,
+              orden: orden++,
+            },
+          );
+        }
+      }
       await conn.commit();
     });
     return { idEvento, subsalonesReservados: subsalones };
@@ -494,18 +678,18 @@ export class EventosService {
       {
         sql: `SELECT COUNT(*) AS N FROM EVENTOS_USUARIOS WHERE ID_EVENTO = :id`,
         msg: (n) =>
-          `No se puede eliminar el evento «${ev.TITULO}»: tiene ${n} inscripción(es) de usuarios. ` +
-          `Un evento con inscritos no puede eliminarse.`,
+          `Cannot delete event "${ev.TITULO}": it has ${n} user registration(s). ` +
+          `An event with registrations cannot be deleted.`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM ENTRADAS_EVENTO WHERE ID_EVENTO = :id`,
         msg: (n) =>
-          `No se puede eliminar el evento «${ev.TITULO}»: tiene ${n} entrada(s) emitida(s).`,
+          `Cannot delete event "${ev.TITULO}": it has ${n} issued ticket(s).`,
       },
       {
         sql: `SELECT COUNT(*) AS N FROM PAGOS WHERE ID_EVENTO = :id`,
         msg: (n) =>
-          `No se puede eliminar el evento «${ev.TITULO}»: tiene ${n} pago(s) registrado(s).`,
+          `Cannot delete event "${ev.TITULO}": it has ${n} recorded payment(s).`,
       },
     ];
     for (const uso of usos) {
@@ -523,6 +707,15 @@ export class EventosService {
       });
       await conn.execute(
         `DELETE FROM EVENTO_SUBSALONES WHERE ID_EVENTO = :id`,
+        { id: idEvento },
+      );
+      // EVENTO_HORAS y EVENTO_CUPONES tienen FK al evento: se borran antes
+      await conn.execute(
+        `DELETE FROM EVENTO_HORAS WHERE ID_EVENTO = :id`,
+        { id: idEvento },
+      );
+      await conn.execute(
+        `DELETE FROM EVENTO_CUPONES WHERE ID_EVENTO = :id`,
         { id: idEvento },
       );
       await conn.execute(`DELETE FROM EVENTOS WHERE ID_EVENTO = :id`, {
@@ -548,12 +741,12 @@ export class EventosService {
     const tipo = tipoArchivo.toUpperCase();
     if (!TIPOS_IMAGEN_EVENTO.includes(tipo)) {
       throw new BadRequestException(
-        `tipoArchivo debe ser uno de: ${TIPOS_IMAGEN_EVENTO.join(', ')}`,
+        `tipoArchivo must be one of: ${TIPOS_IMAGEN_EVENTO.join(', ')}`,
       );
     }
     if (!MIMES_IMAGEN.includes(archivo.mimetype)) {
       throw new BadRequestException(
-        `Tipo de imagen no permitido (${archivo.mimetype}). Usa JPG, PNG o WebP.`,
+        `Image type not allowed (${archivo.mimetype}). Use a JPG, PNG or WebP image.`,
       );
     }
     const resultado = await this.archivos.subirYReemplazar({
@@ -586,7 +779,7 @@ export class EventosService {
     fecha: string,
   ) {
     if (!filtro.idSalon && !filtro.idLocal) {
-      throw new BadRequestException('Indica idSalon o idLocal');
+      throw new BadRequestException('Provide idSalon or idLocal');
     }
     if (filtro.idSalon) await this.scope.salon(actor, filtro.idSalon);
     else await this.scope.local(actor, filtro.idLocal!);
@@ -613,7 +806,8 @@ export class EventosService {
   async listarCupones(actor: JwtUser, idEvento: number) {
     await this.eventoEnAmbito(actor, idEvento);
     return this.oracle.query(
-      `SELECT ID_CUPON, ID_EVENTO, CODIGO, MONTO_DESCUENTO, ACTIVO,
+      `SELECT ID_CUPON, ID_EVENTO, CODIGO, MONTO_DESCUENTO,
+              TIPO_DESCUENTO, MAX_USOS, USOS, ACTIVO,
               TO_CHAR(FECHA_REGISTRO, 'YYYY-MM-DD') AS FECHA_REGISTRO
          FROM EVENTO_CUPONES
         WHERE ID_EVENTO = :id
@@ -624,15 +818,25 @@ export class EventosService {
 
   async crearCupon(actor: JwtUser, idEvento: number, dto: CrearCuponDto) {
     await this.eventoEnAmbito(actor, idEvento);
+    const tipoDescuento = dto.tipoDescuento ?? 'M';
+    if (tipoDescuento === 'P' && dto.montoDescuento > 100) {
+      throw new BadRequestException(
+        'Percentage must be between 0.01 and 100',
+      );
+    }
     const codigo = dto.codigo.trim().toUpperCase();
     try {
       const r = await this.oracle.execute(
-        `INSERT INTO EVENTO_CUPONES (ID_EVENTO, CODIGO, MONTO_DESCUENTO)
-         VALUES (:id, :codigo, :monto) RETURNING ID_CUPON INTO :out`,
+        `INSERT INTO EVENTO_CUPONES
+           (ID_EVENTO, CODIGO, MONTO_DESCUENTO, TIPO_DESCUENTO, MAX_USOS)
+         VALUES (:id, :codigo, :monto, :tipoDescuento, :maxUsos)
+         RETURNING ID_CUPON INTO :out`,
         {
           id: idEvento,
           codigo,
           monto: dto.montoDescuento,
+          tipoDescuento,
+          maxUsos: { val: dto.maxUsos ?? null, type: this.oracle.NUMBER },
           out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
         },
       );
@@ -640,7 +844,7 @@ export class EventosService {
     } catch (err) {
       if (String(err).includes('ORA-00001')) {
         throw new ConflictException(
-          'Ya existe un cupón con ese código en este evento',
+          'A coupon with that code already exists for this event',
         );
       }
       throw err;
@@ -653,7 +857,432 @@ export class EventosService {
       `DELETE FROM EVENTO_CUPONES WHERE ID_CUPON = :c AND ID_EVENTO = :e`,
       { c: idCupon, e: idEvento },
     );
-    if (!r.rowsAffected) throw new NotFoundException('Cupón no encontrado');
+    if (!r.rowsAffected) throw new NotFoundException('Coupon not found');
     return { eliminado: idCupon };
+  }
+
+  // ---- Días y horas del evento (EVENTO_HORAS) ----------------------------
+
+  /** Días del evento (fecha + rango horario), ordenados por fecha */
+  async listarDias(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    return this.oracle.query(
+      `SELECT ID_HORA,
+              TO_CHAR(FECHA, 'YYYY-MM-DD') AS FECHA,
+              HORA_INICIO, HORA_FIN, ORDEN
+         FROM EVENTO_HORAS
+        WHERE ID_EVENTO = :id
+        ORDER BY FECHA`,
+      { id: idEvento },
+    );
+  }
+
+  // ---- Detalle del evento (EVENTO_DETALLE, 1:1) --------------------------
+
+  /**
+   * Los CLOB con CHECK ... IS JSON guardan un array serializado con
+   * JSON.stringify; al leer se vuelven a un array con JSON.parse (o [] si el
+   * contenido es inválido/NULL). OracleService ya trae los CLOB como string
+   * gracias a fetchAsString=[CLOB].
+   */
+  private parseJsonArray(raw: unknown): string[] {
+    if (raw == null) return [];
+    try {
+      const parsed = JSON.parse(String(raw));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Serializa un array a JSON string para un CLOB IS JSON; null si undefined */
+  private serializeJsonArray(arr?: string[]): string | null {
+    return arr === undefined ? null : JSON.stringify(arr);
+  }
+
+  /**
+   * Detalle 1:1 del evento. Devuelve {} si aún no existe la fila.
+   * Los campos JSON (QUE_APRENDERAS/TEMAS/REQUISITOS/PUBLICO_OBJETIVO/
+   * BIBLIOGRAFIA) vuelven como arrays; CERT_HABILITADO se expone como boolean.
+   */
+  async getDetalle(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ID_DETALLE: number;
+      ID_EVENTO: number;
+      DESCRIPCION_CORTA: string | null;
+      DESCRIPCION_LARGA: string | null;
+      QUE_APRENDERAS: string | null;
+      TEMAS: string | null;
+      REQUISITOS: string | null;
+      PUBLICO_OBJETIVO: string | null;
+      BIBLIOGRAFIA: string | null;
+      NIVEL: string | null;
+      MODALIDAD: string | null;
+      RITMO: string | null;
+      DURACION_VALOR: number | null;
+      DURACION_UNIDAD: string | null;
+      ESFUERZO_HS_SEMANA: number | null;
+      IDIOMA: string | null;
+      IMAGEN_URL: string | null;
+      VIDEO_PROMO_URL: string | null;
+      CERT_HABILITADO: number | null;
+      CERT_TIPO: string | null;
+      CERT_ENTREGA: string | null;
+      CERT_UMBRAL_ASISTENCIA: number | null;
+      FECHA_REGISTRO: string | null;
+    }>(
+      `SELECT ID_DETALLE, ID_EVENTO, DESCRIPCION_CORTA, DESCRIPCION_LARGA,
+              QUE_APRENDERAS, TEMAS, REQUISITOS, PUBLICO_OBJETIVO, BIBLIOGRAFIA,
+              NIVEL, MODALIDAD, RITMO, DURACION_VALOR, DURACION_UNIDAD,
+              ESFUERZO_HS_SEMANA, IDIOMA, IMAGEN_URL, VIDEO_PROMO_URL,
+              CERT_HABILITADO, CERT_TIPO, CERT_ENTREGA, CERT_UMBRAL_ASISTENCIA,
+              TO_CHAR(FECHA_REGISTRO, 'YYYY-MM-DD"T"HH24:MI:SS') AS FECHA_REGISTRO
+         FROM EVENTO_DETALLE
+        WHERE ID_EVENTO = :id`,
+      { id: idEvento },
+    );
+    const d = rows[0];
+    if (!d) return {};
+    return {
+      idDetalle: d.ID_DETALLE,
+      idEvento: d.ID_EVENTO,
+      descripcionCorta: d.DESCRIPCION_CORTA,
+      descripcionLarga: d.DESCRIPCION_LARGA,
+      queAprenderas: this.parseJsonArray(d.QUE_APRENDERAS),
+      temas: this.parseJsonArray(d.TEMAS),
+      requisitos: this.parseJsonArray(d.REQUISITOS),
+      publicoObjetivo: this.parseJsonArray(d.PUBLICO_OBJETIVO),
+      bibliografia: this.parseJsonArray(d.BIBLIOGRAFIA),
+      nivel: d.NIVEL,
+      modalidad: d.MODALIDAD,
+      ritmo: d.RITMO,
+      duracionValor: d.DURACION_VALOR,
+      duracionUnidad: d.DURACION_UNIDAD,
+      esfuerzoHsSemana: d.ESFUERZO_HS_SEMANA,
+      idioma: d.IDIOMA,
+      imagenUrl: d.IMAGEN_URL,
+      videoPromoUrl: d.VIDEO_PROMO_URL,
+      certHabilitado: d.CERT_HABILITADO === 1,
+      certTipo: d.CERT_TIPO,
+      certEntrega: d.CERT_ENTREGA,
+      certUmbralAsistencia: d.CERT_UMBRAL_ASISTENCIA,
+      fechaRegistro: d.FECHA_REGISTRO,
+    };
+  }
+
+  /**
+   * Upsert del detalle (1:1 por UNIQUE ID_EVENTO): intenta UPDATE y, si no
+   * afectó filas, INSERT. Los arrays se serializan con JSON.stringify (null si
+   * el campo no vino), los binds numéricos se tipan y los booleanos van a 0/1.
+   * Los CLOB largos (DESCRIPCION_LARGA y los JSON) se bindean como string, que
+   * oracledb enlaza a CLOB automáticamente.
+   */
+  async upsertDetalle(actor: JwtUser, idEvento: number, dto: EventoDetalleDto) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const binds = {
+      idEvento,
+      descripcionCorta: dto.descripcionCorta ?? null,
+      descripcionLarga: dto.descripcionLarga ?? null,
+      queAprenderas: this.serializeJsonArray(dto.queAprenderas),
+      temas: this.serializeJsonArray(dto.temas),
+      requisitos: this.serializeJsonArray(dto.requisitos),
+      publicoObjetivo: this.serializeJsonArray(dto.publicoObjetivo),
+      bibliografia: this.serializeJsonArray(dto.bibliografia),
+      nivel: dto.nivel ?? null,
+      modalidad: dto.modalidad ?? null,
+      ritmo: dto.ritmo ?? null,
+      duracionValor: { val: dto.duracionValor ?? null, type: this.oracle.NUMBER },
+      duracionUnidad: dto.duracionUnidad ?? null,
+      esfuerzoHsSemana: {
+        val: dto.esfuerzoHsSemana ?? null,
+        type: this.oracle.NUMBER,
+      },
+      idioma: dto.idioma ?? null,
+      imagenUrl: dto.imagenUrl ?? null,
+      videoPromoUrl: dto.videoPromoUrl ?? null,
+      certHabilitado:
+        dto.certHabilitado === undefined ? null : dto.certHabilitado ? 1 : 0,
+      certTipo: dto.certTipo ?? null,
+      certEntrega: dto.certEntrega ?? null,
+      certUmbralAsistencia: {
+        val: dto.certUmbralAsistencia ?? null,
+        type: this.oracle.NUMBER,
+      },
+    };
+
+    await this.oracle.withConnection(async (conn) => {
+      const upd = await conn.execute(
+        `UPDATE EVENTO_DETALLE SET
+           DESCRIPCION_CORTA = :descripcionCorta,
+           DESCRIPCION_LARGA = :descripcionLarga,
+           QUE_APRENDERAS = :queAprenderas,
+           TEMAS = :temas,
+           REQUISITOS = :requisitos,
+           PUBLICO_OBJETIVO = :publicoObjetivo,
+           BIBLIOGRAFIA = :bibliografia,
+           NIVEL = :nivel,
+           MODALIDAD = :modalidad,
+           RITMO = :ritmo,
+           DURACION_VALOR = :duracionValor,
+           DURACION_UNIDAD = :duracionUnidad,
+           ESFUERZO_HS_SEMANA = :esfuerzoHsSemana,
+           IDIOMA = :idioma,
+           IMAGEN_URL = :imagenUrl,
+           VIDEO_PROMO_URL = :videoPromoUrl,
+           CERT_HABILITADO = COALESCE(:certHabilitado, CERT_HABILITADO),
+           CERT_TIPO = :certTipo,
+           CERT_ENTREGA = :certEntrega,
+           CERT_UMBRAL_ASISTENCIA = :certUmbralAsistencia
+         WHERE ID_EVENTO = :idEvento`,
+        binds,
+      );
+      if (!upd.rowsAffected) {
+        await conn.execute(
+          `INSERT INTO EVENTO_DETALLE
+             (ID_EVENTO, DESCRIPCION_CORTA, DESCRIPCION_LARGA, QUE_APRENDERAS,
+              TEMAS, REQUISITOS, PUBLICO_OBJETIVO, BIBLIOGRAFIA, NIVEL, MODALIDAD,
+              RITMO, DURACION_VALOR, DURACION_UNIDAD, ESFUERZO_HS_SEMANA, IDIOMA,
+              IMAGEN_URL, VIDEO_PROMO_URL, CERT_HABILITADO, CERT_TIPO,
+              CERT_ENTREGA, CERT_UMBRAL_ASISTENCIA)
+           VALUES
+             (:idEvento, :descripcionCorta, :descripcionLarga, :queAprenderas,
+              :temas, :requisitos, :publicoObjetivo, :bibliografia, :nivel,
+              :modalidad, :ritmo, :duracionValor, :duracionUnidad,
+              :esfuerzoHsSemana, :idioma, :imagenUrl, :videoPromoUrl,
+              NVL(:certHabilitado, 0), :certTipo, :certEntrega,
+              :certUmbralAsistencia)`,
+          binds,
+        );
+      }
+      await conn.commit();
+    });
+    return this.getDetalle(actor, idEvento);
+  }
+
+  // ---- Expositores del evento (EVENTO_EXPOSITORES, 1:N) ------------------
+
+  /**
+   * Lista de expositores ordenada por ORDEN y luego por FECHA_REGISTRO.
+   * REDES_SOCIALES (CLOB JSON) se devuelve como array; ES_DESTACADO/IS_ACTIVE
+   * como boolean.
+   */
+  async listarExpositores(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ID_EXPOSITOR: number;
+      ID_EVENTO: number;
+      NOMBRE_COMPLETO: string;
+      CARGO: string | null;
+      ORGANIZACION: string | null;
+      TAGLINE: string | null;
+      BIO: string | null;
+      BIBLIOGRAFIA: string | null;
+      FOTO_URL: string | null;
+      EMAIL: string | null;
+      UBICACION: string | null;
+      SITIO_WEB_URL: string | null;
+      REDES_SOCIALES: string | null;
+      ROL: string | null;
+      ES_DESTACADO: number | null;
+      ORDEN: number | null;
+      IS_ACTIVE: number | null;
+      FECHA_REGISTRO: string | null;
+    }>(
+      `SELECT ID_EXPOSITOR, ID_EVENTO, NOMBRE_COMPLETO, CARGO, ORGANIZACION,
+              TAGLINE, BIO, BIBLIOGRAFIA, FOTO_URL, EMAIL, UBICACION,
+              SITIO_WEB_URL, REDES_SOCIALES, ROL, ES_DESTACADO, ORDEN, IS_ACTIVE,
+              TO_CHAR(FECHA_REGISTRO, 'YYYY-MM-DD"T"HH24:MI:SS') AS FECHA_REGISTRO
+         FROM EVENTO_EXPOSITORES
+        WHERE ID_EVENTO = :id
+        ORDER BY ORDEN, FECHA_REGISTRO`,
+      { id: idEvento },
+    );
+    return rows.map((e) => ({
+      idExpositor: e.ID_EXPOSITOR,
+      idEvento: e.ID_EVENTO,
+      nombreCompleto: e.NOMBRE_COMPLETO,
+      cargo: e.CARGO,
+      organizacion: e.ORGANIZACION,
+      tagline: e.TAGLINE,
+      bio: e.BIO,
+      bibliografia: e.BIBLIOGRAFIA,
+      fotoUrl: e.FOTO_URL,
+      email: e.EMAIL,
+      ubicacion: e.UBICACION,
+      sitioWebUrl: e.SITIO_WEB_URL,
+      redesSociales: this.parseJsonArray(e.REDES_SOCIALES),
+      rol: e.ROL,
+      esDestacado: e.ES_DESTACADO === 1,
+      orden: e.ORDEN,
+      isActive: e.IS_ACTIVE === 1,
+      fechaRegistro: e.FECHA_REGISTRO,
+    }));
+  }
+
+  /** Crea un expositor y devuelve su id. esDestacado -> 0/1, orden default 0. */
+  async crearExpositor(
+    actor: JwtUser,
+    idEvento: number,
+    dto: CreateExpositorDto,
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const r = await this.oracle.execute(
+      `INSERT INTO EVENTO_EXPOSITORES
+         (ID_EVENTO, NOMBRE_COMPLETO, CARGO, ORGANIZACION, TAGLINE, BIO,
+          BIBLIOGRAFIA, FOTO_URL, EMAIL, UBICACION, SITIO_WEB_URL, ROL,
+          ES_DESTACADO, ORDEN)
+       VALUES
+         (:idEvento, :nombreCompleto, :cargo, :organizacion, :tagline, :bio,
+          :bibliografia, :fotoUrl, :email, :ubicacion, :sitioWebUrl, :rol,
+          :esDestacado, :orden)
+       RETURNING ID_EXPOSITOR INTO :out`,
+      {
+        idEvento,
+        nombreCompleto: dto.nombreCompleto,
+        cargo: dto.cargo ?? null,
+        organizacion: dto.organizacion ?? null,
+        tagline: dto.tagline ?? null,
+        bio: dto.bio ?? null,
+        bibliografia: dto.bibliografia ?? null,
+        fotoUrl: dto.fotoUrl ?? null,
+        email: dto.email ?? null,
+        ubicacion: dto.ubicacion ?? null,
+        sitioWebUrl: dto.sitioWebUrl ?? null,
+        rol: dto.rol ?? null,
+        esDestacado: dto.esDestacado ? 1 : 0,
+        orden: { val: dto.orden ?? 0, type: this.oracle.NUMBER },
+        out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
+      },
+    );
+    return { idExpositor: (r.outBinds as { out: number[] }).out[0] };
+  }
+
+  /**
+   * Edita un expositor con COALESCE por campo (sólo pisa lo que vino en el
+   * body). Los booleanos se envían como 0/1 (null cuando no vinieron para que
+   * COALESCE conserve el valor actual). NotFound si no existe en el evento.
+   */
+  async actualizarExpositor(
+    actor: JwtUser,
+    idEvento: number,
+    idExpositor: number,
+    dto: UpdateExpositorDto,
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const r = await this.oracle.execute(
+      `UPDATE EVENTO_EXPOSITORES SET
+         NOMBRE_COMPLETO = COALESCE(:nombreCompleto, NOMBRE_COMPLETO),
+         CARGO = COALESCE(:cargo, CARGO),
+         ORGANIZACION = COALESCE(:organizacion, ORGANIZACION),
+         TAGLINE = COALESCE(:tagline, TAGLINE),
+         BIO = COALESCE(TO_CLOB(:bio), BIO),
+         BIBLIOGRAFIA = COALESCE(TO_CLOB(:bibliografia), BIBLIOGRAFIA),
+         FOTO_URL = COALESCE(:fotoUrl, FOTO_URL),
+         EMAIL = COALESCE(:email, EMAIL),
+         UBICACION = COALESCE(:ubicacion, UBICACION),
+         SITIO_WEB_URL = COALESCE(:sitioWebUrl, SITIO_WEB_URL),
+         ROL = COALESCE(:rol, ROL),
+         ES_DESTACADO = COALESCE(:esDestacado, ES_DESTACADO),
+         ORDEN = COALESCE(:orden, ORDEN)
+       WHERE ID_EXPOSITOR = :idExpositor AND ID_EVENTO = :idEvento`,
+      {
+        nombreCompleto: dto.nombreCompleto ?? null,
+        cargo: dto.cargo ?? null,
+        organizacion: dto.organizacion ?? null,
+        tagline: dto.tagline ?? null,
+        bio: dto.bio ?? null,
+        bibliografia: dto.bibliografia ?? null,
+        fotoUrl: dto.fotoUrl ?? null,
+        email: dto.email ?? null,
+        ubicacion: dto.ubicacion ?? null,
+        sitioWebUrl: dto.sitioWebUrl ?? null,
+        rol: dto.rol ?? null,
+        esDestacado:
+          dto.esDestacado === undefined ? null : dto.esDestacado ? 1 : 0,
+        orden: { val: dto.orden ?? null, type: this.oracle.NUMBER },
+        idExpositor,
+        idEvento,
+      },
+    );
+    if (!r.rowsAffected) throw new NotFoundException('Speaker not found');
+    return { idExpositor };
+  }
+
+  /** Elimina un expositor del evento. NotFound si no existe. */
+  async eliminarExpositor(
+    actor: JwtUser,
+    idEvento: number,
+    idExpositor: number,
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const r = await this.oracle.execute(
+      `DELETE FROM EVENTO_EXPOSITORES
+        WHERE ID_EXPOSITOR = :idExpositor AND ID_EVENTO = :idEvento`,
+      { idExpositor, idEvento },
+    );
+    if (!r.rowsAffected) throw new NotFoundException('Speaker not found');
+    return { eliminado: idExpositor };
+  }
+
+  /** Verifica que el expositor exista y pertenezca al evento; NotFound si no. */
+  private async expositorEnEvento(idEvento: number, idExpositor: number) {
+    const rows = await this.oracle.query<{ ID_EXPOSITOR: number }>(
+      `SELECT ID_EXPOSITOR FROM EVENTO_EXPOSITORES
+        WHERE ID_EXPOSITOR = :e AND ID_EVENTO = :id`,
+      { e: idExpositor, id: idEvento },
+    );
+    if (!rows[0]) throw new NotFoundException('Speaker not found');
+  }
+
+  /** Sube la foto de un expositor al NAS (entidad EXPOSITOR, tipoArchivo FOTO) */
+  async subirImagenExpositor(
+    actor: JwtUser,
+    idEvento: number,
+    idExpositor: number,
+    archivo: {
+      buffer: Buffer;
+      filename: string;
+      mimetype: string;
+    },
+    tipoArchivo = 'PORTADA',
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    await this.expositorEnEvento(idEvento, idExpositor);
+    const tipo = tipoArchivo.toUpperCase();
+    if (!TIPOS_IMAGEN_EXPOSITOR.includes(tipo)) {
+      throw new BadRequestException(
+        `tipoArchivo must be one of: ${TIPOS_IMAGEN_EXPOSITOR.join(', ')}`,
+      );
+    }
+    if (!MIMES_IMAGEN.includes(archivo.mimetype)) {
+      throw new BadRequestException(
+        `Image type not allowed (${archivo.mimetype}). Use a JPG, PNG or WebP image.`,
+      );
+    }
+    const resultado = await this.archivos.subirYReemplazar({
+      tipoEntidad: 'EXPOSITOR',
+      id: idExpositor,
+      tipoArchivo: tipo,
+      archivo,
+    });
+    return { idEvento, idExpositor, tipoArchivo: tipo, ...resultado };
+  }
+
+  /** Quita la foto del expositor (deja al expositor sin imagen en el NAS) */
+  async eliminarImagenExpositor(
+    actor: JwtUser,
+    idEvento: number,
+    idExpositor: number,
+    tipoArchivo = 'PORTADA',
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    await this.expositorEnEvento(idEvento, idExpositor);
+    const r = await this.archivos.eliminarImagen(
+      'EXPOSITOR',
+      idExpositor,
+      tipoArchivo.toUpperCase(),
+    );
+    return { idEvento, idExpositor, ...r };
   }
 }
