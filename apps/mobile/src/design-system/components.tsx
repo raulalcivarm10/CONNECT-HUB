@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Pressable,
   PressableProps,
+  ScrollView,
   StyleProp,
   Text,
   TextProps,
@@ -31,21 +32,34 @@ export function Screen({
   edges = ['top'],
   style,
   padded,
+  scroll,
 }: {
   children: ReactNode;
   edges?: Edge[];
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
+  /** Envuelve el contenido en un ScrollView (para pantallas con contenido más alto que la vista). */
+  scroll?: boolean;
 }) {
   const t = useTheme();
+  const pad = padded ? { paddingHorizontal: spacing.lg } : null;
   return (
     <SafeAreaView
       edges={edges}
       style={[{ flex: 1, backgroundColor: t.colors.bg }, style]}
     >
-      <View style={[{ flex: 1 }, padded && { paddingHorizontal: spacing.lg }]}>
-        {children}
-      </View>
+      {scroll ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[{ flexGrow: 1, paddingBottom: spacing['3xl'] }, pad]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={[{ flex: 1 }, pad]}>{children}</View>
+      )}
     </SafeAreaView>
   );
 }

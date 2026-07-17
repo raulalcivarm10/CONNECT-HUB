@@ -99,7 +99,7 @@ export default function Perfil() {
     : '';
 
   return (
-    <Screen padded>
+    <Screen padded scroll>
       <View style={{ paddingTop: spacing.sm, paddingBottom: spacing.lg }}>
         <AppText variant="display">{tr('profile.title')}</AppText>
       </View>
