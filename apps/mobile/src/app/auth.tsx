@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { AppText, Button, Card } from '@/design-system/components';
 import { useTheme, useThemeMode, palette } from '@/design-system/theme';
@@ -14,7 +12,7 @@ import { useAuth } from '@/store/auth';
 import { verifyReq } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { useGoogleAuth } from '@/features/auth/useGoogleAuth';
-import LogoIcon from '@/assets/logo-icon.svg';
+import { LoginHero } from '@/features/auth/LoginHero';
 
 type Mode = 'login' | 'register';
 
@@ -164,40 +162,8 @@ export default function Auth() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
-      {/* Hero de marca */}
-      <LinearGradient
-        colors={[palette.brand700, palette.brand500, palette.violet500]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ paddingTop: 0, paddingBottom: spacing.xl }}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md }}>
-            <Animated.View entering={FadeIn.duration(400)}>
-              <View
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: radius.lg,
-                  backgroundColor: palette.white,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: spacing.md,
-                  ...shadow.card,
-                }}
-              >
-                <LogoIcon width={38} height={38} />
-              </View>
-              <AppText variant="display" color={palette.white} style={{ fontSize: fontSize['3xl'] }}>
-                ConnectHub
-              </AppText>
-              <AppText color="rgba(255,255,255,0.85)" style={{ marginTop: 4 }}>
-                {isRegister ? tr('auth.signUpSubtitle') : tr('auth.signInSubtitle')}
-              </AppText>
-            </Animated.View>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+      {/* Hero de marca animado (logo intacto + ondas + diamantes flotando) */}
+      <LoginHero isRegister={isRegister} />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
