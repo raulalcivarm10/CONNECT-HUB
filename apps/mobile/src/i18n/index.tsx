@@ -94,6 +94,9 @@ const en = {
   'tabs.community': 'Community',
   'community.title': 'Community',
   'community.members': 'members',
+  'community.membersTitle': 'Attendees',
+  'community.membersEmpty': 'No public attendees yet',
+  'community.membersEmptyDesc': 'People with a private profile don’t appear here.',
   'community.placeholder': 'Share something with the community…',
   'community.empty': 'No messages yet — say hi 👋',
   'community.noInstitution': 'Join an institution to access its community.',
@@ -218,6 +221,10 @@ const en = {
   'pay.errorBody': 'There was a problem processing your payment. Please try again.',
 
   'agenda.title': 'My Agenda',
+  'agenda.viewList': 'List',
+  'agenda.viewCalendar': 'Calendar',
+  'agenda.past': 'Past',
+  'agenda.noEventsDay': 'No events on this day',
   'agenda.empty': 'Nothing saved yet',
   'agenda.emptyDesc': 'Tap “Save” on any event to build your personal agenda.',
 
@@ -349,6 +356,9 @@ const es: Dict = {
   'tabs.community': 'Comunidad',
   'community.title': 'Comunidad',
   'community.members': 'miembros',
+  'community.membersTitle': 'Participantes',
+  'community.membersEmpty': 'Aún no hay participantes públicos',
+  'community.membersEmptyDesc': 'Las personas con perfil privado no aparecen aquí.',
   'community.placeholder': 'Comparte algo con la comunidad…',
   'community.empty': 'Aún no hay mensajes — saluda 👋',
   'community.noInstitution': 'Únete a una institución para ver su comunidad.',
@@ -473,6 +483,10 @@ const es: Dict = {
   'pay.errorBody': 'Hubo un problema al procesar tu pago. Inténtalo de nuevo.',
 
   'agenda.title': 'Mi Agenda',
+  'agenda.viewList': 'Lista',
+  'agenda.viewCalendar': 'Calendario',
+  'agenda.past': 'Pasado',
+  'agenda.noEventsDay': 'Sin eventos este día',
   'agenda.empty': 'Nada guardado aún',
   'agenda.emptyDesc': 'Toca “Guardar” en un evento para armar tu agenda personal.',
 
@@ -601,6 +615,9 @@ const fr: Dict = {
   'tabs.community': 'Communauté',
   'community.title': 'Communauté',
   'community.members': 'membres',
+  'community.membersTitle': 'Participants',
+  'community.membersEmpty': 'Aucun participant public pour le moment',
+  'community.membersEmptyDesc': 'Les personnes au profil privé n’apparaissent pas ici.',
   'community.placeholder': 'Partagez quelque chose…',
   'community.empty': 'Aucun message — dites bonjour 👋',
   'community.noInstitution': 'Rejoignez un établissement pour accéder à sa communauté.',
@@ -725,6 +742,10 @@ const fr: Dict = {
   'pay.errorBody': 'Un problème est survenu lors du paiement. Réessaie.',
 
   'agenda.title': 'Mon agenda',
+  'agenda.viewList': 'Liste',
+  'agenda.viewCalendar': 'Calendrier',
+  'agenda.past': 'Passé',
+  'agenda.noEventsDay': 'Aucun événement ce jour',
   'agenda.empty': 'Rien d’enregistré',
   'agenda.emptyDesc': 'Appuyez sur « Enregistrer » sur un événement pour créer votre agenda.',
 
@@ -853,6 +874,9 @@ const pt: Dict = {
   'tabs.community': 'Comunidade',
   'community.title': 'Comunidade',
   'community.members': 'membros',
+  'community.membersTitle': 'Participantes',
+  'community.membersEmpty': 'Ainda não há participantes públicos',
+  'community.membersEmptyDesc': 'Pessoas com perfil privado não aparecem aqui.',
   'community.placeholder': 'Compartilhe algo com a comunidade…',
   'community.empty': 'Ainda não há mensagens — diga oi 👋',
   'community.noInstitution': 'Entre em uma instituição para acessar a comunidade.',
@@ -977,6 +1001,10 @@ const pt: Dict = {
   'pay.errorBody': 'Ocorreu um problema ao processar seu pagamento. Tente novamente.',
 
   'agenda.title': 'Minha agenda',
+  'agenda.viewList': 'Lista',
+  'agenda.viewCalendar': 'Calendário',
+  'agenda.past': 'Passado',
+  'agenda.noEventsDay': 'Sem eventos neste dia',
   'agenda.empty': 'Nada salvo ainda',
   'agenda.emptyDesc': 'Toque em “Salvar” em um evento para montar sua agenda.',
 

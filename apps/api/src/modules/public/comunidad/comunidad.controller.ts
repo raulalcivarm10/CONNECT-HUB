@@ -44,6 +44,12 @@ export class ComunidadController {
     return this.comunidad.misComunidades(user.sub);
   }
 
+  @Get('miembros')
+  @ApiOperation({ summary: 'Participantes de la comunidad (solo perfiles públicos)' })
+  miembros(@Asistente() user: AsistenteUser, @Query('idEvento') idEvento: string) {
+    return this.comunidad.listarMiembros(user.sub, Number(idEvento));
+  }
+
   @Get()
   @ApiOperation({ summary: 'Muro de la comunidad de un evento' })
   listar(

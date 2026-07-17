@@ -1,6 +1,11 @@
 /** Comunidad/chat por evento (auth). */
 import { useQuery } from '@tanstack/react-query';
-import type { ComunidadFeed, ComunidadMensaje, ComunidadResumen } from '@connecthub/shared-types';
+import type {
+  ComunidadFeed,
+  ComunidadMensaje,
+  ComunidadResumen,
+  PersonaResumen,
+} from '@connecthub/shared-types';
 import { apiGet, apiPost } from './client';
 
 /** Hub: mis comunidades = eventos con entrada. */
@@ -19,6 +24,16 @@ export function useComunidad(idEvento: number | null) {
     enabled: idEvento != null,
     queryFn: () => apiGet<ComunidadFeed>('/public/comunidad', { idEvento, size: 50 }, true),
     staleTime: 10_000,
+  });
+}
+
+/** Participantes de la comunidad de un evento (solo perfiles públicos). */
+export function useMiembrosComunidad(idEvento: number | null) {
+  return useQuery({
+    queryKey: ['comunidad-miembros', idEvento],
+    enabled: idEvento != null,
+    queryFn: () => apiGet<PersonaResumen[]>('/public/comunidad/miembros', { idEvento }, true),
+    staleTime: 15_000,
   });
 }
 

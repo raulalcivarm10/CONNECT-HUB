@@ -192,10 +192,18 @@ export default function ComunidadEvento() {
           <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/comunidad'))} hitSlop={10} style={{ padding: spacing.xs }}>
             <Ionicons name="chevron-back" size={26} color={t.colors.text} />
           </Pressable>
-          <View style={{ flex: 1 }}>
+          <Pressable
+            style={{ flex: 1 }}
+            hitSlop={6}
+            onPress={() => router.push({ pathname: '/muro/miembros/[idEvento]', params: { idEvento: String(evId) } })}
+          >
             <AppText variant="subtitle" numberOfLines={1}>{data?.titulo ?? tr('community.title')}</AppText>
-            <AppText muted variant="caption">{data?.participantes ?? 0} {tr('community.members')}</AppText>
-          </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="people-outline" size={13} color={t.colors.textFaint} />
+              <AppText muted variant="caption">{data?.participantes ?? 0} {tr('community.members')}</AppText>
+              <Ionicons name="chevron-forward" size={12} color={t.colors.textFaint} />
+            </View>
+          </Pressable>
           {!isLoading && soyMiembro ? (
             <Pressable onPress={salir} hitSlop={10} disabled={busy} style={{ padding: spacing.xs }}>
               <Ionicons name="exit-outline" size={22} color={t.colors.textFaint} />

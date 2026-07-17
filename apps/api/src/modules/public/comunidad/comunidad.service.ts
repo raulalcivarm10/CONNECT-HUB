@@ -53,6 +53,40 @@ export class ComunidadService {
   }
 
   /**
+   * Participantes de la comunidad de un evento — SOLO perfiles PÚBLICOS.
+   * Los perfiles PRIVADOS no aparecen en la lista (privacidad). Excluye al propio
+   * usuario, a quienes salieron y a cuentas eliminadas (anonimizadas).
+   */
+  async listarMiembros(idCliente: string, idEvento: number) {
+    await this.exigirTicket(idCliente, idEvento);
+    const rows = await this.oracle.query<Record<string, unknown>>(
+      `SELECT DISTINCT u.ID_CLIENTE, u.NOMBRE, u.APELLIDO, u.FOTO_URL, u.EMAIL, p.PROFESION
+         FROM EVENTOS_USUARIOS eu
+         JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN PERFIL_ASISTENTE p ON p.ID_CLIENTE = eu.ID_CLIENTE
+        WHERE eu.ID_EVENTO = :e
+          AND eu.ID_CLIENTE <> :c
+          AND NVL(p.VISIBILIDAD, 'PUBLICO') = 'PUBLICO'
+          AND LOWER(u.EMAIL) NOT LIKE '%@deleted.connecthub.local'
+          AND NOT EXISTS (
+            SELECT 1 FROM COMUNIDAD_MIEMBROS cm
+             WHERE cm.ID_EVENTO = eu.ID_EVENTO
+               AND cm.ID_CLIENTE = eu.ID_CLIENTE
+               AND cm.ESTADO = 'SALIO')
+        ORDER BY u.NOMBRE NULLS LAST, u.APELLIDO NULLS LAST`,
+      { e: idEvento, c: idCliente },
+    );
+    return rows.map((r) => ({
+      idCliente: r.ID_CLIENTE as string,
+      nombre:
+        [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ').trim() ||
+        String(r.EMAIL ?? '').split('@')[0],
+      fotoUrl: (r.FOTO_URL as string) ?? null,
+      profesion: (r.PROFESION as string) ?? null,
+    }));
+  }
+
+  /**
    * Hub: las comunidades (eventos) del asistente = eventos con entrada. Cada una
    * con su último mensaje, conteo y si sigue dentro. Ordenadas por actividad.
    */
