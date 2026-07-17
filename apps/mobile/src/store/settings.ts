@@ -18,7 +18,8 @@ export const useSettings = create<SettingsState>()(
     (set) => ({
       lang: 'en',
       setLang: (lang) => set({ lang }),
-      tema: 'system',
+      // Modo oscuro por defecto (el usuario puede cambiar a claro/sistema en Perfil).
+      tema: 'dark',
       setTema: (tema) => set({ tema }),
     }),
     {
