@@ -96,11 +96,17 @@ export default function Entradas() {
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />
         }
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 40)}>
+        renderItem={({ item, index }) =>
+          // Solo las primeras filas animan la entrada (evita el parpadeo al
+          // reciclarse en scroll).
+          index < 8 ? (
+            <Animated.View entering={FadeInDown.delay(index * 40)}>
+              <TicketCard entrada={item} />
+            </Animated.View>
+          ) : (
             <TicketCard entrada={item} />
-          </Animated.View>
-        )}
+          )
+        }
         ListEmptyComponent={
           isLoading ? (
             <View style={{ gap: spacing.md }}>

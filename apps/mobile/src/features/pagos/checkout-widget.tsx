@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
@@ -71,6 +71,15 @@ export function CheckoutWidget({ reference, envMode, locale, onResult }: Checkou
   // baseUrl del dominio Paymentez del entorno: el SDK necesita un origen https.
   const origin = `https://ccapi${envMode === 'prod' ? '' : '-stg'}.paymentez.com`;
 
+  // CRÍTICO: memoizar el source. Si su identidad cambia (p.ej. el padre
+  // re-renderiza durante el pago), react-native-webview RECARGA la página y
+  // reinicia el modal de Paymentez EN PLENO COBRO → riesgo de tumbar/duplicar
+  // la transacción. Con useMemo el html es estable mientras dura el checkout.
+  const source = useMemo(
+    () => ({ html: buildHtml(reference, envMode, locale ?? 'es'), baseUrl: origin }),
+    [reference, envMode, locale, origin],
+  );
+
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => finish({ status: 'cancelled' })}>
       {/* SafeAreaView (top+bottom) para que el WebView —y el botón "X Close" del
@@ -82,7 +91,7 @@ export function CheckoutWidget({ reference, envMode, locale, onResult }: Checkou
           javaScriptEnabled
           domStorageEnabled
           thirdPartyCookiesEnabled
-          source={{ html: buildHtml(reference, envMode, locale ?? 'es'), baseUrl: origin }}
+          source={source}
           onMessage={onMessage}
           style={{ flex: 1, backgroundColor: 'transparent' }}
         />

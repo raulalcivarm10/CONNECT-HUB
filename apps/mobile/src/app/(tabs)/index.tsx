@@ -318,14 +318,19 @@ export default function Home() {
     return allItems;
   }, [allItems, filtro]);
 
-  // Con filtro cliente (destacados/gratis) auto-carga las páginas siguientes:
-  // así ningún evento que matchea queda "escondido" en una página no cargada.
+  // Con filtro cliente (destacados/gratis) carga páginas siguientes SOLO hasta
+  // llenar la pantalla con resultados o hasta un tope de páginas. Antes cargaba
+  // TODO el catálogo en cascada (cada página re-disparaba el efecto), lo que
+  // congelaba el hilo JS con catálogos grandes. El resto se pagina al hacer
+  // scroll (onEndReached, habilitado en todos los modos).
   const srcHasNext = source.hasNextPage;
   const srcFetchingNext = source.isFetchingNextPage;
   const srcFetchNext = source.fetchNextPage;
+  const pageCount = source.data?.pages.length ?? 0;
   useEffect(() => {
-    if (filtro !== 'all' && srcHasNext && !srcFetchingNext) srcFetchNext();
-  }, [filtro, allItems.length, srcHasNext, srcFetchingNext, srcFetchNext]);
+    if (filtro === 'all') return;
+    if (items.length < 8 && pageCount < 6 && srcHasNext && !srcFetchingNext) srcFetchNext();
+  }, [filtro, items.length, pageCount, srcHasNext, srcFetchingNext, srcFetchNext]);
 
   const Header = (
     <View style={{ gap: spacing.lg, paddingBottom: spacing.md }}>
@@ -416,18 +421,26 @@ export default function Home() {
       <FlatList
         data={items}
         keyExtractor={(e) => String(e.id)}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 40).duration(320)}>
+        renderItem={({ item, index }) =>
+          // Solo anima la entrada de las primeras filas. En una FlatList
+          // virtualizada las filas se reciclan al hacer scroll y el `entering`
+          // se re-dispara en cada reciclaje → parpadeo/jank. Fuera de las
+          // primeras, se renderiza sin animación.
+          index < 8 ? (
+            <Animated.View entering={FadeInDown.delay(index * 40).duration(320)}>
+              <EventCard evento={item} />
+            </Animated.View>
+          ) : (
             <EventCard evento={item} />
-          </Animated.View>
-        )}
+          )
+        }
         ListHeaderComponent={Header}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing['3xl'] }}
         showsVerticalScrollIndicator={false}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
-          if (filtro === 'all' && source.hasNextPage && !source.isFetchingNextPage) {
+          if (source.hasNextPage && !source.isFetchingNextPage) {
             source.fetchNextPage();
           }
         }}

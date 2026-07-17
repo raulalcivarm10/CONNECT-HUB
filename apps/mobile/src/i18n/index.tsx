@@ -2,7 +2,7 @@
  * i18n ligero (EN por defecto; ES/FR/PT conmutables). El idioma se persiste en
  * el store de ajustes. Uso: const { t } = useI18n(); t('home.all').
  */
-import { createContext, ReactNode, useContext } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useMemo } from 'react';
 import { useSettings } from '@/store/settings';
 
 export type Lang = 'en' | 'es' | 'fr' | 'pt';
@@ -1074,8 +1074,12 @@ const I18nContext = createContext<{ lang: Lang; t: (k: StringKey) => string }>({
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const lang = useSettings((s) => s.lang);
-  const t = (k: StringKey) => strings[lang]?.[k] ?? en[k] ?? k;
-  return <I18nContext.Provider value={{ lang, t }}>{children}</I18nContext.Provider>;
+  // Memoizar t y el value: sin esto, cada render del provider (p.ej. RootLayout
+  // re-renderiza en CADA navegación por useSegments) propaga una identidad nueva
+  // a todos los consumidores de useI18n() → re-render de toda la UI montada.
+  const t = useCallback((k: StringKey) => strings[lang]?.[k] ?? en[k] ?? k, [lang]);
+  const value = useMemo(() => ({ lang, t }), [lang, t]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {

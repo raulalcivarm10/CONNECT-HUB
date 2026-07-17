@@ -3,6 +3,7 @@ import { useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
+  cancelAnimation,
   Easing,
   interpolate,
   useAnimatedStyle,
@@ -48,6 +49,7 @@ function FloatingShape({ cfg }: { cfg: ShapeCfg }) {
       cfg.delay,
       withRepeat(withTiming(1, { duration: cfg.dur, easing: Easing.inOut(Easing.sin) }), -1, true),
     );
+    return () => cancelAnimation(p);
   }, [cfg.delay, cfg.dur, p]);
 
   const style = useAnimatedStyle(() => ({
@@ -85,6 +87,7 @@ function Ripple({ delay }: { delay: number }) {
   const p = useSharedValue(0);
   useEffect(() => {
     p.value = withDelay(delay, withRepeat(withTiming(1, { duration: 3000, easing: Easing.out(Easing.ease) }), -1, false));
+    return () => cancelAnimation(p);
   }, [delay, p]);
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(p.value, [0, 1], [0.75, 2.3]) }],
@@ -129,6 +132,11 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
       -1,
       false,
     );
+    return () => {
+      cancelAnimation(enter);
+      cancelAnimation(breathe);
+      cancelAnimation(glow);
+    };
   }, [enter, breathe, glow]);
 
   const logoStyle = useAnimatedStyle(() => ({
