@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Screen, AppText, Card } from '@/design-system/components';
@@ -236,6 +236,15 @@ export default function Perfil() {
           <Row icon="business-outline" label={tr('profile.myInstitutions')} onPress={() => router.push('/instituciones')} />
         </Card>
       ) : null}
+
+      {/* Legal — política de privacidad (requisito de las tiendas) */}
+      <Card style={{ overflow: 'hidden', marginTop: spacing.lg }}>
+        <Row
+          icon="shield-checkmark-outline"
+          label={tr('profile.privacy')}
+          onPress={() => Linking.openURL('https://connecthub.fourstacklabs.com/privacy').catch(() => {})}
+        />
+      </Card>
 
       {/* Eliminar cuenta (App Store 5.1.1v) — acción destructiva con confirmación */}
       {authed ? (
