@@ -12,6 +12,17 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://connecthub.fourstacklabs.com/api",
+        "EXPO_PUBLIC_WEB_URL": "https://connecthub.fourstacklabs.com",
+        "EXPO_PUBLIC_PAGOS_API_URL": "https://api-ligaprocorp.ec:3443/api",
+        "EXPO_PUBLIC_PAGOS_LOGIN_PATH": "/auth/login-user-password",
+        "EXPO_PUBLIC_PAGOS_GOOGLE_PATH": "/auth/register-google",
+        "EXPO_PUBLIC_PAGOS_REFRESH_PATH": "/auth/refresh",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "338617760077-ncr1fcr5sosegoevnjhns4rrskvamjuo.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "338617760077-2kdidcrko33qet7g3rfv1n5gd1jj4dlq.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "338617760077-ma8eeeis1481u486m00q3tovkjv43huu.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -21,6 +32,17 @@
       },
       "ios": {
         "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://connecthub.fourstacklabs.com/api",
+        "EXPO_PUBLIC_WEB_URL": "https://connecthub.fourstacklabs.com",
+        "EXPO_PUBLIC_PAGOS_API_URL": "https://api-ligaprocorp.ec:3443/api",
+        "EXPO_PUBLIC_PAGOS_LOGIN_PATH": "/auth/login-user-password",
+        "EXPO_PUBLIC_PAGOS_GOOGLE_PATH": "/auth/register-google",
+        "EXPO_PUBLIC_PAGOS_REFRESH_PATH": "/auth/refresh",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "338617760077-ncr1fcr5sosegoevnjhns4rrskvamjuo.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "338617760077-2kdidcrko33qet7g3rfv1n5gd1jj4dlq.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "338617760077-ma8eeeis1481u486m00q3tovkjv43huu.apps.googleusercontent.com"
       }
     }
   },
