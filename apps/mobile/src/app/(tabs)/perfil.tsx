@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Screen, AppText, Card } from '@/design-system/components';
+import { useConfirm } from '@/design-system/confirm';
 import { Avatar } from '@/design-system/avatar';
 import { useTheme } from '@/design-system/theme';
 import { radius, spacing } from '@/design-system/tokens';
@@ -67,29 +68,31 @@ export default function Perfil() {
   const status = useAuth((s) => s.status);
   const logout = useAuth((s) => s.logout);
   const deleteAccount = useAuth((s) => s.deleteAccount);
+  const confirm = useConfirm();
   const [deleting, setDeleting] = useState(false);
 
   const authed = status === 'authed' && !!user;
 
-  function onDeleteAccount() {
-    Alert.alert(tr('account.deleteTitle'), tr('account.deleteBody'), [
-      { text: tr('common.cancel'), style: 'cancel' },
-      {
-        text: tr('account.deleteConfirm'),
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(true);
-          try {
-            await deleteAccount();
-            router.replace({ pathname: '/auth', params: { mode: 'login' } });
-          } catch {
-            Alert.alert(tr('account.deleteError'));
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+  // Usa el diálogo propio (useConfirm), NO Alert.alert (que en web es no-op).
+  async function onDeleteAccount() {
+    const ok = await confirm({
+      title: tr('account.deleteTitle'),
+      message: tr('account.deleteBody'),
+      confirmText: tr('account.deleteConfirm'),
+      cancelText: tr('common.cancel'),
+      destructive: true,
+      icon: 'trash-outline',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      router.replace({ pathname: '/auth', params: { mode: 'login' } });
+    } catch {
+      await confirm({ title: tr('account.deleteError'), confirmText: tr('common.close') });
+    } finally {
+      setDeleting(false);
+    }
   }
   const displayName = user
     ? [user.nombre, user.apellido].filter(Boolean).join(' ') || user.email
