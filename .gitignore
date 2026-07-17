@@ -11,3 +11,11 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# override de docker SOLO local (expone puertos/CORS para dev móvil) — NUNCA en prod
+docker-compose.override.yml
+
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/web-build/
+apps/mobile/dist/

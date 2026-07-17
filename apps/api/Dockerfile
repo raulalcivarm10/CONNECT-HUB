@@ -2,6 +2,9 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
+# fontconfig + fuentes: sharp compone texto SVG en los certificados (sin esto no renderiza glifos).
+# ttf-liberation = Liberation Sans, métricamente compatible con Arial (el panel muestra Arial) → WYSIWYG.
+RUN apk add --no-cache fontconfig ttf-dejavu ttf-liberation
 COPY package.json package-lock.json* ./
 RUN npm install
 
@@ -20,6 +23,8 @@ RUN npm run build && npm prune --omit=dev
 FROM node:22-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
+# fuentes para el render de certificados (sharp/SVG text); ttf-liberation = métricas Arial
+RUN apk add --no-cache fontconfig ttf-dejavu ttf-liberation
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 EXPOSE 4000

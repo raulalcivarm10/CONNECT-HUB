@@ -14,6 +14,8 @@ import { ReportesModule } from './modules/reportes/reportes.module';
 import { FslWebhooksModule } from './modules/fsl-webhooks/fsl-webhooks.module';
 import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
+import { PublicModule } from './modules/public/public.module';
+import { PushModule } from './modules/push/push.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     FslWebhooksModule,
     AuditoriaModule,
     FeedbackModule,
+    PublicModule,
+    PushModule,
   ],
 })
 export class AppModule {}

@@ -117,8 +117,8 @@ export const api = {
     return body as T;
   },
 
-  /** descarga autenticada de binarios; devuelve un object URL para <img> */
-  blobUrl: async (path: string): Promise<string> => {
+  /** descarga autenticada de binarios; devuelve el Blob crudo */
+  blob: async (path: string): Promise<Blob> => {
     const doFetch = () =>
       fetch(`${API_URL}${path}`, {
         headers: accessToken
@@ -129,7 +129,12 @@ export const api = {
     let res = await doFetch();
     if (res.status === 401 && (await refreshSession())) res = await doFetch();
     if (!res.ok) throw new ApiError(res.status, `Error ${res.status}`);
-    return URL.createObjectURL(await res.blob());
+    return res.blob();
+  },
+
+  /** descarga autenticada de binarios; devuelve un object URL para <img> */
+  blobUrl: async (path: string): Promise<string> => {
+    return URL.createObjectURL(await api.blob(path));
   },
 };
 

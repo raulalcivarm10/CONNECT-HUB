@@ -51,6 +51,8 @@ services:
       - "3000"
     environment:
       NODE_ENV: production
+      # URL interna del API para fetch server-side (landing pública de certificados)
+      API_INTERNAL_URL: http://api:4000
     depends_on:
       - api
     restart: unless-stopped

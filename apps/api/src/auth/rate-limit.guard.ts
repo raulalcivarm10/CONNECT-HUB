@@ -25,9 +25,10 @@ export class RateLimitGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<FastifyRequest>();
-    const xff = req.headers['x-forwarded-for'];
-    const ip =
-      (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0].trim() ?? req.ip;
+    // req.ip lo resuelve Fastify con trustProxy:1 (main.ts) → IP real del cliente
+    // detrás de Caddy. NO parsear X-Forwarded-For a mano: su valor izquierdo lo
+    // controla el cliente y permitía saltarse el límite con una IP falsa por request.
+    const ip = req.ip;
     const ruta = req.url.split('?')[0];
     const key = `rl:${ruta}:${ip}`;
 

@@ -11,6 +11,7 @@ const COLUMNA_ID: Record<TipoEntidad, string> = {
   SUBSALON: 'ID_SUBSALON',
   CONFIGURACION: 'ID_CONFIGURACION',
   EXPOSITOR: 'ID_EXPOSITOR',
+  USUARIO: 'ID_CLIENTE', // el registro USUARIO/PERFIL lo gestiona el NAS directo
 };
 
 interface FilaArchivo {

@@ -12,7 +12,8 @@ export type TipoEntidad =
   | 'SALON'
   | 'SUBSALON'
   | 'CONFIGURACION'
-  | 'EXPOSITOR';
+  | 'EXPOSITOR'
+  | 'USUARIO';
 
 const CAMPO_ID: Record<TipoEntidad, string> = {
   EVENTO: 'idEvento',
@@ -22,6 +23,7 @@ const CAMPO_ID: Record<TipoEntidad, string> = {
   SUBSALON: 'idSubsalon',
   CONFIGURACION: 'idConfiguracion',
   EXPOSITOR: 'idExpositor',
+  USUARIO: 'idUsuario', // id es el ID_CLIENTE (UUID) del asistente
 };
 
 /**
@@ -41,7 +43,7 @@ export class NasService {
 
   async subir(opts: {
     tipoEntidad: TipoEntidad;
-    id: number;
+    id: number | string;
     tipoArchivo: string;
     buffer: Buffer;
     filename: string;
@@ -90,7 +92,7 @@ export class NasService {
   }
 
   /** URL pública de la imagen activa (usable directo en <img>) */
-  urlActivo(tipoEntidad: TipoEntidad, id: number, tipoArchivo: string): string {
+  urlActivo(tipoEntidad: TipoEntidad, id: number | string, tipoArchivo: string): string {
     return (
       `${this.baseUrl}/archivos/activo` +
       `?tipoEntidad=${tipoEntidad}&id=${id}&tipoArchivo=${tipoArchivo}`

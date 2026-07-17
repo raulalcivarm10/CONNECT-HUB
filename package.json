@@ -1,0 +1,10 @@
+{
+  "name": "connect-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ConnectHub — panel admin (web), API (NestJS) y app móvil de asistentes (Expo)",
+  "engines": {
+    "node": ">=20"
+  },
+  "comment": "Monorepo 'blando': cada app se instala/compila aislada (api y web vía Docker, mobile vía Expo en el host). packages/shared-types se consume por path-mapping (tsconfig + Metro), no por npm workspaces, para evitar hoisting de arboles de dependencias incompatibles (NestJS/Next/React Native)."
+}

@@ -12,7 +12,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    // trustProxy: 1 → confía SOLO en el hop de Caddy, así req.ip resuelve la IP
+    // REAL del cliente (la que Caddy agrega a la derecha del X-Forwarded-For) y
+    // no la izquierda, que el cliente puede falsear (bypass del rate-limit).
+    new FastifyAdapter({ trustProxy: 1 }),
     // rawBody expone req.rawBody (Buffer) para verificar firmas HMAC de webhooks
     { rawBody: true },
   );

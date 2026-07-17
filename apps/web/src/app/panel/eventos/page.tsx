@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
+import { CertificadosEvento } from './certificados-evento';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { useLightbox } from '@/lib/lightbox';
 import { useDialogo } from '@/lib/dialogo';
@@ -691,6 +692,7 @@ function EventoForm({
   const [cuponesOpen, setCuponesOpen] = useState(false);
   const [detalleOpen, setDetalleOpen] = useState(false);
   const [expositoresOpen, setExpositoresOpen] = useState(false);
+  const [certGenOpen, setCertGenOpen] = useState(false);
 
   // clave estable de fechas: solo cambia al añadir/quitar/cambiar una fecha
   const fechasKey = dias
@@ -1228,6 +1230,7 @@ function EventoForm({
           <input
             type="number"
             min={0}
+            max={100}
             step="0.01"
             placeholder={t('ev.vatAmount')}
             value={montoIva}
@@ -1370,6 +1373,22 @@ function EventoForm({
             {expositoresOpen && (
               <div className="mt-2">
                 <ExpositoresEvento idEvento={evento.ID_EVENTO} />
+              </div>
+            )}
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <button
+              type="button"
+              onClick={() => setCertGenOpen((v) => !v)}
+              className="flex w-full items-center gap-2 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-left text-sm font-semibold text-text-2 transition hover:bg-surface"
+            >
+              <span className="text-brand">{certGenOpen ? '▾' : '▸'}</span>
+              Certificados
+            </button>
+            {certGenOpen && (
+              <div className="mt-2">
+                <CertificadosEvento idEvento={evento.ID_EVENTO} tituloEvento={evento.TITULO} />
               </div>
             )}
           </div>

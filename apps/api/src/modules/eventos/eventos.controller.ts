@@ -11,6 +11,7 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -19,7 +20,8 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { FastifyRequest } from 'fastify';
+import { IsArray, IsOptional, IsString } from 'class-validator';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import '@fastify/multipart';
 import { leerImagenMultipart } from '../archivos/multipart.util';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -39,6 +41,13 @@ import {
   CreateExpositorDto,
   UpdateExpositorDto,
 } from './dto/detalle.dto';
+
+class GenerarCertDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  idsClientes?: string[];
+}
 
 @ApiTags('eventos')
 @ApiBearerAuth()
@@ -272,5 +281,52 @@ export class EventosController {
     @Param('idExp', ParseIntPipe) idExp: number,
   ) {
     return this.eventos.eliminarImagenExpositor(user, id, idExp);
+  }
+
+  // ---- Certificados: plantilla + generación en lote (admin) --------------
+
+  @Post(':id/certificados/plantilla')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Sube la plantilla-imagen del certificado + config del overlay (campo file; campo config JSON)' })
+  async subirPlantillaCert(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: FastifyRequest,
+  ) {
+    const { archivo, campos } = await leerImagenMultipart(req);
+    return this.eventos.guardarPlantillaCert(user, id, archivo, campos.config);
+  }
+
+  @Get(':id/certificados/plantilla')
+  @ApiOperation({ summary: 'Config + dimensiones de la plantilla del certificado' })
+  getPlantillaCert(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.eventos.getPlantillaCert(user, id);
+  }
+
+  @Get(':id/certificados/plantilla/imagen')
+  @ApiOperation({ summary: 'Imagen cruda de la plantilla (para el editor)' })
+  async plantillaCertImagen(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, mime } = await this.eventos.plantillaCertImagen(user, id);
+    void reply.header('Content-Type', mime).header('Cache-Control', 'no-store').send(buffer);
+  }
+
+  @Get(':id/certificados/asistentes')
+  @ApiOperation({ summary: 'Asistentes del evento (para seleccionar y generar certificados)' })
+  listarAsistentesCert(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.eventos.listarAsistentesCert(user, id);
+  }
+
+  @Post(':id/certificados/generar')
+  @ApiOperation({ summary: 'Genera certificados en lote (idsClientes seleccionados o todos los que asistieron)' })
+  generarCert(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: GenerarCertDto,
+  ) {
+    return this.eventos.generarCertificadosLote(user, id, dto.idsClientes);
   }
 }

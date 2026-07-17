@@ -2,12 +2,16 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
+import sharp from 'sharp';
 import { OracleService } from '../../database/oracle.service';
 import { JwtUser } from '../../auth/types';
 import { ScopeService } from '../operativa/scope.service';
 import { ArchivosService } from '../archivos/archivos.service';
+import { PushService } from '../push/push.service';
 import { CreateEventoDto, UpdateEventoDto, DiaDto } from './dto/evento.dto';
 import { CrearCuponDto } from './dto/cupon.dto';
 import {
@@ -43,6 +47,7 @@ export class EventosService {
     private readonly oracle: OracleService,
     private readonly scope: ScopeService,
     private readonly archivos: ArchivosService,
+    private readonly push: PushService,
   ) {}
 
   list(actor: JwtUser, idInstitucion?: number) {
@@ -369,6 +374,10 @@ export class EventosService {
         );
       }
       await conn.commit();
+      // aviso push a los asistentes vinculados a la institución (no bloquea)
+      if (!dto.noPublicar) {
+        void this.push.notificarNuevoEvento(idEvento);
+      }
       return { idEvento, subsalonesReservados: subsalones };
     });
   }
@@ -859,6 +868,197 @@ export class EventosService {
     );
     if (!r.rowsAffected) throw new NotFoundException('Coupon not found');
     return { eliminado: idCupon };
+  }
+
+  // ---- Certificados: plantilla-imagen + generación en lote (admin) --------
+
+  /** Sube/actualiza la plantilla-imagen del certificado del evento + overlay. */
+  async guardarPlantillaCert(
+    actor: JwtUser,
+    idEvento: number,
+    archivo: { buffer: Buffer; mimetype: string },
+    configStr?: string,
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    let config: string | null = null;
+    if (configStr) {
+      try {
+        JSON.parse(configStr);
+        config = configStr;
+      } catch {
+        throw new BadRequestException('config no es JSON válido');
+      }
+    }
+    let ancho: number | null = null;
+    let alto: number | null = null;
+    try {
+      const m = await sharp(archivo.buffer).metadata();
+      ancho = m.width ?? null;
+      alto = m.height ?? null;
+    } catch {
+      throw new BadRequestException('La imagen de la plantilla no es válida');
+    }
+    await this.oracle.execute(
+      `MERGE INTO EVENTO_CERT_PLANTILLA t
+       USING (SELECT :e AS ID_EVENTO FROM DUAL) s ON (t.ID_EVENTO = s.ID_EVENTO)
+       WHEN MATCHED THEN UPDATE
+         SET IMAGEN = :img, IMAGEN_MIME = :mime, ANCHO = :w, ALTO = :h,
+             CONFIG_JSON = :cfg, FECHA_REGISTRO = SYSDATE
+       WHEN NOT MATCHED THEN
+         INSERT (ID_EVENTO, IMAGEN, IMAGEN_MIME, ANCHO, ALTO, CONFIG_JSON)
+         VALUES (:e, :img, :mime, :w, :h, :cfg)`,
+      {
+        e: idEvento,
+        img: { val: archivo.buffer, type: this.oracle.BLOB },
+        mime: archivo.mimetype,
+        w: { val: ancho, type: this.oracle.NUMBER },
+        h: { val: alto, type: this.oracle.NUMBER },
+        cfg: { val: config, type: this.oracle.CLOB },
+      },
+    );
+    return { ok: true, ancho, alto };
+  }
+
+  /** Config + dimensiones de la plantilla (sin la imagen). */
+  async getPlantillaCert(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ANCHO: number | null;
+      ALTO: number | null;
+      CONFIG_JSON: string | null;
+      IMAGEN_MIME: string | null;
+    }>(
+      `SELECT ANCHO, ALTO, CONFIG_JSON, IMAGEN_MIME
+         FROM EVENTO_CERT_PLANTILLA WHERE ID_EVENTO = :e`,
+      { e: idEvento },
+    );
+    const r = rows[0];
+    return {
+      tienePlantilla: !!r,
+      ancho: r?.ANCHO ?? null,
+      alto: r?.ALTO ?? null,
+      mime: r?.IMAGEN_MIME ?? null,
+      config: r?.CONFIG_JSON ? JSON.parse(r.CONFIG_JSON) : null,
+    };
+  }
+
+  /** Imagen cruda de la plantilla (para el editor del panel). */
+  async plantillaCertImagen(actor: JwtUser, idEvento: number): Promise<{ buffer: Buffer; mime: string }> {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{ IMAGEN: Buffer; IMAGEN_MIME: string | null }>(
+      `SELECT IMAGEN, IMAGEN_MIME FROM EVENTO_CERT_PLANTILLA WHERE ID_EVENTO = :e`,
+      { e: idEvento },
+    );
+    if (!rows[0]) throw new NotFoundException('No template for this event');
+    return { buffer: rows[0].IMAGEN, mime: rows[0].IMAGEN_MIME ?? 'image/png' };
+  }
+
+  /** Asistentes del evento (para seleccionar y generar certificados). */
+  async listarAsistentesCert(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ID_CLIENTE: string;
+      ID_EVENTO_USUARIO: number;
+      NOMBRE: string | null;
+      APELLIDO: string | null;
+      EMAIL: string;
+      ASISTIO: string | null;
+      CERT_CODIGO: string | null;
+    }>(
+      `SELECT eu.ID_CLIENTE, eu.ID_EVENTO_USUARIO, u.NOMBRE, u.APELLIDO, u.EMAIL,
+              eu.ASISTIO, c.CODIGO AS CERT_CODIGO
+         FROM EVENTOS_USUARIOS eu
+         JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN CERTIFICADOS c
+                ON c.ID_CLIENTE = eu.ID_CLIENTE AND c.ID_EVENTO = eu.ID_EVENTO
+        WHERE eu.ID_EVENTO = :e
+        ORDER BY u.NOMBRE, u.APELLIDO`,
+      { e: idEvento },
+    );
+    return rows.map((r) => ({
+      idCliente: r.ID_CLIENTE,
+      idEventoUsuario: r.ID_EVENTO_USUARIO,
+      nombre: [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ') || r.EMAIL,
+      email: r.EMAIL,
+      asistio: (r.ASISTIO ?? 'N') === 'S',
+      certificadoCodigo: r.CERT_CODIGO ?? null,
+    }));
+  }
+
+  /**
+   * Genera certificados en lote. Si `idsClientes` viene, para esos; si no, para
+   * todos los que asistieron. Idempotente (no duplica los que ya tienen).
+   */
+  async generarCertificadosLote(actor: JwtUser, idEvento: number, idsClientes?: string[]) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ID_CLIENTE: string;
+      ID_EVENTO_USUARIO: number;
+      NOMBRE: string | null;
+      APELLIDO: string | null;
+      EMAIL: string;
+      ASISTIO: string | null;
+      TITULO: string;
+      INSTITUCION: string | null;
+      CERT_TIPO: string | null;
+      CERT_CODIGO: string | null;
+    }>(
+      `SELECT eu.ID_CLIENTE, eu.ID_EVENTO_USUARIO, u.NOMBRE, u.APELLIDO, u.EMAIL, eu.ASISTIO,
+              e.TITULO, i.NOMBRE AS INSTITUCION, d.CERT_TIPO, c.CODIGO AS CERT_CODIGO
+         FROM EVENTOS_USUARIOS eu
+         JOIN EVENTOS e ON e.ID_EVENTO = eu.ID_EVENTO
+         JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN EVENTO_DETALLE d ON d.ID_EVENTO = eu.ID_EVENTO
+         LEFT JOIN LOCALES l ON l.ID_LOCAL = e.ID_LOCAL
+         LEFT JOIN SALONES s ON s.ID_SALON = e.ID_SALON
+         LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
+         LEFT JOIN INSTITUCIONES i
+                ON i.ID_INSTITUCION = COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION)
+         LEFT JOIN CERTIFICADOS c
+                ON c.ID_CLIENTE = eu.ID_CLIENTE AND c.ID_EVENTO = eu.ID_EVENTO
+        WHERE eu.ID_EVENTO = :e`,
+      { e: idEvento },
+    );
+    // El panel manda los idCliente en MAYÚSCULAS (política aMayusculas del client),
+    // así que se comparan case-insensitive contra el ID_CLIENTE real de la BD.
+    const sel =
+      idsClientes && idsClientes.length
+        ? new Set(idsClientes.map((x) => x.toLowerCase()))
+        : null;
+    const objetivo = sel
+      ? rows.filter((r) => sel.has(r.ID_CLIENTE.toLowerCase()))
+      : rows.filter((r) => (r.ASISTIO ?? 'N') === 'S');
+    let generados = 0;
+    for (const r of objetivo) {
+      if (r.CERT_CODIGO) continue; // ya tiene certificado
+      const nombre = [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ') || r.EMAIL;
+      const codigo = `CERT-${randomBytes(6).toString('hex').toUpperCase()}`;
+      // El tipo de certificado se toma de la config del evento (EVENTO_DETALLE.CERT_TIPO);
+      // si el evento no lo definió, por defecto es de asistencia.
+      const tipo = (r.CERT_TIPO ?? 'ASISTENCIA').toUpperCase();
+      try {
+        await this.oracle.execute(
+          `INSERT INTO CERTIFICADOS
+             (ID_CLIENTE, ID_EVENTO, ID_EVENTO_USUARIO, CODIGO, TIPO,
+              NOMBRE_ASISTENTE, TITULO_EVENTO, INSTITUCION)
+           VALUES (:c, :e, :eu, :codigo, :tipo, :nombre, :titulo, :inst)`,
+          {
+            c: r.ID_CLIENTE,
+            e: idEvento,
+            eu: r.ID_EVENTO_USUARIO,
+            codigo,
+            tipo,
+            nombre,
+            titulo: r.TITULO,
+            inst: r.INSTITUCION ?? null,
+          },
+        );
+        generados++;
+      } catch (err) {
+        if (!String(err).includes('ORA-00001')) throw err; // ya existía (carrera) → ignora
+      }
+    }
+    return { generados, total: objetivo.length };
   }
 
   // ---- Días y horas del evento (EVENTO_HORAS) ----------------------------

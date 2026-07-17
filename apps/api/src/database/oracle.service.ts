@@ -91,6 +91,8 @@ export class OracleService implements OnModuleInit, OnModuleDestroy {
   /** atajos para binds OUT en INSERT ... RETURNING */
   readonly BIND_OUT = oracledb.BIND_OUT;
   readonly NUMBER = oracledb.NUMBER;
+  readonly BLOB = oracledb.BLOB;
+  readonly CLOB = oracledb.CLOB;
 
   /** latencia de un round-trip real a la BD */
   async ping(): Promise<number> {
