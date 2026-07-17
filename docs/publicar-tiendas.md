@@ -24,7 +24,7 @@ Entonces NO hay que crear la app de cero: hay que **subir un build nuevo** (núm
 | **Cuenta Apple Developer** | US$99/año — ya la tienes. |
 | **Cuenta Google Play Developer** | US$25 pago único (para Android). |
 | **Cuenta Expo** (gratis) | Para EAS Build. Crear en [expo.dev](https://expo.dev). |
-| **EAS CLI** | Se usa vía `npx eas ...` (no requiere instalación global). |
+| **EAS CLI** | El paquete es **`eas-cli`** (¡no `eas`!). Instálalo global una vez: `npm install -g eas-cli` → luego usa `eas ...`. (Alternativa sin instalar: `npx eas-cli ...`.) ⚠️ `npx eas ...` **falla** con *"could not determine executable to run"* porque `eas` es otro paquete. |
 | **Node** | El portátil del proyecto (`~/nodejs`). |
 
 **Backend ya listo** (no tocar): la plataforma corre en `https://connecthub.fourstacklabs.com`, con los secretos de auth configurados. El `eas.json` ya apunta los builds a prod.
@@ -35,10 +35,13 @@ Entonces NO hay que crear la app de cero: hay que **subir un build nuevo** (núm
 
 ```bash
 cd C:\proyectos\CONNECT-HUB\apps\mobile
-npx eas login              # inicia sesión con tu cuenta Expo
-npx eas init               # vincula el proyecto a tu cuenta (crea projectId en app.json)
+npm install -g eas-cli     # instala la CLI (una sola vez). El paquete es eas-cli, NO eas.
+eas login                  # inicia sesión con tu cuenta Expo (expo.dev, no Apple)
+eas init                   # vincula el proyecto a tu cuenta (crea projectId en app.json)
 npx expo-doctor            # revisa que la config esté sana (opcional pero recomendado)
 ```
+
+> Si prefieres no instalar nada global, antepón `npx eas-cli` a cada comando (`npx eas-cli login`, `npx eas-cli build ...`). Lo que NO funciona es `npx eas` a secas.
 
 > El `eas.json` ya tiene el perfil `production` con las URLs de prod horneadas (`EXPO_PUBLIC_API_URL=https://connecthub.fourstacklabs.com/api`, etc.). No hace falta tocar nada.
 
@@ -51,7 +54,7 @@ El App ID `com.fourstacklabs.connecthub` debe tener habilitada la capacidad **Si
 
 ### 3.2 Compilar el binario (.ipa)
 ```bash
-npx eas build -p ios --profile production
+eas build -p ios --profile production
 ```
 Durante el build, EAS te pedirá:
 - **Login de Apple** (o una App Store Connect API Key).
@@ -62,7 +65,7 @@ Al terminar (~15–25 min) te da un link al build. Descarga el `.ipa` si quieres
 
 ### 3.3 Subir a App Store Connect / TestFlight
 ```bash
-npx eas submit -p ios
+eas submit -p ios
 ```
 Sube el `.ipa` a **App Store Connect**. Tras ~10–30 min de procesamiento, el build aparece en **TestFlight** y disponible para seleccionar en la versión.
 
@@ -97,14 +100,14 @@ En **App Review Information** de la versión:
 
 ### 4.1 Compilar el bundle (.aab)
 ```bash
-npx eas build -p android --profile production
+eas build -p android --profile production
 ```
 - En el **primer build**, EAS te pregunta si genera el **keystore** → dile **sí** (lo guarda EAS). ⚠️ **Respáldalo** (`eas credentials`), lo necesitas para TODAS las actualizaciones futuras.
 - Genera un `.aab` (app bundle) para Play.
 
 ### 4.2 Subir a Google Play
 ```bash
-npx eas submit -p android
+eas submit -p android
 ```
 Requiere un **JSON de cuenta de servicio** de Google Play (Play Console → Setup → API access). Alternativa: descargar el `.aab` y subirlo manual en **Play Console → Producción → Crear versión**.
 
@@ -116,7 +119,7 @@ Requiere un **JSON de cuenta de servicio** de Google Play (Play Console → Setu
 
 ### 4.4 Probar antes (opcional, más rápido que subir a producción)
 ```bash
-npx eas build -p android --profile preview   # genera un .apk instalable
+eas build -p android --profile preview   # genera un .apk instalable
 ```
 El link/QR de EAS lo instalas directo en el teléfono Android.
 
