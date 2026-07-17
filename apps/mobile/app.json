@@ -43,7 +43,10 @@
         {
           "photosPermission": "ConnectHub necesita acceso a tus fotos para actualizar tu foto de perfil."
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
