@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -82,6 +82,19 @@ export default function Checkout() {
       setSelected((cards.find((c) => c.predeterminado) ?? cards[0]).id);
     }
   }, [cards, selected]);
+
+  // Evita el DOBLE PAGO por recarga en web: mientras se procesa el pago, el
+  // navegador advierte antes de recargar/cerrar (en nativo no hay recarga, y el
+  // overlay bloqueante de abajo impide interactuar).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !paying) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [paying]);
 
   async function afterApproved(idEventoUsuario?: number) {
     await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
@@ -226,7 +239,12 @@ export default function Checkout() {
 
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
-      <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} hitSlop={10}>
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+        hitSlop={10}
+        disabled={paying}
+        style={{ opacity: paying ? 0.35 : 1 }}
+      >
         <Ionicons name="chevron-back" size={26} color={t.colors.text} />
       </Pressable>
       <AppText variant="title">{tr('pay.title')}</AppText>
@@ -490,6 +508,19 @@ export default function Checkout() {
             <Button title={tr('pay.idSaveContinue')} onPress={guardarCedula} loading={guardandoCed} disabled={!cedNum.trim()} />
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Bloqueo TOTAL mientras la pasarela procesa (pedir referencia / confirmar):
+          impide interactuar, volver atrás o pagar de nuevo hasta tener respuesta.
+          No se muestra mientras el widget de pago está abierto (ese es la UI). */}
+      <Modal visible={paying && !checkout} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={{ flex: 1, backgroundColor: t.colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
+          <View style={{ width: '100%', maxWidth: 320, backgroundColor: t.colors.bgElevated, borderRadius: radius['2xl'], padding: spacing.xl, alignItems: 'center', gap: spacing.md }}>
+            <ActivityIndicator size="large" color={t.colors.brand} />
+            <AppText variant="subtitle" style={{ textAlign: 'center' }}>{tr('pay.processing')}</AppText>
+            <AppText muted variant="caption" style={{ textAlign: 'center' }}>{tr('pay.processingDesc')}</AppText>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
