@@ -16,7 +16,7 @@ import Animated, {
 import { AppText } from '@/design-system/components';
 import { palette, spacing, radius, fontSize, shadow } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
-import LogoIcon from '@/assets/logo-icon.svg';
+import LogoMark from '@/assets/logo-mark.svg';
 
 /** Diamante de marca (motivo del logo) flotando en el fondo del hero. */
 interface ShapeCfg {
@@ -178,7 +178,7 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
             <Ripple delay={0} />
             <Ripple delay={1000} />
             <Ripple delay={2000} />
-            {/* caja blanca con el LOGO (intacto) */}
+            {/* caja blanca con SOLO el símbolo del cubo (sin el texto del lockup) */}
             <View
               style={{
                 width: 96,
@@ -190,15 +190,16 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
                 ...shadow.floating,
               }}
             >
-              <LogoIcon width={62} height={62} />
+              <LogoMark width={60} height={60} />
             </View>
           </Animated.View>
 
           <Animated.View style={[{ alignItems: 'center' }, textStyle]}>
-            <AppText variant="display" color={palette.white} style={{ fontSize: fontSize['4xl'], letterSpacing: 0.5, textAlign: 'center' }}>
-              ConnectHub
-            </AppText>
-            <AppText color="rgba(255,255,255,0.9)" style={{ marginTop: 8, fontSize: fontSize.md, textAlign: 'center', maxWidth: 300 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <AppText color={palette.white} style={{ fontSize: 42, fontWeight: '800', letterSpacing: -0.8 }}>Connect</AppText>
+              <AppText color={palette.brand200} style={{ fontSize: 42, fontWeight: '800', letterSpacing: -0.8 }}>Hub</AppText>
+            </View>
+            <AppText color="rgba(255,255,255,0.88)" style={{ marginTop: 8, fontSize: fontSize.md, textAlign: 'center', maxWidth: 300 }}>
               {isRegister ? tr('auth.signUpSubtitle') : tr('auth.signInSubtitle')}
             </AppText>
           </Animated.View>
