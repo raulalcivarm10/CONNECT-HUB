@@ -25,6 +25,7 @@ export const PAGOS_API =
 /** Rutas reales del servicio (configurables por si cambian, sin tocar código). */
 const LOGIN_PATH = process.env.EXPO_PUBLIC_PAGOS_LOGIN_PATH ?? '/auth/login-user-password';
 const GOOGLE_PATH = process.env.EXPO_PUBLIC_PAGOS_GOOGLE_PATH ?? '/auth/register-google';
+const APPLE_PATH = process.env.EXPO_PUBLIC_PAGOS_APPLE_PATH ?? '/auth/register-apple';
 const REFRESH_PATH = process.env.EXPO_PUBLIC_PAGOS_REFRESH_PATH ?? '/auth/refresh';
 
 /**
@@ -110,6 +111,29 @@ export async function loginPagosGoogle(idToken: string, accessToken: string): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ idToken, accessToken, tipoUsuario: 'GOOGLE' }),
+    });
+    return await guardarSesion(res);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Login Apple en el servicio de pagos (identity token de Sign in with Apple).
+ * Espejo de Google → deja sesión de pagos para el checkout. email/nombre solo
+ * llegan la primera vez que el usuario autoriza; se reenvían para enriquecer.
+ */
+export async function loginPagosApple(
+  identityToken: string,
+  email?: string,
+  nombre?: string,
+  apellido?: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(pagosUrl(APPLE_PATH), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ identityToken, email, nombre, apellido, tipoUsuario: 'APPLE' }),
     });
     return await guardarSesion(res);
   } catch {

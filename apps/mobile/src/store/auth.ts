@@ -20,6 +20,7 @@ import {
   loadPagosToken,
   loginPagos,
   loginPagosGoogle,
+  loginPagosApple,
 } from '@/api/pagos-session';
 import { clearTokens, loadTokens, saveTokens } from '@/lib/tokenStorage';
 import { useInstitucion } from './institucion';
@@ -104,10 +105,18 @@ export const useAuth = create<AuthState>((set, get) => ({
     await syncInstitucion();
     return res;
   },
-  // Apple = NATIVO en ConnectHub (verifica el identity token en nuestro backend).
-  // No pasa por el servicio de pagos externo (no tiene endpoint Apple), así que
-  // NO deja sesión de pagos: el checkout de eventos de pago la pedirá aparte.
+  // Apple: igual que Google, primero por el servicio de pagos externo
+  // (register-apple) para dejar SESIÓN DE PAGOS y que el checkout funcione. Si el
+  // externo aún no tiene el endpoint (404/red), cae al Apple NATIVO de ConnectHub
+  // (login funciona para la revisión de Apple, pero sin sesión de pagos).
   apple: async (b) => {
+    const ok = await loginPagosApple(b.identityToken, b.email, b.nombre, b.apellido);
+    if (ok) {
+      const res = await pagosExchangeReq(getPagosToken()!);
+      await persist(set, res);
+      await syncInstitucion();
+      return res;
+    }
     const res = await appleReq(b);
     await persist(set, res);
     await syncInstitucion();
