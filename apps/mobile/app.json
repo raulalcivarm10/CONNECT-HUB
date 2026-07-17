@@ -8,9 +8,12 @@
     "scheme": "connecthub",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.fourstacklabs.connecthub",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.fourstacklabs.connecthub",
@@ -35,11 +38,12 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#4a0a80",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120
         }
       ],
+      "expo-notifications",
       "expo-secure-store",
       [
         "expo-image-picker",
