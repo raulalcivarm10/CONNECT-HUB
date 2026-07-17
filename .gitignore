@@ -4,8 +4,21 @@ dist/
 .next/
 *.tsbuildinfo
 
-# entorno — contiene credenciales reales
+# entorno — contiene credenciales reales (.env.example SÍ se versiona)
 .env
+.env.local
+.env.*.local
+
+# secretos nativos / firma de apps — NUNCA subir al repo
+google-services.json
+GoogleService-Info.plist
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+apps/mobile/credentials.json
 
 # logs y temporales
 *.log
