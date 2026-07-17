@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
   title: 'Política de Privacidad · ConnectHub',
@@ -8,13 +9,13 @@ export const metadata: Metadata = {
 const VIGENCIA = '17 de julio de 2026';
 const CONTACTO = 'support@fourstacklabs.com';
 
-function H({ children }: { children: React.ReactNode }) {
+function H({ children }: { children: ReactNode }) {
   return <h2 style={{ fontSize: 20, fontWeight: 700, margin: '32px 0 10px', color: '#1e1033' }}>{children}</h2>;
 }
-function P({ children }: { children: React.ReactNode }) {
+function P({ children }: { children: ReactNode }) {
   return <p style={{ margin: '10px 0', lineHeight: 1.7 }}>{children}</p>;
 }
-function LI({ children }: { children: React.ReactNode }) {
+function LI({ children }: { children: ReactNode }) {
   return <li style={{ margin: '6px 0', lineHeight: 1.6 }}>{children}</li>;
 }
 
@@ -34,7 +35,7 @@ export default function Privacy() {
           &quot;Aplicación&quot;, &quot;nosotros&quot;) recopila, usa, comparte y protege los datos personales de las
           personas que usan la aplicación móvil y los servicios asociados (los &quot;Servicios&quot;). Al usar
           ConnectHub aceptas las prácticas descritas aquí.
-        </p>
+        </P>
 
         <H>1. Responsable del tratamiento</H>
         <P>
