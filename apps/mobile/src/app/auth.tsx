@@ -222,33 +222,37 @@ export default function Auth() {
             <View style={{ flex: 1, height: 1, backgroundColor: t.colors.border }} />
           </View>
 
-          {/* Google */}
-          <Pressable
-            onPress={() => google.available && google.promptAsync()}
-            disabled={!google.available}
-            style={({ pressed }) => ({
-              height: 52,
-              borderRadius: radius.lg,
-              borderWidth: 1.5,
-              borderColor: t.colors.border,
-              backgroundColor: t.colors.surface,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: spacing.sm,
-              opacity: google.available ? (pressed ? 0.85 : 1) : 0.5,
-            })}
-          >
-            <Ionicons name="logo-google" size={20} color="#EA4335" />
-            <AppText variant="bodyStrong">{tr('auth.continueGoogle')}</AppText>
-          </Pressable>
-          {!google.available ? (
-            <AppText muted variant="caption" style={{ textAlign: 'center' }}>
-              {tr('auth.googleUnavailable')}
-            </AppText>
+          {/* Google — solo en Android (y web para pruebas); en iOS se usa Apple */}
+          {Platform.OS !== 'ios' ? (
+            <>
+              <Pressable
+                onPress={() => google.available && google.promptAsync()}
+                disabled={!google.available}
+                style={({ pressed }) => ({
+                  height: 52,
+                  borderRadius: radius.lg,
+                  borderWidth: 1.5,
+                  borderColor: t.colors.border,
+                  backgroundColor: t.colors.surface,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: spacing.sm,
+                  opacity: google.available ? (pressed ? 0.85 : 1) : 0.5,
+                })}
+              >
+                <Ionicons name="logo-google" size={20} color="#EA4335" />
+                <AppText variant="bodyStrong">{tr('auth.continueGoogle')}</AppText>
+              </Pressable>
+              {!google.available ? (
+                <AppText muted variant="caption" style={{ textAlign: 'center' }}>
+                  {tr('auth.googleUnavailable')}
+                </AppText>
+              ) : null}
+            </>
           ) : null}
 
-          {/* Sign in with Apple (iOS) — requisito App Store 4.8 junto a Google */}
+          {/* Sign in with Apple — solo iOS (requisito App Store 4.8) */}
           {Platform.OS === 'ios' && appleAvailable ? (
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}

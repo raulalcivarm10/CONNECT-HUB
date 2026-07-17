@@ -6,6 +6,8 @@
  * Patrón "holder": el cliente NO importa el store (evita ciclos). El store le
  * inyecta el token actual y el handler de refresh vía setAccessToken/setRefreshHandler.
  */
+import * as FileSystem from 'expo-file-system/legacy';
+
 export const API_BASE =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:4000';
 
@@ -154,4 +156,59 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
     throw new ApiError(res.status, msg);
   }
   return (await res.json()) as T;
+}
+
+/**
+ * Sube un archivo local (uri `file://`) por multipart usando expo-file-system.
+ * En iOS/Android nativo es mucho más fiable que `fetch`+`FormData`, que suele
+ * lanzar "Network request failed" en la nueva arquitectura de React Native.
+ * Solo para NATIVO; en web usar `apiUpload` con un Blob real.
+ */
+export async function apiUploadFile<T>(
+  path: string,
+  fileUri: string,
+  fieldName: string,
+  mimeType: string,
+): Promise<T> {
+  const send = (token: string | null) => {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return FileSystem.uploadAsync(buildUrl(path), fileUri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      // FOREGROUND: esperamos el resultado de inmediato; BACKGROUND (default iOS)
+      // puede diferir la subida y complicar el await.
+      sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
+      fieldName,
+      mimeType,
+      headers,
+    });
+  };
+  let res: FileSystem.FileSystemUploadResult;
+  try {
+    res = await send(_accessToken);
+  } catch {
+    throw new ApiError(0, 'network');
+  }
+  if (res.status === 401 && _refreshHandler) {
+    const newToken = await _refreshHandler();
+    if (newToken) {
+      try {
+        res = await send(newToken);
+      } catch {
+        throw new ApiError(0, 'network');
+      }
+    }
+  }
+  if (res.status < 200 || res.status >= 300) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const b = JSON.parse(res.body) as { message?: string | string[] };
+      if (b?.message) msg = Array.isArray(b.message) ? b.message.join(', ') : b.message;
+    } catch {
+      /* body no-json */
+    }
+    throw new ApiError(res.status, msg);
+  }
+  return JSON.parse(res.body) as T;
 }
