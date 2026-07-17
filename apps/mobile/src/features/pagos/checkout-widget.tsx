@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { Modal, View } from 'react-native';
+import { Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useTheme } from '@/design-system/theme';
 import {
@@ -72,7 +73,10 @@ export function CheckoutWidget({ reference, envMode, locale, onResult }: Checkou
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => finish({ status: 'cancelled' })}>
-      <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
+      {/* SafeAreaView (top+bottom) para que el WebView —y el botón "X Close" del
+          SDK, que se dibuja arriba— quede DEBAJO del notch/status bar y sea
+          alcanzable. Sin esto el cierre queda pegado al borde superior. */}
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: t.colors.bg }}>
         <WebView
           originWhitelist={['*']}
           javaScriptEnabled
@@ -82,7 +86,7 @@ export function CheckoutWidget({ reference, envMode, locale, onResult }: Checkou
           onMessage={onMessage}
           style={{ flex: 1, backgroundColor: 'transparent' }}
         />
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

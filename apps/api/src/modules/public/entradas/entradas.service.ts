@@ -323,9 +323,12 @@ export class EntradasService {
   /** Certificados del asistente. */
   async misCertificados(idCliente: string) {
     const rows = await this.oracle.query<Record<string, unknown>>(
-      `SELECT CODIGO, TIPO, NOMBRE_ASISTENTE, TITULO_EVENTO, INSTITUCION, ID_EVENTO,
-              TO_CHAR(FECHA_EMISION,'YYYY-MM-DD') AS FECHA_EMISION
-         FROM CERTIFICADOS WHERE ID_CLIENTE = :c ORDER BY FECHA_EMISION DESC`,
+      `SELECT c.CODIGO, c.TIPO, c.NOMBRE_ASISTENTE, u.NOMBRE AS U_NOMBRE, u.APELLIDO AS U_APELLIDO,
+              c.TITULO_EVENTO, c.INSTITUCION, c.ID_EVENTO,
+              TO_CHAR(c.FECHA_EMISION,'YYYY-MM-DD') AS FECHA_EMISION
+         FROM CERTIFICADOS c
+         LEFT JOIN USUARIOS u ON u.ID_CLIENTE = c.ID_CLIENTE
+        WHERE c.ID_CLIENTE = :c ORDER BY c.FECHA_EMISION DESC`,
       { c: idCliente },
     );
     return rows.map((r) => this.mapCert(r));
@@ -334,9 +337,12 @@ export class EntradasService {
   /** Verificación pública de un certificado por su código. */
   async getCertificado(codigo: string) {
     const rows = await this.oracle.query<Record<string, unknown>>(
-      `SELECT CODIGO, TIPO, NOMBRE_ASISTENTE, TITULO_EVENTO, INSTITUCION, ID_EVENTO,
-              TO_CHAR(FECHA_EMISION,'YYYY-MM-DD') AS FECHA_EMISION
-         FROM CERTIFICADOS WHERE CODIGO = :codigo AND ESTADO = 'EMITIDO'`,
+      `SELECT c.CODIGO, c.TIPO, c.NOMBRE_ASISTENTE, u.NOMBRE AS U_NOMBRE, u.APELLIDO AS U_APELLIDO,
+              c.TITULO_EVENTO, c.INSTITUCION, c.ID_EVENTO,
+              TO_CHAR(c.FECHA_EMISION,'YYYY-MM-DD') AS FECHA_EMISION
+         FROM CERTIFICADOS c
+         LEFT JOIN USUARIOS u ON u.ID_CLIENTE = c.ID_CLIENTE
+        WHERE c.CODIGO = :codigo AND c.ESTADO = 'EMITIDO'`,
       { codigo: codigo.trim() },
     );
     if (!rows[0]) throw new NotFoundException('Certificate not found');
@@ -347,6 +353,8 @@ export class EntradasService {
   async renderCertificadoImagen(codigo: string): Promise<Buffer> {
     const cert = await this.oracle.query<{
       NOMBRE_ASISTENTE: string | null;
+      U_NOMBRE: string | null;
+      U_APELLIDO: string | null;
       TITULO_EVENTO: string | null;
       ID_EVENTO: number;
       TIPO: string | null;
@@ -355,7 +363,12 @@ export class EntradasService {
       FECHA_EVENTO: string | null;
       HORA: string | null;
     }>(
-      `SELECT c.NOMBRE_ASISTENTE, c.TITULO_EVENTO, c.ID_EVENTO, c.TIPO, c.INSTITUCION, c.CODIGO,
+      // Usa el nombre ACTUAL del perfil (u.NOMBRE/APELLIDO) y solo cae al
+      // NOMBRE_ASISTENTE congelado si el perfil no tiene nombre. Así los
+      // usuarios de Apple (que al registrarse no dan nombre) ven su nombre real
+      // en cuanto lo completan en el perfil, no el correo de relay.
+      `SELECT c.NOMBRE_ASISTENTE, u.NOMBRE AS U_NOMBRE, u.APELLIDO AS U_APELLIDO,
+              c.TITULO_EVENTO, c.ID_EVENTO, c.TIPO, c.INSTITUCION, c.CODIGO,
               TO_CHAR(e.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
               (SELECT h.HORA_INICIO ||
                       CASE WHEN h.HORA_FIN IS NOT NULL THEN ' - ' || h.HORA_FIN END
@@ -365,6 +378,7 @@ export class EntradasService {
                 FETCH FIRST 1 ROW ONLY) AS HORA
          FROM CERTIFICADOS c
          JOIN EVENTOS e ON e.ID_EVENTO = c.ID_EVENTO
+         LEFT JOIN USUARIOS u ON u.ID_CLIENTE = c.ID_CLIENTE
         WHERE c.CODIGO = :c AND c.ESTADO = 'EMITIDO'`,
       { c: codigo.trim() },
     );
@@ -381,8 +395,10 @@ export class EntradasService {
       config = null;
     }
     const c = cert[0];
+    const nombreActual =
+      [c.U_NOMBRE, c.U_APELLIDO].filter(Boolean).join(' ').trim() || c.NOMBRE_ASISTENTE || '';
     return renderCertificado(plant[0].IMAGEN, config, {
-      nombre: c.NOMBRE_ASISTENTE ?? '',
+      nombre: nombreActual,
       evento: c.TITULO_EVENTO ?? '',
       fecha: fechaLarga(c.FECHA_EVENTO),
       tipo: c.TIPO ? (TIPO_CERT_LABEL[c.TIPO] ?? c.TIPO) : '',
@@ -396,7 +412,10 @@ export class EntradasService {
     return {
       codigo: r.CODIGO as string,
       tipo: (r.TIPO as string) ?? null,
-      nombreAsistente: (r.NOMBRE_ASISTENTE as string) ?? null,
+      // nombre actual del perfil; cae al congelado solo si el perfil no tiene nombre
+      nombreAsistente:
+        [r.U_NOMBRE, r.U_APELLIDO].filter(Boolean).join(' ').trim() ||
+        ((r.NOMBRE_ASISTENTE as string) ?? null),
       tituloEvento: (r.TITULO_EVENTO as string) ?? null,
       institucion: (r.INSTITUCION as string) ?? null,
       idEvento: Number(r.ID_EVENTO),
