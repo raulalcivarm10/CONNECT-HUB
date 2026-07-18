@@ -70,20 +70,20 @@ export default function Onboarding() {
               <Ionicons name="close" size={26} color="rgba(255,255,255,0.9)" />
             </Pressable>
           ) : null}
-          <Animated.View entering={FadeIn.duration(500)}>
+          <Animated.View entering={FadeIn.duration(500)} style={{ alignItems: 'center' }}>
             <View
               style={{
-                width: 62,
-                height: 62,
-                borderRadius: radius.lg,
+                width: 96,
+                height: 96,
+                borderRadius: radius['2xl'],
                 backgroundColor: palette.white,
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: spacing.lg,
-                ...shadow.card,
+                ...shadow.floating,
               }}
             >
-              <LogoMark width={44} height={44} />
+              <LogoMark width={62} height={62} />
             </View>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(120).duration(500)}>

@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
-import { Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Modal, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useTheme } from '@/design-system/theme';
 import {
@@ -49,6 +49,10 @@ function buildHtml(reference: string, envMode: string, locale: string): string {
  */
 export function CheckoutWidget({ reference, envMode, locale, onResult }: CheckoutWidgetProps) {
   const t = useTheme();
+  // Insets leídos AQUÍ (dentro del SafeAreaProvider). SafeAreaView DENTRO de un
+  // <Modal> devuelve insets 0 (bug conocido), por eso el cierre quedaba pegado
+  // arriba; aplicamos el padding como número fijo.
+  const insets = useSafeAreaInsets();
   const done = useRef(false);
   const finish = (r: CheckoutWidgetResult) => {
     if (done.current) return;
@@ -82,10 +86,10 @@ export function CheckoutWidget({ reference, envMode, locale, onResult }: Checkou
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => finish({ status: 'cancelled' })}>
-      {/* SafeAreaView (top+bottom) para que el WebView —y el botón "X Close" del
-          SDK, que se dibuja arriba— quede DEBAJO del notch/status bar y sea
-          alcanzable. Sin esto el cierre queda pegado al borde superior. */}
-      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: t.colors.bg }}>
+      {/* paddingTop/Bottom con los insets reales → el WebView (y el botón "X
+          Close" del SDK, que se dibuja arriba) queda DEBAJO del notch y es
+          alcanzable. Un mínimo de 44 arriba por si insets.top llega en 0. */}
+      <View style={{ flex: 1, paddingTop: Math.max(insets.top, 44), paddingBottom: insets.bottom, backgroundColor: t.colors.bg }}>
         <WebView
           originWhitelist={['*']}
           javaScriptEnabled
@@ -95,7 +99,7 @@ export function CheckoutWidget({ reference, envMode, locale, onResult }: Checkou
           onMessage={onMessage}
           style={{ flex: 1, backgroundColor: 'transparent' }}
         />
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, InteractionManager, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -111,11 +111,15 @@ export default function Checkout() {
   async function afterApproved(idEventoUsuario?: number) {
     await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
     await qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
-    if (idEventoUsuario) {
-      router.replace({ pathname: '/entrada/[id]', params: { id: idEventoUsuario } });
-    } else {
-      router.back();
-    }
+    // Navega tras cerrar overlays/modales (evita que la pantalla quede congelada
+    // en iOS por un Modal recién cerrado que sigue capturando toques).
+    InteractionManager.runAfterInteractions(() => {
+      if (idEventoUsuario) {
+        router.replace({ pathname: '/entrada/[id]', params: { id: idEventoUsuario } });
+      } else {
+        router.back();
+      }
+    });
   }
 
   // Pago con tarjeta guardada (débito directo).
@@ -229,16 +233,14 @@ export default function Checkout() {
             ? cuponInfo.totalConDescuento
             : (resumen?.total ?? 0);
           void enviarConfirmacionCorreo(evId, r.transactionId, montoCobrado).catch(() => {});
-          // el servicio de pagos ya registró la inscripción → mensaje de éxito + entradas
+          // el servicio de pagos ya registró la inscripción
           await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
           await qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
-          await confirm({
-            title: tr('pay.successTitle'),
-            message: tr('pay.successBody'),
-            confirmText: tr('common.close'),
-            icon: 'checkmark-circle',
-          });
-          router.replace('/(tabs)/entradas');
+          // Sin diálogo de éxito encima del Modal del checkout que se está
+          // cerrando (eso encadenaba modales y CONGELABA la pantalla en iOS).
+          // Navegamos a Mis Entradas tras cerrar el modal; la entrada es la
+          // confirmación visible.
+          InteractionManager.runAfterInteractions(() => router.replace('/(tabs)/entradas'));
           return;
         }
         // el SDK aprobó pero la verificación del servicio no confirmó → error de pago
@@ -531,18 +533,18 @@ export default function Checkout() {
         </Pressable>
       </Modal>
 
-      {/* Bloqueo TOTAL mientras la pasarela procesa (pedir referencia / confirmar):
-          impide interactuar, volver atrás o pagar de nuevo hasta tener respuesta.
-          No se muestra mientras el widget de pago está abierto (ese es la UI). */}
-      <Modal visible={paying && !checkout} transparent animationType="fade" onRequestClose={() => {}}>
-        <View style={{ flex: 1, backgroundColor: t.colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
+      {/* Bloqueo TOTAL mientras la pasarela procesa. Vista ABSOLUTA (no Modal):
+          encadenar un Modal nativo con el cierre del checkout congelaba la
+          pantalla en iOS. Captura los toques (sin pointerEvents) → bloquea igual. */}
+      {paying && !checkout ? (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <View style={{ width: '100%', maxWidth: 320, backgroundColor: t.colors.bgElevated, borderRadius: radius['2xl'], padding: spacing.xl, alignItems: 'center', gap: spacing.md }}>
             <ActivityIndicator size="large" color={t.colors.brand} />
             <AppText variant="subtitle" style={{ textAlign: 'center' }}>{tr('pay.processing')}</AppText>
             <AppText muted variant="caption" style={{ textAlign: 'center' }}>{tr('pay.processingDesc')}</AppText>
           </View>
         </View>
-      </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
