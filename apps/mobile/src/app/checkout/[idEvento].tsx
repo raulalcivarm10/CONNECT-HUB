@@ -153,7 +153,12 @@ export default function Checkout() {
       // paying sigue true mientras el checkout está abierto
     } catch (err) {
       setPaying(false);
-      aviso(tr('common.error'), err instanceof ApiError ? err.message : '', true);
+      // 409 = workshop cuyo evento padre (de pago) aún no se ha comprado.
+      if (err instanceof ApiError && err.status === 409) {
+        aviso(tr('event.parentFirst'), err.message);
+      } else {
+        aviso(tr('common.error'), err instanceof ApiError ? err.message : '', true);
+      }
     }
   }
 

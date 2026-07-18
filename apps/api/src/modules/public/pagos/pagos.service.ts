@@ -340,8 +340,17 @@ export class PagosService {
     if (!ev.ID_EVENTO_PADRE) return;
     const yaPadre = await this.yaTieneEntrada(idCliente, ev.ID_EVENTO_PADRE);
     if (yaPadre) return;
-    const padre = await this.eventoParaPago(ev.ID_EVENTO_PADRE).catch(() => null);
-    if (padre && (padre.PRECIO ?? 0) > 0) {
+    // Precio/existencia del padre consultando la fila DIRECTO (sin el filtro de
+    // publicado). Antes se usaba eventoParaPago, que LANZA en eventos no
+    // publicados, y el .catch(()=>null) hacía que un padre en borrador dejara
+    // comprar el hijo suelto (falla "abierto"). Ahora falla "cerrado".
+    const prows = await this.oracle.query<{ ID_EVENTO: number; TITULO: string; PRECIO: number | null }>(
+      `SELECT ID_EVENTO, TITULO, PRECIO FROM EVENTOS WHERE ID_EVENTO = :id`,
+      { id: ev.ID_EVENTO_PADRE },
+    );
+    const padre = prows[0];
+    if (!padre) return; // ID_EVENTO_PADRE huérfano → no hay padre que exigir
+    if ((padre.PRECIO ?? 0) > 0) {
       throw new ConflictException({
         code: 'PARENT_REQUIRED',
         message: 'You must register for the main event first',
@@ -349,7 +358,7 @@ export class PagosService {
       });
     }
     // padre gratis → inscripción automática
-    if (padre) await this.entradas.emitirPorPago(idCliente, padre.ID_EVENTO);
+    await this.entradas.emitirPorPago(idCliente, padre.ID_EVENTO);
   }
 
   /** Detalle de precio para pintar el checkout antes de cobrar. */
