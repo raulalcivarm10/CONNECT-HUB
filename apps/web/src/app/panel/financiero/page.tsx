@@ -18,7 +18,6 @@ interface Resumen {
   idInstitucion: number | null;
   totales: {
     recaudado: number;
-    pendiente: number;
     numPagos: number;
     numGratuitos: number;
   };
@@ -27,29 +26,20 @@ interface Resumen {
     TITULO: string | null;
     FECHA_EVENTO: string | null;
     RECAUDADO: number;
-    PENDIENTE: number;
     NUM_PAGOS: number;
   }>;
-  porEstado: Array<{ ESTADO: string; N: number; TOTAL: number }>;
-  porMes: Array<{ MES: string; RECAUDADO: number; PENDIENTE: number; NUM_PAGOS: number }>;
+  porMes: Array<{ MES: string; RECAUDADO: number; NUM_PAGOS: number }>;
   eventos: Array<{ ID_EVENTO: number; TITULO: string | null }>;
   ultimosPagos: Array<{
     ID_PAGO: number;
     TITULO: string | null;
     MONTO: number;
     MONEDA: string;
-    ESTADO: string;
     METODO_PAGO: string | null;
     ULTIMOS_4: string | null;
     FECHA: string | null;
   }>;
 }
-
-const ESTADO_COLOR: Record<string, string> = {
-  APPROVED: 'text-success',
-  PENDIENTE: 'text-brand',
-  GRATUITO: 'text-text-muted',
-};
 
 function Card({ titulo, valor, nota }: { titulo: string; valor: string; nota?: string }) {
   return (
@@ -77,11 +67,6 @@ export default function FinancieroPage() {
       currency: 'USD',
     }).format(v ?? 0);
 
-  const estadoPago = (estado: string) => {
-    const traducido = t(`pay.${estado}`);
-    return traducido === `pay.${estado}` ? estado : traducido;
-  };
-
   const cargar = useCallback(async () => {
     // qs viene como '' o '?idInstitucion=N' → se le suman los filtros activos
     const p = new URLSearchParams(qs.startsWith('?') ? qs.slice(1) : qs);
@@ -98,14 +83,13 @@ export default function FinancieroPage() {
 
   const grafico =
     datos?.porEvento
-      .filter((e) => e.RECAUDADO > 0 || e.PENDIENTE > 0)
+      .filter((e) => e.RECAUDADO > 0)
       .map((e) => ({
         nombre:
           (e.TITULO ?? t('fin.eventN', { id: e.ID_EVENTO })).length > 22
             ? `${(e.TITULO ?? '').slice(0, 22)}…`
             : (e.TITULO ?? t('fin.eventN', { id: e.ID_EVENTO })),
         [t('fin.collectedSeries')]: e.RECAUDADO,
-        [t('fin.pendingSeries')]: e.PENDIENTE,
       })) ?? [];
 
   return (
@@ -168,14 +152,10 @@ export default function FinancieroPage() {
         )}
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <Card
           titulo={t('fin.collected')}
           valor={money(datos?.totales.recaudado ?? 0)}
-        />
-        <Card
-          titulo={t('fin.pending')}
-          valor={money(datos?.totales.pendiente ?? 0)}
         />
         <Card
           titulo={t('fin.payments')}
@@ -208,7 +188,6 @@ export default function FinancieroPage() {
                 }}
               />
               <Bar dataKey={t('fin.collectedSeries')} fill="var(--success)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey={t('fin.pendingSeries')} fill="var(--brand)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -229,7 +208,6 @@ export default function FinancieroPage() {
               <th className="px-4 py-3">{t('ev.event')}</th>
               <th className="px-4 py-3">Fecha</th>
               <th className="px-4 py-3">Recaudado</th>
-              <th className="px-4 py-3">Pendiente</th>
               <th className="px-4 py-3"># Pagos</th>
             </tr>
           </thead>
@@ -241,13 +219,12 @@ export default function FinancieroPage() {
                   {e.FECHA_EVENTO ? new Date(e.FECHA_EVENTO).toLocaleDateString(locale) : '—'}
                 </td>
                 <td className="px-4 py-3 text-success">{money(e.RECAUDADO)}</td>
-                <td className="px-4 py-3 text-text">{money(e.PENDIENTE)}</td>
                 <td className="px-4 py-3 text-text-2">{e.NUM_PAGOS}</td>
               </tr>
             ))}
             {(!datos || datos.porEvento.length === 0) && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-text-muted">{t('fin.noData')}</td>
+                <td colSpan={4} className="px-4 py-8 text-center text-text-muted">{t('fin.noData')}</td>
               </tr>
             )}
           </tbody>
@@ -264,7 +241,6 @@ export default function FinancieroPage() {
             <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
               <th className="px-4 py-3">Mes</th>
               <th className="px-4 py-3">Recaudado</th>
-              <th className="px-4 py-3">Pendiente</th>
               <th className="px-4 py-3"># Pagos</th>
             </tr>
           </thead>
@@ -273,13 +249,12 @@ export default function FinancieroPage() {
               <tr key={m.MES} className="border-b border-border-app/60">
                 <td className="px-4 py-3 font-medium text-text">{m.MES}</td>
                 <td className="px-4 py-3 text-success">{money(m.RECAUDADO)}</td>
-                <td className="px-4 py-3 text-text">{money(m.PENDIENTE)}</td>
                 <td className="px-4 py-3 text-text-2">{m.NUM_PAGOS}</td>
               </tr>
             ))}
             {(!datos || datos.porMes.length === 0) && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-text-muted">{t('fin.noData')}</td>
+                <td colSpan={3} className="px-4 py-8 text-center text-text-muted">{t('fin.noData')}</td>
               </tr>
             )}
           </tbody>
@@ -295,7 +270,6 @@ export default function FinancieroPage() {
             <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
               <th className="px-4 py-3">{t('ev.event')}</th>
               <th className="px-4 py-3">{t('fin.amount')}</th>
-              <th className="px-4 py-3">{t('c.state')}</th>
               <th className="px-4 py-3">{t('fin.method')}</th>
               <th className="px-4 py-3">{t('fin.date')}</th>
             </tr>
@@ -306,11 +280,8 @@ export default function FinancieroPage() {
                 <td className="px-4 py-3 font-medium text-text">
                   {p.TITULO ?? '—'}
                 </td>
-                <td className="px-4 py-3 text-text">
+                <td className="px-4 py-3 text-success">
                   {money(p.MONTO)}
-                </td>
-                <td className={`px-4 py-3 ${ESTADO_COLOR[p.ESTADO] ?? 'text-text-2'}`}>
-                  {estadoPago(p.ESTADO)}
                 </td>
                 <td className="px-4 py-3 text-text-2">
                   {p.METODO_PAGO ?? '—'}
@@ -323,7 +294,7 @@ export default function FinancieroPage() {
             ))}
             {(!datos || datos.ultimosPagos.length === 0) && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
+                <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
                   {t('fin.noPayments')}
                 </td>
               </tr>

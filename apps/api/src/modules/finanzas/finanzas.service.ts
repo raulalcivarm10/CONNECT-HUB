@@ -43,16 +43,17 @@ export class FinanzasService {
             AND (:anio IS NULL OR EXTRACT(YEAR FROM COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO)) = :anio)
             AND (:mes IS NULL OR EXTRACT(MONTH FROM COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO)) = :mes)`;
 
-    const [totales, porEvento, porEstado, porMes, ultimos, eventos] = await Promise.all([
+    // SOLO pagos APROBADOS: los "pendientes" son intentos de checkout que el
+    // usuario abrió y no completó (puede abrir/cerrar la pasarela N veces antes
+    // de pagar) → ruido, no dinero. No se muestran en el financiero.
+    const [totales, porEvento, porMes, ultimos, eventos] = await Promise.all([
       this.oracle.query<{
         RECAUDADO: number | null;
-        PENDIENTE: number | null;
         NUM_PAGOS: number;
         NUM_GRATUITOS: number;
       }>(
         `SELECT SUM(CASE WHEN pi.ESTADO = 'APPROVED' THEN pi.MONTO ELSE 0 END) AS RECAUDADO,
-                SUM(CASE WHEN pi.ESTADO = 'PENDIENTE' THEN pi.MONTO ELSE 0 END) AS PENDIENTE,
-                COUNT(*) AS NUM_PAGOS,
+                SUM(CASE WHEN pi.ESTADO = 'APPROVED' THEN 1 ELSE 0 END) AS NUM_PAGOS,
                 SUM(CASE WHEN pi.ESTADO = 'GRATUITO' THEN 1 ELSE 0 END) AS NUM_GRATUITOS
            FROM (${PAGOS_INSTITUCION}) pi
           ${COND}`,
@@ -60,30 +61,21 @@ export class FinanzasService {
       ),
       this.oracle.query(
         `SELECT pi.ID_EVENTO, pi.TITULO, pi.FECHA_EVENTO,
-                SUM(CASE WHEN pi.ESTADO = 'APPROVED' THEN pi.MONTO ELSE 0 END) AS RECAUDADO,
-                SUM(CASE WHEN pi.ESTADO = 'PENDIENTE' THEN pi.MONTO ELSE 0 END) AS PENDIENTE,
+                SUM(pi.MONTO) AS RECAUDADO,
                 COUNT(*) AS NUM_PAGOS
            FROM (${PAGOS_INSTITUCION}) pi
-          ${COND}
+          ${COND} AND pi.ESTADO = 'APPROVED'
           GROUP BY pi.ID_EVENTO, pi.TITULO, pi.FECHA_EVENTO
-          ORDER BY RECAUDADO DESC, PENDIENTE DESC`,
-        binds,
-      ),
-      this.oracle.query(
-        `SELECT pi.ESTADO, COUNT(*) AS N, SUM(pi.MONTO) AS TOTAL
-           FROM (${PAGOS_INSTITUCION}) pi
-          ${COND}
-          GROUP BY pi.ESTADO ORDER BY TOTAL DESC`,
+          ORDER BY RECAUDADO DESC`,
         binds,
       ),
       // Ingresos por mes (respetando los filtros activos) — para ver por mes/año.
       this.oracle.query(
         `SELECT TO_CHAR(COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO), 'YYYY-MM') AS MES,
-                SUM(CASE WHEN pi.ESTADO = 'APPROVED' THEN pi.MONTO ELSE 0 END) AS RECAUDADO,
-                SUM(CASE WHEN pi.ESTADO = 'PENDIENTE' THEN pi.MONTO ELSE 0 END) AS PENDIENTE,
+                SUM(pi.MONTO) AS RECAUDADO,
                 COUNT(*) AS NUM_PAGOS
            FROM (${PAGOS_INSTITUCION}) pi
-          ${COND}
+          ${COND} AND pi.ESTADO = 'APPROVED'
           GROUP BY TO_CHAR(COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO), 'YYYY-MM')
           ORDER BY MES DESC`,
         binds,
@@ -94,12 +86,12 @@ export class FinanzasService {
                   pi.METODO_PAGO, pi.ULTIMOS_4,
                   COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO) AS FECHA
              FROM (${PAGOS_INSTITUCION}) pi
-            ${COND}
+            ${COND} AND pi.ESTADO = 'APPROVED'
             ORDER BY COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO) DESC
          ) WHERE ROWNUM <= 10`,
         binds,
       ),
-      // Opciones del selector de evento (sin filtros de evento/fecha).
+      // Opciones del selector de evento (sin filtros de evento/fecha; solo con pagos reales).
       this.oracle.query(
         `SELECT DISTINCT pi.ID_EVENTO, pi.TITULO
            FROM (${PAGOS_INSTITUCION}) pi
@@ -114,12 +106,10 @@ export class FinanzasService {
       idInstitucion: filtro,
       totales: {
         recaudado: totales[0]?.RECAUDADO ?? 0,
-        pendiente: totales[0]?.PENDIENTE ?? 0,
         numPagos: totales[0]?.NUM_PAGOS ?? 0,
         numGratuitos: totales[0]?.NUM_GRATUITOS ?? 0,
       },
       porEvento,
-      porEstado,
       porMes,
       ultimosPagos: ultimos,
       eventos,
