@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,7 @@ import { useI18n } from '@/i18n';
 import { useMisEntradas } from '@/api/entradas';
 import { resumenDias } from '@/lib/fecha';
 
-function TicketCard({ entrada }: { entrada: MiEntrada }) {
+function TicketCardBase({ entrada }: { entrada: MiEntrada }) {
   const t = useTheme();
   const { t: tr, lang } = useI18n();
   const router = useRouter();
@@ -72,6 +72,8 @@ function TicketCard({ entrada }: { entrada: MiEntrada }) {
     </Pressable>
   );
 }
+// Memoizada: no re-renderiza cada fila cuando el padre refresca (isRefetching).
+const TicketCard = memo(TicketCardBase);
 
 export default function Entradas() {
   const t = useTheme();

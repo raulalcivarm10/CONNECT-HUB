@@ -310,7 +310,10 @@ export default function Home() {
     [source.data],
   );
   // hero: en agregado = destacados combinados de todas; por-institución = sus destacados
-  const heroItems = showAggregated ? allItems.filter((e) => e.destacado) : (destacados.data ?? []);
+  const heroItems = useMemo(
+    () => (showAggregated ? allItems.filter((e) => e.destacado) : (destacados.data ?? [])),
+    [showAggregated, allItems, destacados.data],
+  );
   const heroLoading = showAggregated ? source.isLoading : destacados.isLoading;
   const items = useMemo(() => {
     if (filtro === 'featured') return allItems.filter((e) => e.destacado);

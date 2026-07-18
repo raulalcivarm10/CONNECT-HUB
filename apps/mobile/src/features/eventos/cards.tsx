@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -57,7 +58,7 @@ function priceLabel(precio: number | null, tr: (k: 'common.free') => string) {
 }
 
 /** Tarjeta grande (carrusel de destacados). */
-export function FeaturedCard({ evento }: { evento: EventoResumen }) {
+function FeaturedCardBase({ evento }: { evento: EventoResumen }) {
   const router = useRouter();
   const { t: tr, lang } = useI18n();
   return (
@@ -110,7 +111,7 @@ export function FeaturedCard({ evento }: { evento: EventoResumen }) {
 }
 
 /** Tarjeta de lista (vertical). */
-export function EventCard({ evento }: { evento: EventoResumen }) {
+function EventCardBase({ evento }: { evento: EventoResumen }) {
   const t = useTheme();
   const router = useRouter();
   const { t: tr, lang } = useI18n();
@@ -177,3 +178,8 @@ export function EventCard({ evento }: { evento: EventoResumen }) {
     </Pressable>
   );
 }
+
+// Memoizadas: las filas del Home no se re-renderizan si su prop `evento` no
+// cambia (react-query mantiene referencias estables). Gran mejora de fluidez.
+export const FeaturedCard = memo(FeaturedCardBase);
+export const EventCard = memo(EventCardBase);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -25,7 +25,7 @@ function hora(fecha?: string): string {
   return fecha && fecha.includes('T') ? fecha.split('T')[1] : '';
 }
 
-function Burbuja({ m }: { m: ChatMensaje }) {
+function BurbujaBase({ m }: { m: ChatMensaje }) {
   const t = useTheme();
   return (
     <View style={{ alignItems: m.esMio ? 'flex-end' : 'flex-start', marginBottom: spacing.sm }}>
@@ -46,6 +46,9 @@ function Burbuja({ m }: { m: ChatMensaje }) {
     </View>
   );
 }
+// Memoizada: teclear en el composer no re-renderiza todas las burbujas visibles.
+const Burbuja = memo(BurbujaBase);
+const chatKey = (m: ChatMensaje) => String(m.id);
 
 export default function ChatPrivado() {
   const t = useTheme();
@@ -126,7 +129,7 @@ export default function ChatPrivado() {
           <FlatList
             ref={listRef}
             data={mensajes}
-            keyExtractor={(m) => String(m.id)}
+            keyExtractor={chatKey}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, flexGrow: 1 }}
             showsVerticalScrollIndicator={false}
             onScroll={onScroll}
