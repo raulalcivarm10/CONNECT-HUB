@@ -509,6 +509,27 @@ export class AsistenteAuthService {
     return { verified: true };
   }
 
+  /** Reenvía el correo de verificación (nuevo token) al usuario autenticado. */
+  async resendVerification(idCliente: string) {
+    const rows = await this.oracle.query<{ EMAIL: string; NOMBRE: string | null; IS_VERIFIED: number | null }>(
+      `SELECT EMAIL, NOMBRE, IS_VERIFIED FROM USUARIOS WHERE ID_CLIENTE = :id`,
+      { id: idCliente },
+    );
+    const u = rows[0];
+    if (!u) throw new BadRequestException('User not found');
+    if ((u.IS_VERIFIED ?? 0) === 1) return { alreadyVerified: true };
+    const token = randomBytes(24).toString('hex');
+    await this.oracle.execute(
+      `UPDATE USUARIOS
+          SET VERIFICATION_TOKEN = :t, TOKEN_EXPIRA = SYSTIMESTAMP + INTERVAL '1' DAY,
+              FECHA_ACTUALIZACION = SYSTIMESTAMP
+        WHERE ID_CLIENTE = :id`,
+      { t: token, id: idCliente },
+    );
+    await this.mailer.enviarVerificacion(u.EMAIL, u.NOMBRE, token);
+    return { sent: true };
+  }
+
   /* ---------- refresh ---------- */
   async refresh(refreshToken: string) {
     let payload: AsistenteRefreshPayload;

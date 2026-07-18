@@ -113,6 +113,15 @@ export class AsistenteAuthController {
     return this.auth.me(user.sub);
   }
 
+  @Post('resend-verification')
+  @HttpCode(200)
+  @UseGuards(AsistenteJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reenvía el correo de verificación al usuario autenticado' })
+  resendVerification(@Asistente() user: AsistenteUser) {
+    return this.auth.resendVerification(user.sub);
+  }
+
   @Patch('onboarding')
   @UseGuards(AsistenteJwtGuard)
   @ApiBearerAuth()

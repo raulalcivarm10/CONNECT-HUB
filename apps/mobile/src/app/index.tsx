@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useInstitucion } from '@/store/institucion';
 import { useAuth } from '@/store/auth';
@@ -14,6 +14,7 @@ export default function Gate() {
   const t = useTheme();
   const authReady = useAuth((s) => s.bootstrapped);
   const authed = useAuth((s) => s.status === 'authed');
+  const user = useAuth((s) => s.user);
   const instHydrated = useInstitucion((s) => s.hydrated);
   const institucion = useInstitucion((s) => s.institucion);
 
@@ -25,6 +26,9 @@ export default function Gate() {
     );
   }
   if (!authed) return <Redirect href="/auth" />;
+  // Correo/clave sin verificar → bloquea hasta confirmar (Apple/Google entran
+  // verificados, así que isVerified es true para ellos).
+  if (user && !user.isVerified) return <Redirect href={'/verificar-correo' as Href} />;
   if (!institucion) return <Redirect href="/onboarding" />;
   return <Redirect href="/(tabs)" />;
 }

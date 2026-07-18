@@ -61,6 +61,7 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="onboarding" />
+              <Stack.Screen name="verificar-correo" options={{ animation: 'fade' }} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="evento/[id]"

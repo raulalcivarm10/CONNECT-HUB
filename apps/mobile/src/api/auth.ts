@@ -56,6 +56,10 @@ export const pagosExchangeReq = (pagosToken: string) =>
 export const meReq = () =>
   apiGet<AsistenteProfile>('/public/auth/me', undefined, true);
 
+/** Reenvía el correo de verificación al usuario autenticado. */
+export const resendVerificationReq = () =>
+  apiPost<{ sent?: boolean; alreadyVerified?: boolean }>('/public/auth/resend-verification', undefined, true);
+
 export const onboardingReq = (b: OnboardingBody) =>
   apiPatch<AsistenteProfile>('/public/auth/onboarding', b);
 
