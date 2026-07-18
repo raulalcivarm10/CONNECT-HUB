@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, InteractionManager, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Tarjeta, CuponValidacion } from '@connecthub/shared-types';
+import type { CuponValidacion } from '@connecthub/shared-types';
 import { AppText, Button, Skeleton } from '@/design-system/components';
 import { useConfirm } from '@/design-system/confirm';
 import { useTheme } from '@/design-system/theme';
@@ -15,8 +15,6 @@ import { useSettings } from '@/store/settings';
 import { useAuth } from '@/store/auth';
 import {
   useResumenPago,
-  useTarjetas,
-  pagarDirecto,
   iniciarCheckout,
   confirmarCheckout,
   validarCupon,
@@ -26,8 +24,6 @@ import { CheckoutWidget } from '@/features/pagos/checkout-widget';
 import type { CheckoutWidgetResult } from '@/features/pagos/checkout-shared';
 import { actualizarPerfil } from '@/api/perfil';
 import { ApiError, errorCode } from '@/api/client';
-
-const BRAND: Record<string, string> = { vi: 'Visa', mc: 'Mastercard', ax: 'Amex', di: 'Diners', dc: 'Diners' };
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   const t = useTheme();
@@ -70,10 +66,7 @@ export default function Checkout() {
     if (ok) router.push('/editar-perfil');
   }
   const { data: resumen, isLoading, isError } = useResumenPago(evId);
-  const idInst = resumen?.idInstitucion ?? null;
-  const { data: cards, refetch: refetchCards } = useTarjetas(idInst);
 
-  const [selected, setSelected] = useState<number | null>(null);
   const [paying, setPaying] = useState(false);
   const [checkout, setCheckout] = useState<{ reference: string; envMode: 'stg' | 'prod' } | null>(null);
   // Código de descuento (opcional). El descuento lo aplica el servicio de pagos;
@@ -87,14 +80,6 @@ export default function Checkout() {
   const [cedNum, setCedNum] = useState('');
   const [guardandoCed, setGuardandoCed] = useState(false);
 
-  useFocusEffect(useCallback(() => { if (idInst != null) refetchCards(); }, [idInst, refetchCards]));
-
-  useEffect(() => {
-    if (cards && cards.length && selected == null) {
-      setSelected((cards.find((c) => c.predeterminado) ?? cards[0]).id);
-    }
-  }, [cards, selected]);
-
   // Evita el DOBLE PAGO por recarga en web: mientras se procesa el pago, el
   // navegador advierte antes de recargar/cerrar (en nativo no hay recarga, y el
   // overlay bloqueante de abajo impide interactuar).
@@ -107,46 +92,6 @@ export default function Checkout() {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [paying]);
-
-  async function afterApproved(idEventoUsuario?: number) {
-    await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
-    await qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
-    // Navega tras cerrar overlays/modales (evita que la pantalla quede congelada
-    // en iOS por un Modal recién cerrado que sigue capturando toques).
-    InteractionManager.runAfterInteractions(() => {
-      if (idEventoUsuario) {
-        router.replace({ pathname: '/entrada/[id]', params: { id: idEventoUsuario } });
-      } else {
-        router.back();
-      }
-    });
-  }
-
-  // Pago con tarjeta guardada (débito directo).
-  async function pagar() {
-    if (selected == null) return;
-    setPaying(true);
-    try {
-      const res = await pagarDirecto(evId, selected);
-      if (res.aprobado) {
-        await afterApproved(res.idEventoUsuario);
-      } else if (res.pendiente) {
-        aviso(tr('pay.pendingTitle'), tr('pay.pendingBody'));
-      } else {
-        aviso(tr('pay.rejected'), res.motivo ?? '', true);
-      }
-    } catch (err) {
-      if (errorCode(err) === 'PROFILE_INCOMPLETE') {
-        await pedirCompletarPerfil();
-      } else if (err instanceof ApiError && err.status === 409) {
-        aviso(tr('event.parentFirst'), err.message);
-      } else {
-        aviso(tr('common.error'), err instanceof ApiError ? err.message : '', true);
-      }
-    } finally {
-      setPaying(false);
-    }
-  }
 
   // Checkout de Paymentez (método PRINCIPAL) contra el SERVICIO DE PAGOS:
   //   1) POST /evento-usuario/eventos/{id}/checkout { idUsuario } → { reference, envMode }
@@ -299,7 +244,6 @@ export default function Checkout() {
   }
 
   const money = (n: number) => `$${n.toFixed(2)}`;
-  const hasCards = (cards?.length ?? 0) > 0;
   const cuponAplicado = cuponInfo?.valido === true; // cupón válido → código congelado
 
   return (
@@ -413,57 +357,6 @@ export default function Checkout() {
                 <Ionicons name="card-outline" size={13} color={t.colors.textFaint} />
                 <AppText muted variant="caption">{tr('pay.checkoutHint')}</AppText>
               </View>
-            </View>
-
-            {/* separador */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: t.colors.border }} />
-              <AppText muted variant="caption">{tr('pay.orSavedCard')}</AppText>
-              <View style={{ flex: 1, height: 1, backgroundColor: t.colors.border }} />
-            </View>
-
-            {/* Tarjeta guardada (SECUNDARIO) */}
-            <View style={{ gap: spacing.sm }}>
-              {hasCards ? (
-                cards!.map((c: Tarjeta) => {
-                  const on = selected === c.id;
-                  return (
-                    <Pressable
-                      key={c.id}
-                      onPress={() => setSelected(c.id)}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                        backgroundColor: t.colors.card, borderRadius: radius.lg,
-                        borderWidth: 1.5, borderColor: on ? t.colors.brand : t.colors.border, padding: spacing.md,
-                      }}
-                    >
-                      <Ionicons name="card" size={22} color={t.colors.brand} />
-                      <View style={{ flex: 1 }}>
-                        <AppText variant="bodyStrong">{BRAND[c.tipo ?? ''] ?? tr('cards.card')} •••• {c.last4}</AppText>
-                        <AppText muted variant="caption">{String(c.expiryMonth).padStart(2, '0')}/{String(c.expiryYear).slice(-2)}</AppText>
-                      </View>
-                      <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={20} color={on ? t.colors.brand : t.colors.textFaint} />
-                    </Pressable>
-                  );
-                })
-              ) : (
-                <AppText muted variant="caption">{tr('cards.empty')}</AppText>
-              )}
-              <Pressable
-                onPress={() => router.push({ pathname: '/tarjetas', params: { inst: String(idInst) } })}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm }}
-              >
-                <Ionicons name="add-circle-outline" size={20} color={t.colors.brand} />
-                <AppText color={t.colors.brandText} style={{ fontWeight: fontWeight.semibold }}>{tr('cards.add')}</AppText>
-              </Pressable>
-              {hasCards ? (
-                <Button
-                  title={tr('pay.paySaved')}
-                  variant="secondary"
-                  onPress={pagar}
-                  disabled={selected == null || paying}
-                />
-              ) : null}
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center' }}>

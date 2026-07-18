@@ -223,13 +223,6 @@ export default function Perfil() {
         </Card>
       ) : null}
 
-      {/* Pagos */}
-      {authed ? (
-        <Card style={{ overflow: 'hidden', marginBottom: spacing.lg }}>
-          <Row icon="card-outline" label={tr('cards.title')} onPress={() => router.push('/tarjetas')} />
-        </Card>
-      ) : null}
-
       {/* Instituciones (ver / agregar — puedes tener más de una) */}
       {authed ? (
         <Card style={{ overflow: 'hidden' }}>
