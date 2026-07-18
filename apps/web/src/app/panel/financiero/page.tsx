@@ -31,6 +31,8 @@ interface Resumen {
     NUM_PAGOS: number;
   }>;
   porEstado: Array<{ ESTADO: string; N: number; TOTAL: number }>;
+  porMes: Array<{ MES: string; RECAUDADO: number; PENDIENTE: number; NUM_PAGOS: number }>;
+  eventos: Array<{ ID_EVENTO: number; TITULO: string | null }>;
   ultimosPagos: Array<{
     ID_PAGO: number;
     TITULO: string | null;
@@ -64,6 +66,10 @@ export default function FinancieroPage() {
   const { t, locale } = useI18n();
   const [datos, setDatos] = useState<Resumen | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Filtros: evento / mes / año (vacío = todos)
+  const [fEvento, setFEvento] = useState('');
+  const [fMes, setFMes] = useState('');
+  const [fAnio, setFAnio] = useState('');
 
   const money = (v: number) =>
     new Intl.NumberFormat(locale, {
@@ -77,8 +83,14 @@ export default function FinancieroPage() {
   };
 
   const cargar = useCallback(async () => {
-    setDatos(await api.get<Resumen>(`/finanzas/resumen${qs}`));
-  }, [qs]);
+    // qs viene como '' o '?idInstitucion=N' → se le suman los filtros activos
+    const p = new URLSearchParams(qs.startsWith('?') ? qs.slice(1) : qs);
+    if (fEvento) p.set('idEvento', fEvento);
+    if (fMes) p.set('mes', fMes);
+    if (fAnio) p.set('anio', fAnio);
+    const q = p.toString();
+    setDatos(await api.get<Resumen>(`/finanzas/resumen${q ? `?${q}` : ''}`));
+  }, [qs, fEvento, fMes, fAnio]);
 
   useEffect(() => {
     cargar().catch((e) => setError(e.message));
@@ -110,6 +122,51 @@ export default function FinancieroPage() {
           {error}
         </p>
       )}
+
+      {/* Filtros: evento / mes / año */}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <select
+          value={fEvento}
+          onChange={(e) => setFEvento(e.target.value)}
+          className="rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text"
+        >
+          <option value="">Todos los eventos</option>
+          {datos?.eventos.map((e) => (
+            <option key={e.ID_EVENTO} value={String(e.ID_EVENTO)}>
+              {e.TITULO ?? `Evento #${e.ID_EVENTO}`}
+            </option>
+          ))}
+        </select>
+        <select
+          value={fMes}
+          onChange={(e) => setFMes(e.target.value)}
+          className="rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text"
+        >
+          <option value="">Todos los meses</option>
+          {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((m, i) => (
+            <option key={m} value={String(i + 1)}>{m}</option>
+          ))}
+        </select>
+        <select
+          value={fAnio}
+          onChange={(e) => setFAnio(e.target.value)}
+          className="rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text"
+        >
+          <option value="">Todos los años</option>
+          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((a) => (
+            <option key={a} value={String(a)}>{a}</option>
+          ))}
+        </select>
+        {(fEvento || fMes || fAnio) && (
+          <button
+            type="button"
+            onClick={() => { setFEvento(''); setFMes(''); setFAnio(''); }}
+            className="rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-surface-alt"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card
@@ -159,6 +216,74 @@ export default function FinancieroPage() {
             {t('fin.noData')}
           </p>
         )}
+      </div>
+
+      {/* Listado de ingresos por evento */}
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-border-app bg-surface">
+        <div className="border-b border-border-app px-5 py-3 font-semibold text-text">
+          Ingresos por evento
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
+              <th className="px-4 py-3">{t('ev.event')}</th>
+              <th className="px-4 py-3">Fecha</th>
+              <th className="px-4 py-3">Recaudado</th>
+              <th className="px-4 py-3">Pendiente</th>
+              <th className="px-4 py-3"># Pagos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {datos?.porEvento.map((e) => (
+              <tr key={e.ID_EVENTO} className="border-b border-border-app/60">
+                <td className="px-4 py-3 font-medium text-text">{e.TITULO ?? `#${e.ID_EVENTO}`}</td>
+                <td className="px-4 py-3 text-text-2">
+                  {e.FECHA_EVENTO ? new Date(e.FECHA_EVENTO).toLocaleDateString(locale) : '—'}
+                </td>
+                <td className="px-4 py-3 text-success">{money(e.RECAUDADO)}</td>
+                <td className="px-4 py-3 text-text">{money(e.PENDIENTE)}</td>
+                <td className="px-4 py-3 text-text-2">{e.NUM_PAGOS}</td>
+              </tr>
+            ))}
+            {(!datos || datos.porEvento.length === 0) && (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-text-muted">{t('fin.noData')}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Ingresos por mes (respeta los filtros activos) */}
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-border-app bg-surface">
+        <div className="border-b border-border-app px-5 py-3 font-semibold text-text">
+          Ingresos por mes
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
+              <th className="px-4 py-3">Mes</th>
+              <th className="px-4 py-3">Recaudado</th>
+              <th className="px-4 py-3">Pendiente</th>
+              <th className="px-4 py-3"># Pagos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {datos?.porMes.map((m) => (
+              <tr key={m.MES} className="border-b border-border-app/60">
+                <td className="px-4 py-3 font-medium text-text">{m.MES}</td>
+                <td className="px-4 py-3 text-success">{money(m.RECAUDADO)}</td>
+                <td className="px-4 py-3 text-text">{money(m.PENDIENTE)}</td>
+                <td className="px-4 py-3 text-text-2">{m.NUM_PAGOS}</td>
+              </tr>
+            ))}
+            {(!datos || datos.porMes.length === 0) && (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-text-muted">{t('fin.noData')}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-2xl border border-border-app bg-surface">

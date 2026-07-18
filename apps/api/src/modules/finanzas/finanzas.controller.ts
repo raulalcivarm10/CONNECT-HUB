@@ -23,10 +23,16 @@ export class FinanzasController {
   resumen(
     @CurrentUser() user: JwtUser,
     @Query('idInstitucion') idInstitucion?: string,
+    @Query('idEvento') idEvento?: string,
+    @Query('mes') mes?: string,
+    @Query('anio') anio?: string,
   ) {
     return this.finanzas.resumen(
       user,
       idInstitucion ? Number(idInstitucion) : undefined,
+      idEvento ? Number(idEvento) : undefined,
+      mes ? Number(mes) : undefined,
+      anio ? Number(anio) : undefined,
     );
   }
 }

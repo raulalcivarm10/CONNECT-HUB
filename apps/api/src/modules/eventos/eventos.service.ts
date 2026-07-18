@@ -985,14 +985,20 @@ export class EventosService {
         ORDER BY COALESCE(u.NOMBRE, lg.NOMBRE), COALESCE(u.APELLIDO, lg.APELLIDO)`,
       { e: idEvento },
     );
-    return rows.map((r) => ({
-      idCliente: r.ID_CLIENTE,
-      idEventoUsuario: r.ID_EVENTO_USUARIO,
-      nombre: [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ') || r.EMAIL,
-      email: r.EMAIL,
-      asistio: (r.ASISTIO ?? 'N') === 'S',
-      certificadoCodigo: r.CERT_CODIGO ?? null,
-    }));
+    return rows.map((r) => {
+      // Bajas ANTERIORES al log de control: sin snapshot → sin nombre real.
+      const eliminado = (r.EMAIL ?? '').endsWith('@deleted.connecthub.local');
+      return {
+        idCliente: r.ID_CLIENTE,
+        idEventoUsuario: r.ID_EVENTO_USUARIO,
+        nombre:
+          [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ') ||
+          (eliminado ? 'Cuenta eliminada' : r.EMAIL),
+        email: eliminado ? '' : r.EMAIL,
+        asistio: (r.ASISTIO ?? 'N') === 'S',
+        certificadoCodigo: r.CERT_CODIGO ?? null,
+      };
+    });
   }
 
   /**

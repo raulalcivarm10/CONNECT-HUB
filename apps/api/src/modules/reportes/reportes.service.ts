@@ -152,7 +152,13 @@ export class ReportesService {
     }
 
     return this.oracle.query(
-      `SELECT u.NOMBRE, u.APELLIDO, u.EMAIL, u.NUMERO_CELULAR,
+      // COALESCE con LOG_PARTICIPANTES_EVENTO: las cuentas dadas de baja siguen
+      // mostrando nombre/correo (snapshot de control tomado antes de anonimizar).
+      `SELECT COALESCE(u.NOMBRE, lg.NOMBRE) AS NOMBRE,
+              COALESCE(u.APELLIDO, lg.APELLIDO) AS APELLIDO,
+              CASE WHEN u.EMAIL LIKE '%@deleted.connecthub.local'
+                   THEN COALESCE(lg.EMAIL, 'Cuenta eliminada') ELSE u.EMAIL END AS EMAIL,
+              u.NUMERO_CELULAR,
               eu.ESTADO, eu.ASISTIO,
               TO_CHAR(eu.FECHA_REGISTRO, 'YYYY-MM-DD') AS FECHA_REGISTRO,
               TO_CHAR(eu.FECHA_ENTRADA, 'YYYY-MM-DD HH24:MI') AS FECHA_ENTRADA,
@@ -164,8 +170,12 @@ export class ReportesService {
               END AS ASISTENCIA
          FROM EVENTOS_USUARIOS eu
          LEFT JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN (SELECT ID_CLIENTE, ID_EVENTO, MAX(NOMBRE) AS NOMBRE,
+                           MAX(APELLIDO) AS APELLIDO, MAX(EMAIL) AS EMAIL
+                      FROM LOG_PARTICIPANTES_EVENTO GROUP BY ID_CLIENTE, ID_EVENTO) lg
+                ON lg.ID_CLIENTE = eu.ID_CLIENTE AND lg.ID_EVENTO = eu.ID_EVENTO
         WHERE eu.ID_EVENTO = :id
-        ORDER BY ASISTENCIA, u.APELLIDO, u.NOMBRE`,
+        ORDER BY ASISTENCIA, COALESCE(u.APELLIDO, lg.APELLIDO), COALESCE(u.NOMBRE, lg.NOMBRE)`,
       { id: idEvento },
     );
   }
