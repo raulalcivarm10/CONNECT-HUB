@@ -14,6 +14,7 @@ import {
   AppleBody,
 } from '@/api/auth';
 import { misInstituciones } from '@/api/catalogo';
+import { actualizarPerfil } from '@/api/perfil';
 import {
   clearPagosSession,
   getPagosToken,
@@ -111,14 +112,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   // (login funciona para la revisión de Apple, pero sin sesión de pagos).
   apple: async (b) => {
     const ok = await loginPagosApple(b.identityToken, b.email, b.nombre, b.apellido);
-    if (ok) {
-      const res = await pagosExchangeReq(getPagosToken()!);
-      await persist(set, res);
-      await syncInstitucion();
-      return res;
-    }
-    const res = await appleReq(b);
+    const res = ok ? await pagosExchangeReq(getPagosToken()!) : await appleReq(b);
     await persist(set, res);
+    // Guarda el nombre que Apple entregó (solo el primer login) si el perfil no lo tiene.
+    await completarNombreApple(set, b, res.user);
     await syncInstitucion();
     return res;
   },
@@ -159,6 +156,29 @@ async function persist(set: (p: Partial<AuthState>) => void, res: AuthResponse) 
   await saveTokens(res.accessToken, res.refreshToken);
   setAccessToken(res.accessToken);
   set({ user: res.user, refreshToken: res.refreshToken, status: 'authed' });
+}
+
+/**
+ * Apple entrega nombre/apellido SOLO en el primer inicio de sesión. Si el perfil
+ * aún no los tiene, los guardamos automáticamente para que salgan en el
+ * certificado sin que el usuario tenga que escribirlos.
+ */
+async function completarNombreApple(
+  set: (p: Partial<AuthState>) => void,
+  b: AppleBody,
+  user: AsistenteProfile,
+) {
+  if (!b.nombre && !b.apellido) return; // Apple no dio nombre (login posterior)
+  if (user.nombre && user.apellido) return; // el perfil ya tiene nombre
+  try {
+    const upd = await actualizarPerfil({
+      nombre: b.nombre ?? user.nombre ?? undefined,
+      apellido: b.apellido ?? user.apellido ?? undefined,
+    });
+    set({ user: { ...user, nombre: upd.nombre, apellido: upd.apellido } });
+  } catch {
+    /* si falla (p.ej. nombre bloqueado), no interrumpe el login */
+  }
 }
 
 /**
