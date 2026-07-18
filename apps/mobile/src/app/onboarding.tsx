@@ -15,7 +15,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { AppText, Button } from '@/design-system/components';
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, fontSize, fontWeight, shadow } from '@/design-system/tokens';
-import LogoIcon from '@/assets/logo-icon.svg';
+import LogoMark from '@/assets/logo-mark.svg';
 import { useI18n } from '@/i18n';
 import { useInstitucion } from '@/store/institucion';
 import { vincularInstitucion } from '@/api/catalogo';
@@ -83,7 +83,7 @@ export default function Onboarding() {
                 ...shadow.card,
               }}
             >
-              <LogoIcon width={40} height={40} />
+              <LogoMark width={44} height={44} />
             </View>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(120).duration(500)}>
