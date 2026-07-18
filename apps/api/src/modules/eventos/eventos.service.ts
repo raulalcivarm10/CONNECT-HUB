@@ -965,14 +965,24 @@ export class EventosService {
       ASISTIO: string | null;
       CERT_CODIGO: string | null;
     }>(
-      `SELECT eu.ID_CLIENTE, eu.ID_EVENTO_USUARIO, u.NOMBRE, u.APELLIDO, u.EMAIL,
+      // COALESCE con LOG_PARTICIPANTES_EVENTO: si la cuenta fue dada de baja
+      // (USUARIOS anonimizada), el nombre/correo salen del snapshot de control.
+      `SELECT eu.ID_CLIENTE, eu.ID_EVENTO_USUARIO,
+              COALESCE(u.NOMBRE, lg.NOMBRE) AS NOMBRE,
+              COALESCE(u.APELLIDO, lg.APELLIDO) AS APELLIDO,
+              CASE WHEN u.EMAIL LIKE '%@deleted.connecthub.local'
+                   THEN COALESCE(lg.EMAIL, u.EMAIL) ELSE u.EMAIL END AS EMAIL,
               eu.ASISTIO, c.CODIGO AS CERT_CODIGO
          FROM EVENTOS_USUARIOS eu
          JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN (SELECT ID_CLIENTE, ID_EVENTO, MAX(NOMBRE) AS NOMBRE,
+                           MAX(APELLIDO) AS APELLIDO, MAX(EMAIL) AS EMAIL
+                      FROM LOG_PARTICIPANTES_EVENTO GROUP BY ID_CLIENTE, ID_EVENTO) lg
+                ON lg.ID_CLIENTE = eu.ID_CLIENTE AND lg.ID_EVENTO = eu.ID_EVENTO
          LEFT JOIN CERTIFICADOS c
                 ON c.ID_CLIENTE = eu.ID_CLIENTE AND c.ID_EVENTO = eu.ID_EVENTO
         WHERE eu.ID_EVENTO = :e
-        ORDER BY u.NOMBRE, u.APELLIDO`,
+        ORDER BY COALESCE(u.NOMBRE, lg.NOMBRE), COALESCE(u.APELLIDO, lg.APELLIDO)`,
       { e: idEvento },
     );
     return rows.map((r) => ({
@@ -983,6 +993,47 @@ export class EventosService {
       asistio: (r.ASISTIO ?? 'N') === 'S',
       certificadoCodigo: r.CERT_CODIGO ?? null,
     }));
+  }
+
+  /**
+   * Gafetes imprimibles: participantes con entrada (en eventos de pago = los que
+   * pagaron) con nombre y QR de check-in. Usa el snapshot de control para las
+   * cuentas dadas de baja.
+   */
+  async listarGafetes(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ID_CLIENTE: string;
+      NOMBRE: string | null;
+      APELLIDO: string | null;
+      QR_TOKEN: string;
+      TITULO: string;
+      ASISTIO: string | null;
+    }>(
+      `SELECT eu.ID_CLIENTE,
+              COALESCE(u.NOMBRE, lg.NOMBRE) AS NOMBRE,
+              COALESCE(u.APELLIDO, lg.APELLIDO) AS APELLIDO,
+              eu.QR_TOKEN, e.TITULO, eu.ASISTIO
+         FROM EVENTOS_USUARIOS eu
+         JOIN EVENTOS e ON e.ID_EVENTO = eu.ID_EVENTO
+         JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN (SELECT ID_CLIENTE, ID_EVENTO, MAX(NOMBRE) AS NOMBRE,
+                           MAX(APELLIDO) AS APELLIDO
+                      FROM LOG_PARTICIPANTES_EVENTO GROUP BY ID_CLIENTE, ID_EVENTO) lg
+                ON lg.ID_CLIENTE = eu.ID_CLIENTE AND lg.ID_EVENTO = eu.ID_EVENTO
+        WHERE eu.ID_EVENTO = :e AND eu.QR_TOKEN IS NOT NULL
+        ORDER BY COALESCE(u.NOMBRE, lg.NOMBRE), COALESCE(u.APELLIDO, lg.APELLIDO)`,
+      { e: idEvento },
+    );
+    return {
+      titulo: rows[0]?.TITULO ?? null,
+      asistentes: rows.map((r) => ({
+        idCliente: r.ID_CLIENTE,
+        nombre: [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ').trim() || 'Participante',
+        qrToken: r.QR_TOKEN,
+        asistio: (r.ASISTIO ?? 'N') === 'S',
+      })),
+    };
   }
 
   /**
@@ -1003,11 +1054,20 @@ export class EventosService {
       CERT_TIPO: string | null;
       CERT_CODIGO: string | null;
     }>(
-      `SELECT eu.ID_CLIENTE, eu.ID_EVENTO_USUARIO, u.NOMBRE, u.APELLIDO, u.EMAIL, eu.ASISTIO,
+      `SELECT eu.ID_CLIENTE, eu.ID_EVENTO_USUARIO,
+              COALESCE(u.NOMBRE, lg.NOMBRE) AS NOMBRE,
+              COALESCE(u.APELLIDO, lg.APELLIDO) AS APELLIDO,
+              CASE WHEN u.EMAIL LIKE '%@deleted.connecthub.local'
+                   THEN COALESCE(lg.EMAIL, u.EMAIL) ELSE u.EMAIL END AS EMAIL,
+              eu.ASISTIO,
               e.TITULO, i.NOMBRE AS INSTITUCION, d.CERT_TIPO, c.CODIGO AS CERT_CODIGO
          FROM EVENTOS_USUARIOS eu
          JOIN EVENTOS e ON e.ID_EVENTO = eu.ID_EVENTO
          JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+         LEFT JOIN (SELECT ID_CLIENTE, ID_EVENTO, MAX(NOMBRE) AS NOMBRE,
+                           MAX(APELLIDO) AS APELLIDO, MAX(EMAIL) AS EMAIL
+                      FROM LOG_PARTICIPANTES_EVENTO GROUP BY ID_CLIENTE, ID_EVENTO) lg
+                ON lg.ID_CLIENTE = eu.ID_CLIENTE AND lg.ID_EVENTO = eu.ID_EVENTO
          LEFT JOIN EVENTO_DETALLE d ON d.ID_EVENTO = eu.ID_EVENTO
          LEFT JOIN LOCALES l ON l.ID_LOCAL = e.ID_LOCAL
          LEFT JOIN SALONES s ON s.ID_SALON = e.ID_SALON

@@ -337,16 +337,27 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
 
         {/* Asistentes + generar */}
         <div>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-text">Asistentes ({asistentes.length})</span>
-            <button
-              type="button"
-              onClick={generar}
-              disabled={busy || asistentes.length === 0}
-              className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            >
-              {sel.size ? `Generar (${sel.size})` : 'Generar todos'}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Gafetes imprimibles (nombre + QR de check-in) para entregar en el evento */}
+              <a
+                href={`/panel/eventos/gafetes?ev=${idEvento}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-border-app px-3 py-1.5 text-sm font-semibold text-text hover:bg-surface-alt"
+              >
+                🖨 Imprimir gafetes
+              </a>
+              <button
+                type="button"
+                onClick={generar}
+                disabled={busy || asistentes.length === 0}
+                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {sel.size ? `Generar (${sel.size})` : 'Generar todos'}
+              </button>
+            </div>
           </div>
           <div className="max-h-72 overflow-auto rounded-lg border border-border-app">
             <table className="w-full text-left text-sm">

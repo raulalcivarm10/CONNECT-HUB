@@ -320,6 +320,12 @@ export class EventosController {
     return this.eventos.listarAsistentesCert(user, id);
   }
 
+  @Get(':id/gafetes')
+  @ApiOperation({ summary: 'Gafetes imprimibles: participantes con entrada + QR de check-in' })
+  listarGafetes(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.eventos.listarGafetes(user, id);
+  }
+
   @Post(':id/certificados/generar')
   @ApiOperation({ summary: 'Genera certificados en lote (idsClientes seleccionados o todos los que asistieron)' })
   generarCert(
