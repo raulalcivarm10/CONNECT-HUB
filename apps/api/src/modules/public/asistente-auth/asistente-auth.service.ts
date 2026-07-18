@@ -182,7 +182,11 @@ export class AsistenteAuthService {
       numeroCelular: u.NUMERO_CELULAR,
       tipoId: u.TIPO_ID ?? null,
       numeroId: u.NUMERO_ID ?? null,
-      isVerified: (u.IS_VERIFIED ?? 0) === 1,
+      // Los usuarios de login social (Apple/Google) están verificados por el
+      // proveedor: no hay correo que confirmar. Cubre también a los creados por
+      // el servicio externo de pagos, que pone APPLE_ID/GOOGLE_ID pero no toca
+      // la columna IS_VERIFIED de ConnectHub.
+      isVerified: (u.IS_VERIFIED ?? 0) === 1 || !!u.GOOGLE_ID || !!u.APPLE_ID,
       onboardingCompleto: (u.ONBOARDING_COMPLETO ?? 'N') === 'S',
       tieneGoogle: !!u.GOOGLE_ID,
       tieneApple: !!u.APPLE_ID,
