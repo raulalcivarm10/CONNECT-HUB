@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import Animated, {
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -25,6 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from './theme';
 import { fontSize, fontWeight, radius, spacing, shadow } from './tokens';
+import { useAppActive } from '@/lib/app-active';
 
 /* ---------- Screen ---------- */
 export function Screen({
@@ -244,13 +246,16 @@ export function Skeleton({
 }) {
   const t = useTheme();
   const opacity = useSharedValue(0.5);
+  const active = useAppActive();
   useEffect(() => {
+    if (!active) return; // pausa el shimmer en segundo plano
     opacity.value = withRepeat(
       withSequence(withTiming(1, { duration: 700 }), withTiming(0.5, { duration: 700 })),
       -1,
       true,
     );
-  }, [opacity]);
+    return () => cancelAnimation(opacity);
+  }, [opacity, active]);
   const anim = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
     <Animated.View

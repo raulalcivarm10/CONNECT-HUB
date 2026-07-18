@@ -395,8 +395,11 @@ export class EntradasService {
       config = null;
     }
     const c = cert[0];
-    const nombreActual =
-      [c.U_NOMBRE, c.U_APELLIDO].filter(Boolean).join(' ').trim() || c.NOMBRE_ASISTENTE || '';
+    // Nombre del perfil actual; si no hay, cae al congelado SOLO si no es un
+    // correo (los usuarios de Apple traen un email de relay como NOMBRE_ASISTENTE
+    // y el certificado nunca debe mostrar un correo).
+    const frozen = c.NOMBRE_ASISTENTE && !c.NOMBRE_ASISTENTE.includes('@') ? c.NOMBRE_ASISTENTE : '';
+    const nombreActual = [c.U_NOMBRE, c.U_APELLIDO].filter(Boolean).join(' ').trim() || frozen;
     return renderCertificado(plant[0].IMAGEN, config, {
       nombre: nombreActual,
       evento: c.TITULO_EVENTO ?? '',
@@ -412,10 +415,13 @@ export class EntradasService {
     return {
       codigo: r.CODIGO as string,
       tipo: (r.TIPO as string) ?? null,
-      // nombre actual del perfil; cae al congelado solo si el perfil no tiene nombre
+      // nombre actual del perfil; cae al congelado solo si no es un correo
+      // (nunca mostrar el email de relay de Apple como nombre del certificado)
       nombreAsistente:
         [r.U_NOMBRE, r.U_APELLIDO].filter(Boolean).join(' ').trim() ||
-        ((r.NOMBRE_ASISTENTE as string) ?? null),
+        (typeof r.NOMBRE_ASISTENTE === 'string' && !r.NOMBRE_ASISTENTE.includes('@')
+          ? r.NOMBRE_ASISTENTE
+          : null),
       tituloEvento: (r.TITULO_EVENTO as string) ?? null,
       institucion: (r.INSTITUCION as string) ?? null,
       idEvento: Number(r.ID_EVENTO),

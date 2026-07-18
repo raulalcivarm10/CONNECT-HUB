@@ -78,6 +78,10 @@ export default function CertificadoView() {
                   source={{ uri: imagenUrl }}
                   style={{ width: '100%', aspectRatio: aspect, backgroundColor: palette.white }}
                   contentFit="contain"
+                  // El certificado se renderiza al vuelo y su nombre puede cambiar
+                  // (p.ej. al completar el perfil), así que NO se cachea: siempre
+                  // se pide la versión fresca del servidor.
+                  cachePolicy="none"
                   onError={() => setImgError(true)}
                   onLoad={(e) => {
                     const w = e.source?.width;

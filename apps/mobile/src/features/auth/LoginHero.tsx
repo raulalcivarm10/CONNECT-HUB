@@ -17,6 +17,7 @@ import Animated, {
 import { AppText } from '@/design-system/components';
 import { palette, spacing, radius, fontSize, shadow } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { useAppActive } from '@/lib/app-active';
 import LogoMark from '@/assets/logo-mark.svg';
 
 /** Diamante de marca (motivo del logo) flotando en el fondo del hero. */
@@ -42,15 +43,16 @@ const SHAPES: ShapeCfg[] = [
   { top: '80%', left: '46%', size: 64, color: palette.brand400, opacity: 0.24, dur: 5600, delay: 400, drift: 20, rot: 10 },
 ];
 
-function FloatingShape({ cfg }: { cfg: ShapeCfg }) {
+function FloatingShape({ cfg, active }: { cfg: ShapeCfg; active: boolean }) {
   const p = useSharedValue(0);
   useEffect(() => {
+    if (!active) return; // pausa en segundo plano (evita freeze al volver)
     p.value = withDelay(
       cfg.delay,
       withRepeat(withTiming(1, { duration: cfg.dur, easing: Easing.inOut(Easing.sin) }), -1, true),
     );
     return () => cancelAnimation(p);
-  }, [cfg.delay, cfg.dur, p]);
+  }, [cfg.delay, cfg.dur, p, active]);
 
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -83,12 +85,13 @@ function FloatingShape({ cfg }: { cfg: ShapeCfg }) {
 }
 
 /** Onda que emana desde el logo (ripple). */
-function Ripple({ delay }: { delay: number }) {
+function Ripple({ delay, active }: { delay: number; active: boolean }) {
   const p = useSharedValue(0);
   useEffect(() => {
+    if (!active) return; // pausa en segundo plano
     p.value = withDelay(delay, withRepeat(withTiming(1, { duration: 3000, easing: Easing.out(Easing.ease) }), -1, false));
     return () => cancelAnimation(p);
-  }, [delay, p]);
+  }, [delay, p, active]);
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(p.value, [0, 1], [0.75, 2.3]) }],
     opacity: interpolate(p.value, [0, 0.12, 1], [0, 0.55, 0]),
@@ -120,9 +123,18 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
   const enter = useSharedValue(0);
   const breathe = useSharedValue(0);
   const glow = useSharedValue(0);
+  const active = useAppActive();
 
+  // Entrada (spring): una sola vez al montar.
   useEffect(() => {
     enter.value = withSpring(1, { damping: 12, stiffness: 90, mass: 0.9 });
+    return () => cancelAnimation(enter);
+  }, [enter]);
+
+  // Bucles (respiración + halo): se pausan en segundo plano y se reanudan al
+  // volver, para no dejar el hilo de UI colgado al desbloquear el teléfono.
+  useEffect(() => {
+    if (!active) return;
     breathe.value = withRepeat(withTiming(1, { duration: 2800, easing: Easing.inOut(Easing.quad) }), -1, true);
     glow.value = withRepeat(
       withSequence(
@@ -133,11 +145,10 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
       false,
     );
     return () => {
-      cancelAnimation(enter);
       cancelAnimation(breathe);
       cancelAnimation(glow);
     };
-  }, [enter, breathe, glow]);
+  }, [breathe, glow, active]);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: enter.value,
@@ -168,7 +179,7 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
       {/* Fondo animado: diamantes de marca flotando */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         {SHAPES.map((cfg, i) => (
-          <FloatingShape key={i} cfg={cfg} />
+          <FloatingShape key={i} cfg={cfg} active={active} />
         ))}
       </View>
 
@@ -183,9 +194,9 @@ export function LoginHero({ isRegister }: { isRegister: boolean }) {
                 glowStyle,
               ]}
             />
-            <Ripple delay={0} />
-            <Ripple delay={1000} />
-            <Ripple delay={2000} />
+            <Ripple delay={0} active={active} />
+            <Ripple delay={1000} active={active} />
+            <Ripple delay={2000} active={active} />
             {/* caja blanca con SOLO el símbolo del cubo (sin el texto del lockup) */}
             <View
               style={{
