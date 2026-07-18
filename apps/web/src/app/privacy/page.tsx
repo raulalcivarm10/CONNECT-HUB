@@ -90,10 +90,12 @@ export default function Privacy() {
         <P>
           Conservamos tus datos mientras tu cuenta esté activa. Puedes <strong>eliminar tu cuenta</strong> en cualquier
           momento desde la app: <em>Perfil → Eliminar cuenta</em>. Al hacerlo, borramos de forma permanente tus datos
-          personales (nombre, correo, teléfono, foto, documento de identidad, perfil, conexiones, chats, tarjetas
-          guardadas y datos de comunidad) y se bloquea el acceso con ese correo. Por obligaciones contables y legales,
-          los registros de transacciones (pagos, entradas, asistencia) pueden conservarse de forma <strong>anonimizada</strong>,
-          sin datos que te identifiquen.
+          personales (correo de contacto, teléfono, foto, perfil, conexiones, chats y datos de comunidad) y se
+          bloquea el acceso con ese correo. Por obligaciones contables/legales y para el <strong>control de
+          asistencia a eventos</strong>, se conserva un <strong>registro de participación</strong> —tu nombre y
+          los eventos en los que te inscribiste o asististe— junto con los registros de transacciones (pagos,
+          entradas). Ese registro es de control interno del organizador de eventos, no es visible para otros
+          usuarios ni se usa para contactarte con fines comerciales.
         </P>
 
         <H>7. Seguridad</H>

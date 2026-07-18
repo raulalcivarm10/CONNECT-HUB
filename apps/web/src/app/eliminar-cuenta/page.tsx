@@ -65,18 +65,18 @@ export default function EliminarCuenta() {
         <H>Qué datos se eliminan</H>
         <P>Al eliminar tu cuenta borramos de forma permanente tus datos personales:</P>
         <ul>
-          <LI>Nombre, apellido, correo, teléfono y foto de perfil.</LI>
-          <LI>Documento de identidad, perfil y preferencias.</LI>
+          <LI>Correo de contacto, teléfono y foto de perfil.</LI>
+          <LI>Datos de perfil (profesión, empresa, biografía, LinkedIn) y preferencias.</LI>
           <LI>Conexiones, mensajes de comunidad y chats privados.</LI>
-          <LI>Tarjetas guardadas (tokens de pago).</LI>
         </ul>
         <P>Y se bloquea el acceso con ese correo.</P>
 
-        <H>Qué se conserva (anonimizado)</H>
+        <H>Qué se conserva (control de eventos)</H>
         <P>
-          Por obligaciones contables y legales, los registros de transacciones (pagos, entradas y asistencia) pueden
-          conservarse de forma <strong>anonimizada</strong>, sin datos que te identifiquen. No se usan para contactarte
-          ni pueden vincularse contigo.
+          Por obligaciones contables/legales y para el <strong>control de asistencia a eventos</strong>, se conserva un
+          registro de tu participación —tu nombre y los eventos en los que te inscribiste o asististe— junto con los
+          registros de transacciones (pagos, entradas). Es un control interno del organizador de eventos: no se usa
+          para contactarte con fines comerciales ni es visible para otros usuarios.
         </P>
 
         <H>Contacto</H>

@@ -657,6 +657,21 @@ export class AsistenteAuthService {
     const sentinel = `deleted-${id}${DELETED_EMAIL_DOMAIN}`;
     await this.oracle.withConnection(async (conn) => {
       const del = (sql: string) => conn.execute(sql, { id });
+      // 0) CONTROL: snapshot de participación ANTES de anonimizar. El borrado
+      //    deja al usuario sin nombre/correo, así que perdíamos el inventario de
+      //    QUIÉN participó en cada evento; aquí se conserva ese registro (solo
+      //    lectura interna, para control/inventario). Ver docs/sql/2026-07-17_log_participantes.sql
+      await conn.execute(
+        `INSERT INTO LOG_PARTICIPANTES_EVENTO
+           (ID_CLIENTE, ID_EVENTO, NOMBRE, APELLIDO, EMAIL, TIPO_ID, NUMERO_ID, TITULO_EVENTO, ASISTIO, ESTADO, FECHA_ENTRADA)
+         SELECT u.ID_CLIENTE, eu.ID_EVENTO, u.NOMBRE, u.APELLIDO, u.EMAIL, u.TIPO_ID, u.NUMERO_ID,
+                e.TITULO, eu.ASISTIO, eu.ESTADO, eu.FECHA_ENTRADA
+           FROM EVENTOS_USUARIOS eu
+           JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
+           JOIN EVENTOS e ON e.ID_EVENTO = eu.ID_EVENTO
+          WHERE eu.ID_CLIENTE = :id`,
+        { id },
+      );
       // 1) footprint personal / networking (mensajes primero para no dejar huérfanos)
       await del(
         `DELETE FROM MENSAJE_PRIVADO
