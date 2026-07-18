@@ -392,6 +392,8 @@ export interface ResumenPago {
   total: number;
   incluyeIva: boolean;
   yaAdquirido: boolean;
+  /** Si el evento es un workshop y falta comprar su evento principal (de pago). */
+  padreRequerido: { id: number; titulo: string; precio: number } | null;
   portadaUrl: string;
 }
 

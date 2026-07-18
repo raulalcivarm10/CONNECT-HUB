@@ -22,7 +22,7 @@ import {
 } from '@/api/pagos';
 import { CheckoutWidget } from '@/features/pagos/checkout-widget';
 import type { CheckoutWidgetResult } from '@/features/pagos/checkout-shared';
-import { actualizarPerfil } from '@/api/perfil';
+import { actualizarPerfil, useMiPerfil } from '@/api/perfil';
 import { ApiError, errorCode } from '@/api/client';
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -74,11 +74,17 @@ export default function Checkout() {
   const [cupon, setCupon] = useState('');
   const [cuponInfo, setCuponInfo] = useState<CuponValidacion | null>(null);
   const [validandoCupon, setValidandoCupon] = useState(false);
-  // Prompt de cédula (requerida por el checkout del servicio de pagos).
+  // Prompt de DATOS DE FACTURACIÓN antes de pagar: nombre/apellido (van al
+  // certificado), cédula (la exige el checkout externo) y EMAIL_FACTURA (correo
+  // del comprobante — el de login puede ser el relay privado de Apple).
   const [pedirCedula, setPedirCedula] = useState(false);
   const [cedTipo, setCedTipo] = useState('C');
   const [cedNum, setCedNum] = useState('');
+  const [datNombre, setDatNombre] = useState('');
+  const [datApellido, setDatApellido] = useState('');
+  const [datEmailFactura, setDatEmailFactura] = useState('');
   const [guardandoCed, setGuardandoCed] = useState(false);
+  const { data: perfil } = useMiPerfil();
 
   // Evita el DOBLE PAGO por recarga en web: mientras se procesa el pago, el
   // navegador advierte antes de recargar/cerrar (en nativo no hay recarga, y el
@@ -98,12 +104,20 @@ export default function Checkout() {
   //   2) abre el SDK PaymentCheckout DENTRO de la app con esa reference.
   async function pagarConCheckout() {
     if (!idUsuario) return;
-    // el servicio de pagos exige identificación (cédula) → pedirla si falta
-    if (!numeroId) {
-      setPedirCedula(true);
+    // Workshop sin el evento principal comprado → no se puede pagar todavía.
+    if (resumen?.padreRequerido) {
+      aviso(tr('event.parentFirst'), `${resumen.padreRequerido.titulo} · $${resumen.padreRequerido.precio.toFixed(2)}`);
       return;
     }
-    await iniciarPago();
+    // SIEMPRE confirmar los datos de facturación antes de abrir la pasarela:
+    // nombre/apellido (certificado), cédula (la exige el checkout externo) y
+    // correo de facturación (editable por si factura a otro correo).
+    setDatNombre(perfil?.nombre ?? authUser?.nombre ?? '');
+    setDatApellido(perfil?.apellido ?? authUser?.apellido ?? '');
+    setDatEmailFactura(perfil?.emailFactura ?? authUser?.email ?? '');
+    if (numeroId) setCedNum(numeroId);
+    if (perfil?.tipoId || authUser?.tipoId) setCedTipo(perfil?.tipoId ?? authUser!.tipoId!);
+    setPedirCedula(true);
   }
 
   // Pide la referencia y abre el widget (ya con cédula garantizada).
@@ -127,16 +141,26 @@ export default function Checkout() {
     }
   }
 
-  // Guarda la cédula (USUARIOS, la lee el checkout externo) y continúa el pago.
+  // Guarda los datos de facturación (USUARIOS) y continúa el pago.
   async function guardarCedula() {
     const num = cedNum.trim();
-    if (!num) return;
+    const nom = datNombre.trim();
+    const ape = datApellido.trim();
+    const emailFac = datEmailFactura.trim();
+    if (!num || !nom || !ape || !emailFac) return;
     setGuardandoCed(true);
     try {
-      const p = await actualizarPerfil({ tipoId: cedTipo, numeroId: num });
-      if (authUser) setAuthUser({ ...authUser, tipoId: p.tipoId, numeroId: p.numeroId });
+      const p = await actualizarPerfil({
+        // el nombre bloqueado (certificado ya emitido) no se reenvía
+        ...(perfil?.nombreBloqueado ? {} : { nombre: nom, apellido: ape }),
+        tipoId: cedTipo,
+        numeroId: num,
+        emailFactura: emailFac,
+      });
+      if (authUser) {
+        setAuthUser({ ...authUser, nombre: p.nombre, apellido: p.apellido, tipoId: p.tipoId, numeroId: p.numeroId });
+      }
       setPedirCedula(false);
-      setCedNum('');
       await iniciarPago();
     } catch (err) {
       aviso(tr('common.error'), err instanceof ApiError ? err.message : '', true);
@@ -345,19 +369,36 @@ export default function Checkout() {
               ) : null}
             </View>
 
-            {/* Checkout Paymentez (método PRINCIPAL) */}
-            <View style={{ gap: spacing.sm }}>
-              <Button
-                title={`${tr('pay.pay')} ${money(resumen.total)}`}
-                onPress={pagarConCheckout}
-                loading={paying}
-                disabled={!idUsuario}
-              />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center' }}>
-                <Ionicons name="card-outline" size={13} color={t.colors.textFaint} />
-                <AppText muted variant="caption">{tr('pay.checkoutHint')}</AppText>
+            {resumen.padreRequerido ? (
+              /* Workshop sin el evento principal → no se puede pagar aún */
+              <View style={{ gap: spacing.sm, backgroundColor: t.colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: t.colors.border, padding: spacing.lg }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Ionicons name="alert-circle" size={20} color={t.colors.warning} />
+                  <AppText variant="bodyStrong" style={{ flex: 1 }}>{tr('event.parentFirst')}</AppText>
+                </View>
+                <AppText muted variant="caption">
+                  {resumen.padreRequerido.titulo} · {money(resumen.padreRequerido.precio)}
+                </AppText>
+                <Button
+                  title={tr('pay.viewParent')}
+                  onPress={() => router.replace({ pathname: '/evento/[id]', params: { id: resumen.padreRequerido!.id } })}
+                />
               </View>
-            </View>
+            ) : (
+              /* Checkout Paymentez (método PRINCIPAL) */
+              <View style={{ gap: spacing.sm }}>
+                <Button
+                  title={`${tr('pay.pay')} ${money(resumen.total)}`}
+                  onPress={pagarConCheckout}
+                  loading={paying}
+                  disabled={!idUsuario}
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center' }}>
+                  <Ionicons name="card-outline" size={13} color={t.colors.textFaint} />
+                  <AppText muted variant="caption">{tr('pay.checkoutHint')}</AppText>
+                </View>
+              </View>
+            )}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center' }}>
               <Ionicons name="lock-closed" size={13} color={t.colors.textFaint} />
@@ -376,7 +417,8 @@ export default function Checkout() {
         />
       ) : null}
 
-      {/* Prompt de cédula (requerida por el checkout del servicio de pagos) */}
+      {/* Datos de facturación antes de pagar: nombre (certificado) + cédula +
+          correo de facturación (comprobante). Prellenado; editable. */}
       <Modal visible={pedirCedula} transparent animationType="fade" onRequestClose={() => setPedirCedula(false)}>
         <Pressable
           onPress={() => setPedirCedula(false)}
@@ -390,9 +432,33 @@ export default function Checkout() {
               <View style={{ width: 56, height: 56, borderRadius: radius.full, backgroundColor: t.colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="card-outline" size={28} color={t.colors.brand} />
               </View>
-              <AppText variant="subtitle" style={{ textAlign: 'center' }}>{tr('pay.idRequiredTitle')}</AppText>
-              <AppText muted variant="caption" style={{ textAlign: 'center' }}>{tr('pay.idRequiredBody')}</AppText>
+              <AppText variant="subtitle" style={{ textAlign: 'center' }}>{tr('pay.billingTitle')}</AppText>
+              <AppText muted variant="caption" style={{ textAlign: 'center' }}>{tr('pay.billingBody')}</AppText>
             </View>
+
+            {/* Nombre + apellido (van al certificado). Bloqueados si ya hay certificado. */}
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <TextInput
+                value={datNombre}
+                onChangeText={setDatNombre}
+                placeholder={tr('profile.firstName')}
+                placeholderTextColor={t.colors.textFaint}
+                autoCapitalize="words"
+                editable={!perfil?.nombreBloqueado && !guardandoCed}
+                style={{ flex: 1, height: 52, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt, paddingHorizontal: spacing.md, color: t.colors.text, opacity: perfil?.nombreBloqueado ? 0.6 : 1 }}
+              />
+              <TextInput
+                value={datApellido}
+                onChangeText={setDatApellido}
+                placeholder={tr('profile.lastName')}
+                placeholderTextColor={t.colors.textFaint}
+                autoCapitalize="words"
+                editable={!perfil?.nombreBloqueado && !guardandoCed}
+                style={{ flex: 1, height: 52, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt, paddingHorizontal: spacing.md, color: t.colors.text, opacity: perfil?.nombreBloqueado ? 0.6 : 1 }}
+              />
+            </View>
+
+            {/* Identificación */}
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <View style={{ flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt }}>
                 {(['C', 'P', 'R'] as const).map((tp) => {
@@ -417,11 +483,32 @@ export default function Checkout() {
                 placeholderTextColor={t.colors.textFaint}
                 keyboardType="number-pad"
                 maxLength={20}
-                autoFocus
                 style={{ flex: 1, height: 52, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt, paddingHorizontal: spacing.md, color: t.colors.text }}
               />
             </View>
-            <Button title={tr('pay.idSaveContinue')} onPress={guardarCedula} loading={guardandoCed} disabled={!cedNum.trim()} />
+
+            {/* Correo de facturación (comprobante del pago; editable) */}
+            <View style={{ gap: 4 }}>
+              <TextInput
+                value={datEmailFactura}
+                onChangeText={setDatEmailFactura}
+                placeholder={tr('profile.billingEmail')}
+                placeholderTextColor={t.colors.textFaint}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                inputMode="email"
+                style={{ height: 52, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt, paddingHorizontal: spacing.md, color: t.colors.text }}
+              />
+              <AppText muted variant="caption" style={{ fontSize: 11 }}>{tr('pay.billingEmailHint')}</AppText>
+            </View>
+
+            <Button
+              title={tr('pay.idSaveContinue')}
+              onPress={guardarCedula}
+              loading={guardandoCed}
+              disabled={!cedNum.trim() || !datNombre.trim() || !datApellido.trim() || !datEmailFactura.trim()}
+            />
           </Pressable>
         </Pressable>
       </Modal>

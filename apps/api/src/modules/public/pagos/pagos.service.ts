@@ -79,17 +79,24 @@ export class PagosService {
     transactionId: string,
     monto: number,
   ): Promise<{ sent: boolean }> {
-    const u = await this.oracle.query<{ NOMBRE: string | null; APELLIDO: string | null }>(
-      `SELECT NOMBRE, APELLIDO FROM USUARIOS WHERE ID_CLIENTE = :c`,
+    const u = await this.oracle.query<{
+      NOMBRE: string | null;
+      APELLIDO: string | null;
+      EMAIL_FACTURA: string | null;
+    }>(
+      `SELECT NOMBRE, APELLIDO, EMAIL_FACTURA FROM USUARIOS WHERE ID_CLIENTE = :c`,
       { c: idCliente },
     );
-    const nombre = [u[0]?.NOMBRE, u[0]?.APELLIDO].filter(Boolean).join(' ').trim() || email;
+    // El comprobante va al correo de FACTURACIÓN (el de login puede ser el relay
+    // privado de Apple, que el usuario no revisa). Fallback: correo de la cuenta.
+    const destino = u[0]?.EMAIL_FACTURA?.trim() || email;
+    const nombre = [u[0]?.NOMBRE, u[0]?.APELLIDO].filter(Boolean).join(' ').trim() || destino;
     const ev = await this.oracle.query<{ TITULO: string }>(
       `SELECT TITULO FROM EVENTOS WHERE ID_EVENTO = :e`,
       { e: idEvento },
     );
     const titulo = ev[0]?.TITULO ?? 'Evento';
-    const sent = await this.mailer.enviarConfirmacionPago(email, nombre, titulo, monto, transactionId);
+    const sent = await this.mailer.enviarConfirmacionPago(destino, nombre, titulo, monto, transactionId);
     return { sent };
   }
 
@@ -393,6 +400,22 @@ export class PagosService {
     await this.exigirMembresia(idCliente, ev.ID_INSTITUCION!);
     const m = this.montos(ev);
     const ya = await this.yaTieneEntrada(idCliente, idEvento);
+
+    // Regla workshop → evento principal. El cobro real lo hace el SERVICIO
+    // EXTERNO (la app no pasa por nuestro /checkout/iniciar), así que la app
+    // necesita saber AQUÍ si falta el padre para bloquear el pago y avisar.
+    let padreRequerido: { id: number; titulo: string; precio: number } | null = null;
+    if (ev.ID_EVENTO_PADRE && !(await this.yaTieneEntrada(idCliente, ev.ID_EVENTO_PADRE))) {
+      const prows = await this.oracle.query<{ ID_EVENTO: number; TITULO: string; PRECIO: number | null }>(
+        `SELECT ID_EVENTO, TITULO, PRECIO FROM EVENTOS WHERE ID_EVENTO = :id`,
+        { id: ev.ID_EVENTO_PADRE },
+      );
+      const padre = prows[0];
+      if (padre && (padre.PRECIO ?? 0) > 0) {
+        padreRequerido = { id: padre.ID_EVENTO, titulo: padre.TITULO, precio: padre.PRECIO! };
+      }
+    }
+
     return {
       idEvento: ev.ID_EVENTO,
       titulo: ev.TITULO,
@@ -400,6 +423,7 @@ export class PagosService {
       moneda: 'USD',
       ...m,
       yaAdquirido: !!ya,
+      padreRequerido,
       portadaUrl: `${NAS_URL}/archivos/activo?tipoEntidad=EVENTO&id=${ev.ID_EVENTO}&tipoArchivo=PORTADA`,
     };
   }
