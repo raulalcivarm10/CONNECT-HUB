@@ -18,7 +18,7 @@ import { radius, spacing, shadow, fontWeight } from '@/design-system/tokens';
 import { useI18n, Lang } from '@/i18n';
 import { useEvento } from '@/api/catalogo';
 import { useMisEntradas, inscribirEvento } from '@/api/entradas';
-import { ApiError } from '@/api/client';
+import { ApiError, errorCode } from '@/api/client';
 import { ImageViewer } from '@/design-system/image-viewer';
 import { SaveButton } from '@/features/eventos/cards';
 import { resumenDias, shortDate, weekday, dayNum } from '@/lib/fecha';
@@ -311,7 +311,13 @@ export default function EventoDetalle() {
         }
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (errorCode(err) === 'PROFILE_INCOMPLETE') {
+        // falta nombre/apellido (van al certificado) → completar perfil
+        Alert.alert(tr('profile.completeTitle'), tr('profile.completeBody'), [
+          { text: tr('common.cancel'), style: 'cancel' },
+          { text: tr('profile.completeCta'), onPress: () => router.push('/editar-perfil') },
+        ]);
+      } else if (err instanceof ApiError && err.status === 409) {
         Alert.alert(tr('event.parentFirst'), err.message);
       } else {
         Alert.alert(tr('common.error'), '');

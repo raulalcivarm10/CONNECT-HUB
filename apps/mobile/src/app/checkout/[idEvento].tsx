@@ -25,7 +25,7 @@ import {
 import { CheckoutWidget } from '@/features/pagos/checkout-widget';
 import type { CheckoutWidgetResult } from '@/features/pagos/checkout-shared';
 import { actualizarPerfil } from '@/api/perfil';
-import { ApiError } from '@/api/client';
+import { ApiError, errorCode } from '@/api/client';
 
 const BRAND: Record<string, string> = { vi: 'Visa', mc: 'Mastercard', ax: 'Amex', di: 'Diners', dc: 'Diners' };
 
@@ -57,6 +57,18 @@ export default function Checkout() {
   // Aviso informativo con el diálogo propio (Alert.alert no funciona en web).
   const aviso = (title: string, message?: string, danger = false) =>
     void confirm({ title, message, confirmText: tr('common.close'), destructive: danger, icon: danger ? 'card-outline' : 'information-circle-outline' });
+
+  // 409 PROFILE_INCOMPLETE → hay que completar nombre/apellido (van al certificado) antes de comprar.
+  async function pedirCompletarPerfil() {
+    const ok = await confirm({
+      title: tr('profile.completeTitle'),
+      message: tr('profile.completeBody'),
+      confirmText: tr('profile.completeCta'),
+      cancelText: tr('common.cancel'),
+      icon: 'person-outline',
+    });
+    if (ok) router.push('/editar-perfil');
+  }
   const { data: resumen, isLoading, isError } = useResumenPago(evId);
   const idInst = resumen?.idInstitucion ?? null;
   const { data: cards, refetch: refetchCards } = useTarjetas(idInst);
@@ -120,7 +132,9 @@ export default function Checkout() {
         aviso(tr('pay.rejected'), res.motivo ?? '', true);
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (errorCode(err) === 'PROFILE_INCOMPLETE') {
+        await pedirCompletarPerfil();
+      } else if (err instanceof ApiError && err.status === 409) {
         aviso(tr('event.parentFirst'), err.message);
       } else {
         aviso(tr('common.error'), err instanceof ApiError ? err.message : '', true);
@@ -153,8 +167,10 @@ export default function Checkout() {
       // paying sigue true mientras el checkout está abierto
     } catch (err) {
       setPaying(false);
-      // 409 = workshop cuyo evento padre (de pago) aún no se ha comprado.
-      if (err instanceof ApiError && err.status === 409) {
+      if (errorCode(err) === 'PROFILE_INCOMPLETE') {
+        await pedirCompletarPerfil();
+      } else if (err instanceof ApiError && err.status === 409) {
+        // 409 = workshop cuyo evento padre (de pago) aún no se ha comprado.
         aviso(tr('event.parentFirst'), err.message);
       } else {
         aviso(tr('common.error'), err instanceof ApiError ? err.message : '', true);

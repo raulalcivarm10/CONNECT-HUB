@@ -15,10 +15,21 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Cuerpo de la respuesta de error (p.ej. { code: 'PROFILE_INCOMPLETE', ... }). */
+    public data?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** Extrae el `code` de un ApiError (para distinguir 409s: PARENT_REQUIRED, PROFILE_INCOMPLETE…). */
+export function errorCode(err: unknown): string | null {
+  if (err instanceof ApiError && err.data && typeof err.data === 'object') {
+    const c = (err.data as { code?: unknown }).code;
+    return typeof c === 'string' ? c : null;
+  }
+  return null;
 }
 
 let _accessToken: string | null = null;
@@ -96,13 +107,15 @@ async function request<T>(method: string, path: string, opts: RequestOpts = {}):
 
   if (!res.ok) {
     let msg = res.statusText;
+    let body: unknown;
     try {
-      const b = (await res.json()) as { message?: string | string[] };
+      body = await res.json();
+      const b = body as { message?: string | string[] };
       if (b?.message) msg = Array.isArray(b.message) ? b.message.join(', ') : b.message;
     } catch {
       /* sin json */
     }
-    throw new ApiError(res.status, msg);
+    throw new ApiError(res.status, msg, body);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -147,13 +160,15 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   }
   if (!res.ok) {
     let msg = res.statusText;
+    let body: unknown;
     try {
-      const b = (await res.json()) as { message?: string | string[] };
+      body = await res.json();
+      const b = body as { message?: string | string[] };
       if (b?.message) msg = Array.isArray(b.message) ? b.message.join(', ') : b.message;
     } catch {
       /* sin json */
     }
-    throw new ApiError(res.status, msg);
+    throw new ApiError(res.status, msg, body);
   }
   return (await res.json()) as T;
 }
@@ -202,13 +217,15 @@ export async function apiUploadFile<T>(
   }
   if (res.status < 200 || res.status >= 300) {
     let msg = `HTTP ${res.status}`;
+    let body: unknown;
     try {
-      const b = JSON.parse(res.body) as { message?: string | string[] };
+      body = JSON.parse(res.body);
+      const b = body as { message?: string | string[] };
       if (b?.message) msg = Array.isArray(b.message) ? b.message.join(', ') : b.message;
     } catch {
       /* body no-json */
     }
-    throw new ApiError(res.status, msg);
+    throw new ApiError(res.status, msg, body);
   }
   return JSON.parse(res.body) as T;
 }

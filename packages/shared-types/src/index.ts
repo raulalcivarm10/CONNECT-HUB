@@ -251,6 +251,10 @@ export interface MiPerfil {
   numeroCelular: string | null;
   tipoId: string | null;
   numeroId: string | null;
+  /** Correo de facturación (datos de facturación del pago; puede diferir del de la cuenta). */
+  emailFactura: string | null;
+  /** true si ya existe un certificado emitido → nombre/apellido bloqueados. */
+  nombreBloqueado: boolean;
   profesion: string | null;
   empresa: string | null;
   bio: string | null;

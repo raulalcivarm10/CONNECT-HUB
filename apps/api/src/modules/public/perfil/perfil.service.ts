@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OracleService } from '../../../database/oracle.service';
 import { NasService } from '../../archivos/nas.service';
 
@@ -16,6 +16,7 @@ export interface ActualizarPerfilDto {
   numeroCelular?: string | null;
   tipoId?: string | null;
   numeroId?: string | null;
+  emailFactura?: string | null;
   profesion?: string | null;
   empresa?: string | null;
   bio?: string | null;
@@ -74,7 +75,7 @@ export class PerfilService {
   private async cargar(idCliente: string) {
     const rows = await this.oracle.query<Record<string, unknown>>(
       `SELECT u.ID_CLIENTE, u.NOMBRE, u.APELLIDO, u.FOTO_URL, u.EMAIL, u.NUMERO_CELULAR,
-              u.TIPO_ID, u.NUMERO_ID,
+              u.TIPO_ID, u.NUMERO_ID, u.EMAIL_FACTURA,
               p.PROFESION, p.EMPRESA, p.BIO, p.LINKEDIN_URL,
               NVL(p.VISIBILIDAD,'PUBLICO') AS VISIBILIDAD
          FROM USUARIOS u
@@ -93,9 +94,21 @@ export class PerfilService {
     );
   }
 
+  /** true si el asistente ya tiene al menos un certificado emitido (bloquea nombre). */
+  private async tieneCertificado(idCliente: string): Promise<boolean> {
+    const rows = await this.oracle.query<{ N: number }>(
+      `SELECT 1 AS N FROM CERTIFICADOS WHERE ID_CLIENTE = :id AND ROWNUM = 1`,
+      { id: idCliente },
+    );
+    return rows.length > 0;
+  }
+
   /** Mi perfil editable completo. */
   async miPerfil(idCliente: string) {
     const r = await this.cargar(idCliente);
+    // Nombre/apellido representan al DUEÑO (van al certificado): se bloquean una
+    // vez que existe un certificado emitido.
+    const nombreBloqueado = await this.tieneCertificado(idCliente);
     return {
       idCliente: r.ID_CLIENTE as string,
       nombre: (r.NOMBRE as string) ?? null,
@@ -105,6 +118,8 @@ export class PerfilService {
       numeroCelular: (r.NUMERO_CELULAR as string) ?? null,
       tipoId: (r.TIPO_ID as string) ?? null,
       numeroId: (r.NUMERO_ID as string) ?? null,
+      emailFactura: (r.EMAIL_FACTURA as string) ?? null,
+      nombreBloqueado,
       profesion: (r.PROFESION as string) ?? null,
       empresa: (r.EMPRESA as string) ?? null,
       bio: (r.BIO as string) ?? null,
@@ -151,6 +166,18 @@ export class PerfilService {
 
   /** Crea/actualiza mi perfil (USUARIOS básico + PERFIL_ASISTENTE extendido). */
   async actualizar(idCliente: string, dto: ActualizarPerfilDto) {
+    // Bloqueo del nombre del DUEÑO: si ya existe un certificado emitido, no se
+    // permite cambiar NOMBRE/APELLIDO (representan a quién se le certificó). El
+    // resto (facturación, perfil) sigue editable.
+    if (dto.nombre !== undefined || dto.apellido !== undefined) {
+      if (await this.tieneCertificado(idCliente)) {
+        throw new ConflictException({
+          code: 'NAME_LOCKED',
+          message:
+            'Name and surname are locked because a certificate was already issued. Contact the institution to change them.',
+        });
+      }
+    }
     // 1) USUARIOS (solo campos provistos)
     const sets: string[] = [];
     const binds: Record<string, string | null> = { id: idCliente };
@@ -160,6 +187,7 @@ export class PerfilService {
     if (dto.numeroCelular !== undefined) { sets.push('NUMERO_CELULAR = :cel'); binds.cel = dto.numeroCelular?.trim() || null; }
     if (dto.tipoId !== undefined) { sets.push('TIPO_ID = :tipoId'); binds.tipoId = dto.tipoId?.trim() || null; }
     if (dto.numeroId !== undefined) { sets.push('NUMERO_ID = :numeroId'); binds.numeroId = dto.numeroId?.trim() || null; }
+    if (dto.emailFactura !== undefined) { sets.push('EMAIL_FACTURA = :ef'); binds.ef = dto.emailFactura?.trim() || null; }
     if (sets.length) {
       sets.push('FECHA_ACTUALIZACION = SYSTIMESTAMP');
       await this.oracle.execute(

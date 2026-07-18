@@ -15,15 +15,19 @@ import { useAuth } from '@/store/auth';
 import { ApiError } from '@/api/client';
 
 function Field({
-  label, value, onChangeText, placeholder, multiline, autoCapitalize,
+  label, value, onChangeText, placeholder, multiline, autoCapitalize, editable = true, keyboardType, hint,
 }: {
   label: string; value: string; onChangeText: (v: string) => void;
   placeholder?: string; multiline?: boolean; autoCapitalize?: 'none' | 'sentences' | 'words';
+  editable?: boolean; keyboardType?: 'default' | 'email-address' | 'number-pad'; hint?: string;
 }) {
   const t = useTheme();
   return (
     <View style={{ gap: 6 }}>
-      <AppText variant="caption" muted style={{ fontWeight: fontWeight.semibold }}>{label}</AppText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <AppText variant="caption" muted style={{ fontWeight: fontWeight.semibold }}>{label}</AppText>
+        {!editable ? <Ionicons name="lock-closed" size={12} color={t.colors.textFaint} /> : null}
+      </View>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -31,16 +35,20 @@ function Field({
         placeholderTextColor={t.colors.textFaint}
         multiline={multiline}
         autoCapitalize={autoCapitalize}
+        editable={editable}
+        keyboardType={keyboardType}
         style={{
           minHeight: multiline ? 88 : 48,
           borderRadius: radius.md,
           backgroundColor: t.colors.surfaceAlt,
           paddingHorizontal: spacing.md,
           paddingTop: multiline ? 12 : 0,
-          color: t.colors.text,
+          color: editable ? t.colors.text : t.colors.textMuted,
           fontSize: fontSize.md,
+          opacity: editable ? 1 : 0.7,
         }}
       />
+      {hint ? <AppText variant="caption" muted style={{ fontSize: 11 }}>{hint}</AppText> : null}
     </View>
   );
 }
@@ -59,6 +67,7 @@ export default function EditarPerfil() {
   const [fotoUrl, setFotoUrl] = useState('');
   const [tipoId, setTipoId] = useState('C');
   const [numeroId, setNumeroId] = useState('');
+  const [emailFactura, setEmailFactura] = useState('');
   const [profesion, setProfesion] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [bio, setBio] = useState('');
@@ -74,6 +83,7 @@ export default function EditarPerfil() {
       setFotoUrl(data.fotoUrl ?? '');
       setTipoId(data.tipoId ?? 'C');
       setNumeroId(data.numeroId ?? '');
+      setEmailFactura(data.emailFactura ?? '');
       setProfesion(data.profesion ?? '');
       setEmpresa(data.empresa ?? '');
       setBio(data.bio ?? '');
@@ -92,8 +102,12 @@ export default function EditarPerfil() {
     try {
       // la foto se sube aparte (NAS); aquí solo los datos
       const perfil = await actualizarPerfil({
-        nombre, apellido, profesion, empresa, bio,
+        // nombre/apellido no se envían si están bloqueados (certificado emitido):
+        // el backend rechazaría el cambio y no se podría guardar el resto.
+        ...(data?.nombreBloqueado ? {} : { nombre, apellido }),
+        profesion, empresa, bio,
         tipoId, numeroId: numeroId.trim() || null,
+        emailFactura: emailFactura.trim() || null,
         linkedinUrl: linkedin.trim() || null,
         visibilidad: privado ? 'PRIVADO' : 'PUBLICO',
       });
@@ -178,9 +192,14 @@ export default function EditarPerfil() {
             </Pressable>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <View style={{ flex: 1 }}><Field label={tr('profile.firstName')} value={nombre} onChangeText={setNombre} autoCapitalize="words" /></View>
-            <View style={{ flex: 1 }}><Field label={tr('profile.lastName')} value={apellido} onChangeText={setApellido} autoCapitalize="words" /></View>
+            <View style={{ flex: 1 }}><Field label={tr('profile.firstName')} value={nombre} onChangeText={setNombre} autoCapitalize="words" editable={!data?.nombreBloqueado} /></View>
+            <View style={{ flex: 1 }}><Field label={tr('profile.lastName')} value={apellido} onChangeText={setApellido} autoCapitalize="words" editable={!data?.nombreBloqueado} /></View>
           </View>
+          {data?.nombreBloqueado ? (
+            <AppText variant="caption" muted style={{ fontSize: 11 }}>{tr('profile.nameLocked')}</AppText>
+          ) : (
+            <AppText variant="caption" muted style={{ fontSize: 11 }}>{tr('profile.nameCertHint')}</AppText>
+          )}
           {/* Identificación (cédula) — requerida para pagar */}
           <View style={{ gap: 6 }}>
             <AppText variant="caption" muted style={{ fontWeight: fontWeight.semibold }}>{tr('profile.idLabel')}</AppText>
@@ -212,6 +231,17 @@ export default function EditarPerfil() {
               />
             </View>
           </View>
+
+          {/* Correo de facturación (datos de facturación; puede diferir del de la cuenta) */}
+          <Field
+            label={tr('profile.billingEmail')}
+            value={emailFactura}
+            onChangeText={setEmailFactura}
+            placeholder={data?.email}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            hint={tr('profile.billingEmailHint')}
+          />
 
           <Field label={tr('profile.profession')} value={profesion} onChangeText={setProfesion} placeholder={tr('profile.professionPh')} />
           <Field label={tr('profile.company')} value={empresa} onChangeText={setEmpresa} />

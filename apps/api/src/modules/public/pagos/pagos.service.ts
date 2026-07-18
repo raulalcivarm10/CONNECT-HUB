@@ -361,6 +361,32 @@ export class PagosService {
     await this.entradas.emitirPorPago(idCliente, padre.ID_EVENTO);
   }
 
+  /**
+   * Datos de facturación del asistente para el cobro. EXIGE nombre+apellido del
+   * DUEÑO (obligatorios antes de comprar cualquier curso) y usa EMAIL_FACTURA
+   * como correo del comprobante si está definido (puede diferir del de la cuenta).
+   */
+  private async datosPago(idCliente: string, emailCuenta: string) {
+    const rows = await this.oracle.query<{
+      NOMBRE: string | null;
+      APELLIDO: string | null;
+      EMAIL_FACTURA: string | null;
+    }>(
+      `SELECT NOMBRE, APELLIDO, EMAIL_FACTURA FROM USUARIOS WHERE ID_CLIENTE = :c`,
+      { c: idCliente },
+    );
+    const u = rows[0];
+    const nombre = u?.NOMBRE?.trim();
+    const apellido = u?.APELLIDO?.trim();
+    if (!nombre || !apellido) {
+      throw new ConflictException({
+        code: 'PROFILE_INCOMPLETE',
+        message: 'Complete your name and surname in your profile before purchasing',
+      });
+    }
+    return { nombre, apellido, email: u?.EMAIL_FACTURA?.trim() || emailCuenta };
+  }
+
   /** Detalle de precio para pintar el checkout antes de cobrar. */
   async resumenPago(idCliente: string, idEvento: number) {
     const ev = await this.eventoParaPago(idEvento);
@@ -441,6 +467,8 @@ export class PagosService {
       };
     }
     await this.exigirPadre(idCliente, ev);
+    // Exige nombre+apellido y usa EMAIL_FACTURA para el comprobante.
+    const pago = await this.datosPago(idCliente, email);
 
     const tarjeta = await this.tarjetaValida(idCliente, idTarjeta, ev.ID_INSTITUCION!);
     const referencia = genReferencia();
@@ -456,7 +484,7 @@ export class PagosService {
 
     const client = await this.cliente(ev.ID_INSTITUCION!);
     const res = await client.debit(
-      { id: idCliente, email },
+      { id: idCliente, email: pago.email },
       {
         amount: m.total,
         description: ev.TITULO.slice(0, 100),
@@ -522,12 +550,8 @@ export class PagosService {
     if (ya) return { yaAdquirido: true };
     await this.exigirPadre(idCliente, ev);
 
-    const urows = await this.oracle.query<{ NOMBRE: string | null; APELLIDO: string | null }>(
-      `SELECT NOMBRE, APELLIDO FROM USUARIOS WHERE ID_CLIENTE = :c`,
-      { c: idCliente },
-    );
-    const nombre = urows[0]?.NOMBRE || email.split('@')[0];
-    const apellido = urows[0]?.APELLIDO || '-';
+    // Exige nombre+apellido (obligatorios para el certificado) y usa EMAIL_FACTURA.
+    const pago = await this.datosPago(idCliente, email);
 
     const referencia = genReferencia();
     await this.insertarPagoPendiente({
@@ -543,7 +567,7 @@ export class PagosService {
     const base = process.env.PUBLIC_API_URL ?? 'https://connecthub.fourstacklabs.com/api';
     const client = await this.cliente(ev.ID_INSTITUCION!);
     const res = await client.linkToPay({
-      user: { id: idCliente, email, name: nombre, last_name: apellido },
+      user: { id: idCliente, email: pago.email, name: pago.nombre, last_name: pago.apellido },
       order: {
         dev_reference: referencia,
         description: ev.TITULO.slice(0, 100),
@@ -586,12 +610,8 @@ export class PagosService {
     if (ya) return { yaAdquirido: true as const };
     await this.exigirPadre(idCliente, ev);
 
-    const urows = await this.oracle.query<{ NOMBRE: string | null; APELLIDO: string | null }>(
-      `SELECT NOMBRE, APELLIDO FROM USUARIOS WHERE ID_CLIENTE = :c`,
-      { c: idCliente },
-    );
-    const nombre = urows[0]?.NOMBRE || email.split('@')[0];
-    const apellido = urows[0]?.APELLIDO || '-';
+    // Exige nombre+apellido (obligatorios para el certificado) y usa EMAIL_FACTURA.
+    const pago = await this.datosPago(idCliente, email);
 
     const referencia = genReferencia();
     await this.insertarPagoPendiente({
@@ -607,7 +627,7 @@ export class PagosService {
     const creds = await this.credenciales(ev.ID_INSTITUCION!);
     const client = new NuveiClient(creds);
     const res = await client.initReference(
-      { id: idCliente, email, name: nombre, last_name: apellido },
+      { id: idCliente, email: pago.email, name: pago.nombre, last_name: pago.apellido },
       {
         amount: m.total,
         description: ev.TITULO.slice(0, 100),

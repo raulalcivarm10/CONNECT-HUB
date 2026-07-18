@@ -110,9 +110,28 @@ export class EntradasService {
    *  - workshop (hijo) → primero el padre: si el padre es gratis se inscribe
    *    automáticamente; si es de pago, exige inscribir/pagar el padre antes.
    */
+  /** Exige nombre+apellido (dueño de la cuenta → certificado) antes de inscribirse. */
+  private async exigirNombreCompleto(idCliente: string) {
+    const rows = await this.oracle.query<{ NOMBRE: string | null; APELLIDO: string | null }>(
+      `SELECT NOMBRE, APELLIDO FROM USUARIOS WHERE ID_CLIENTE = :c`,
+      { c: idCliente },
+    );
+    const u = rows[0];
+    if (!u?.NOMBRE?.trim() || !u?.APELLIDO?.trim()) {
+      throw new ConflictException({
+        code: 'PROFILE_INCOMPLETE',
+        message: 'Complete your name and surname in your profile before registering',
+      });
+    }
+  }
+
   async inscribir(idCliente: string, idEvento: number) {
     const ev = await this.eventoLite(idEvento);
     const precio = ev.PRECIO ?? 0;
+
+    // Nombre+apellido del dueño son OBLIGATORIOS antes de inscribirse a cualquier
+    // curso (gratis o de pago): representan a quién se le emite el certificado.
+    await this.exigirNombreCompleto(idCliente);
 
     // regla workshop → evento padre
     if (ev.ID_EVENTO_PADRE) {
