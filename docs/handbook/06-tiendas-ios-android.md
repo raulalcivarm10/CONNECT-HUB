@@ -440,17 +440,23 @@ Estas son las respuestas con las que se envio la version actual. Se encuentran e
 | **Upload key** (clave de subida) | La genera y custodia **EAS** (keystore del proyecto) | Firmar el `.aab` que se sube a Play. Google verifica esta firma para aceptar el bundle. |
 | **App Signing key** (clave de firma de la app) | La custodia **Google** | Con ella Google **re-firma** el APK que finalmente se instala en los dispositivos. Es la firma que ve el sistema operativo. |
 
-**SHA-1 de la upload key** (extraida del `.aab`):
+**Huellas digitales de ambas claves** (leidas de Play Console el 2026-07-19). Son **certificados
+publicos**, no secretos, por eso se documentan aqui:
 
-```
-50:6A:79:AB:71:C1:B1:4D:15:27:FE:EB:8A:22:D7:66:0D:2A:73:34
-```
+| Clave | Huella | Algoritmo |
+|---|---|---|
+| 🟢 **App Signing key** | `27:B4:F1:89:9C:11:7F:91:F9:48:CD:50:2A:0C:D3:A9:28:7D:D5:2F` | SHA-1 |
+| 🟢 **App Signing key** | `C0:C0:5F:A4:CA:85:55:5B:BA:84:E5:B9:91:07:1C:D8` | MD5 |
+| 🟢 **App Signing key** | `70:8F:E0:A4:AA:99:A3:A7:90:8E:72:88:98:66:0B:09:B9:51:6A:27:AA:74:31:23:88:2D:AF:08:7C:AB:7D:75` | SHA-256 |
+| ⚪ Upload key | `50:6A:79:AB:71:C1:B1:4D:15:27:FE:EB:8A:22:D7:66:0D:2A:73:34` | SHA-1 |
 
-> 🔴 **CRITICO — el SHA-1 de arriba NO sirve para OAuth en produccion.** Como Google **re-firma** la app, el certificado con el que se instala en el telefono del usuario final es el de la **App Signing key**, no el de la upload key. Cualquier servicio que valide la firma de la app —**Google Sign-In**, Maps, Firebase, App Links— debe registrar el **SHA-1 de la App Signing key**.
+> 🔴 **CRITICO — la SHA-1 de la upload key NO sirve para OAuth en produccion.** Como Google **re-firma** la app, el certificado con el que se instala en el telefono del usuario final es el de la **App Signing key**. Cualquier servicio que valide la firma de la app —**Google Sign-In**, Maps, Firebase, App Links— debe registrar la **SHA-1 de la App Signing key** (la primera fila, `27:B4:F1:…`).
 >
-> **Donde se obtiene:** Play Console → **Integridad de la app → Firma de apps de Play** (*App integrity → App signing*). Ahi aparecen ambos huellas: la de la clave de firma de la app y la de la clave de subida. **Usa la primera.**
+> Fijate en que las dos SHA-1 no se parecen en nada: confundirlas produce un fallo silencioso que solo aparece en la version descargada de Play, nunca en los builds locales.
 >
-> Esta es exactamente la causa del pendiente (1) de §12: Google Sign-In no funcionara en la version de Play hasta registrar ese SHA-1.
+> **Donde se obtiene:** Play Console → **Protegido con Play** → *Proteccion de Play Store* → **"Administrar la firma de apps de Play"** (ruta `/keymanagement`). Ojo: la antigua pagina *Integridad de la app* ya solo redirige aqui.
+>
+> Esto es la base del pendiente (1) de §12.
 
 **Respaldo del keystore:** conviene respaldar la upload key con `eas credentials`. Aun asi, si se pierde **no se pierde la app**: se puede solicitar a Google un **reseteo de la upload key**. Lo que seria irrecuperable es la App Signing key, y esa la custodia Google.
 
@@ -629,25 +635,62 @@ Es la forma mas rapida de validar un cambio en un dispositivo Android real. Para
 
 ## 12. Pendientes conocidos
 
-### (1) 🔴 Google Sign-In no funcionara en la version de Play — falta el client OAuth Android con el SHA-1 correcto
+### (1) 🔴 Google Sign-In roto en Android — el build usa el client OAuth de la app VIEJA
 
-**Problema.** El `eas.json` ya define `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, pero ese client OAuth de Android esta asociado al SHA-1 de la **upload key**. Como **Play App Signing re-firma** la app, el APK que llega al usuario esta firmado con la **App Signing key**, cuyo SHA-1 es distinto. Google rechazara el intento de sign-in con un error de configuracion (tipicamente `DEVELOPER_ERROR` / codigo 10).
+> **Diagnostico VERIFICADO el 2026-07-19.** Una version anterior de este documento suponia que el
+> client era propio pero con el SHA-1 equivocado. Al revisarlo se encontro algo peor (ver abajo).
 
-**Impacto.** Los usuarios de Android que descarguen la app desde Play **no podran iniciar sesion con Google**. Como en Android el login social principal es Google, esto puede dejar la app practicamente inutilizable para usuarios nuevos.
+**Problema.** El valor compilado en el build que esta en revision (versionCode 2) es:
+
+```
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID = 338617760077-ma8eeeis1481u486m00q3tovkjv43huu.apps.googleusercontent.com
+```
+
+Ese client `ma8ee…` es **el de la app Ionic ANTIGUA**, registrado contra el paquete
+`com.quadratech.connecthub`. La app nueva se llama `com.fourstacklabs.connecthub` y se instala
+firmada con la **App Signing key** de Google. Como un client OAuth de tipo Android esta atado a
+**un unico par (paquete, SHA-1)**, ni el paquete ni la firma coinciden y Google rechaza el
+intento de sign-in (tipicamente `DEVELOPER_ERROR` / codigo 10).
+
+Los otros dos client IDs si parecen propios del proyecto — conviene igualmente **verificar que el
+de iOS este atado al bundle `com.fourstacklabs.connecthub`**:
+
+| Variable | Client ID | Estado |
+|---|---|---|
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | `…-ncr1fcr5sosegoevnjhns4rrskvamjuo` | Correcto (verificado antes) |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | `…-2kdidcrko33qet7g3rfv1n5gd1jj4dlq` | ⚠️ Sin verificar el bundle |
+| `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | `…-ma8eeeis1481u486m00q3tovkjv43huu` | 🔴 **Es el de la app vieja** |
+
+**Impacto.** Quien descargue la app de Play **no podra iniciar sesion con Google**. Email/clave y
+Sign in with Apple si funcionan, asi que la app no queda inutilizable, pero se pierde el login
+social principal de Android.
+
+**Por que NO basta con tocar Google Cloud.** La app usa `expo-auth-session`
+(`apps/mobile/src/features/auth/useGoogleAuth.ts`, flujo hibrido `id_token token`) y lee el client
+ID desde `process.env.EXPO_PUBLIC_*`, que Expo **hornea en el binario en tiempo de build**. Cambiar
+algo en Cloud no altera el `.aab` ya subido. **El rebuild es obligatorio.**
 
 **Solucion:**
 
-1. Play Console → **Integridad de la app → Firma de apps de Play** → copiar el **SHA-1 de la clave de firma de la app** (no el de la clave de subida).
-2. Google Cloud Console → proyecto **`338617760077`** ("pagos") → *APIs y servicios → Credenciales*.
-3. Crear (o editar) un **ID de cliente de OAuth de tipo Android** con:
+1. Google Cloud Console → proyecto **`338617760077`** ("pagos") → *APIs y servicios → Credenciales*.
+2. Crear un **ID de cliente OAuth de tipo Android NUEVO** (no editar el `ma8ee…`, que sigue siendo
+   de la app vieja) con:
    - Nombre del paquete: `com.fourstacklabs.connecthub`
-   - Huella digital SHA-1: **la de la App Signing key**
-4. Si el client ID resultante es distinto al actual, actualizar `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` en `apps/mobile/eas.json` (perfiles `preview` y `production`).
-5. **Rebuild y resubida obligatorios** — es un cambio de configuracion horneada en el binario.
+   - Huella digital SHA-1: **`27:B4:F1:89:9C:11:7F:91:F9:48:CD:50:2A:0C:D3:A9:28:7D:D5:2F`**
+     (App Signing key — ver §9.1; **no** la de la upload key)
+3. Actualizar el nuevo client ID en `apps/mobile/eas.json` (aparece en los perfiles `preview` **y**
+   `production`) y en `apps/mobile/.env`.
+4. Recompilar y resubir como **versionCode 3**.
 
-> Se puede registrar **ambos** SHA-1 (upload key y App Signing key) como clients Android separados en el mismo proyecto Cloud, para que Google Sign-In funcione tanto en builds locales/preview como en la version de Play.
+> Opcionalmente, registrar tambien un segundo client Android con el SHA-1 de la **upload key**
+> (`50:6A:79:AB:…`) para que Google Sign-In funcione ademas en los builds locales y de `preview`.
 
-**Prioridad: la mas alta.** Deberia resolverse en la 1.0.1 y, si la app ya salio, tratarse como hotfix.
+**⛔ Bloqueo actual.** La cuenta de Google del navegador (`developer@quadratechsa.com`) **no tiene
+acceso al proyecto `338617760077`** (falta `resourcemanager.projects.get`). Hay que entrar con la
+cuenta propietaria del proyecto de pagos, o concederle acceso a esa cuenta, antes de poder crear
+el client.
+
+**Prioridad: la mas alta.** Resolver en la 1.0.1 y, si la app ya salio, tratarlo como hotfix.
 
 ---
 
