@@ -1,7 +1,13 @@
 /**
  * Registra el Expo push token del dispositivo cuando hay sesión. Solo corre en
- * NATIVO en un dispositivo real (no en web ni simulador). Falla en silencio si
- * faltan permisos o el projectId de EAS (dev sin build).
+ * NATIVO en un dispositivo real (no en web ni simulador). No es fatal: si falla,
+ * la app sigue funcionando sin push, pero AVISA por consola con el motivo.
+ *
+ * OJO: antes este catch era mudo, y eso ocultó durante toda la preparación del
+ * lanzamiento que en Android falta la configuración de FCM (no hay
+ * `google-services.json` ni `android.googleServicesFile` en app.json, ambos
+ * exigidos por Expo SDK 57). Si vuelves a ver el warning de abajo en Android,
+ * es ese pendiente. Ver docs/handbook/06-tiendas-ios-android.md §12.
  */
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
@@ -40,8 +46,10 @@ export function usePushRegistration() {
           projectId ? { projectId } : undefined,
         );
         await registrarPushToken(token.data, Platform.OS);
-      } catch {
-        /* sin permiso / sin projectId / no-device → ignora */
+      } catch (e) {
+        // No relanzamos: la app debe seguir usable sin push. Pero dejamos
+        // rastro del motivo (sin permiso / sin projectId / FCM sin configurar).
+        console.warn('[push] no se pudo registrar el token:', e);
       }
     })();
   }, [status]);
