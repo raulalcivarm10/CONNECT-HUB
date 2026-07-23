@@ -4,6 +4,7 @@ import { setAccessToken, setRefreshHandler } from '@/api/client';
 import { ApiError } from '@/api/client';
 import {
   meReq,
+  loginReq,
   refreshReq,
   registerReq,
   pagosExchangeReq,
@@ -88,11 +89,20 @@ export const useAuth = create<AuthState>((set, get) => ({
     await syncInstitucion();
     return res;
   },
-  // Login = SOLO servicio externo (api-ligaprocorp) + canje por sesión ConnectHub.
+  // Login: primero el servicio externo (api-ligaprocorp) para dejar SESIÓN DE
+  // PAGOS y que el checkout funcione. Si ese servicio no conoce la cuenta o no
+  // responde, cae al login NATIVO de ConnectHub (mismo patrón que `apple`).
+  //
+  // El fallback NO es un caso raro: el registro por correo de esta app crea al
+  // usuario SOLO en ConnectHub (`registerReq`) y el servicio de pagos no expone
+  // un "register-user-password" que lo propague. Sin este fallback, cualquiera
+  // que se registrara por correo quedaba fuera de su cuenta al volver a entrar
+  // — y fue la causa del rechazo de Google, que no pudo iniciar sesión con las
+  // credenciales de revisor. Entrar sin sesión de pagos (checkout no disponible
+  // hasta reintentar) es preferible a no entrar.
   login: async (b) => {
     const ok = await loginPagos(b.email, b.password);
-    if (!ok) throw new ApiError(401, 'invalid credentials');
-    const res = await pagosExchangeReq(getPagosToken()!);
+    const res = ok ? await pagosExchangeReq(getPagosToken()!) : await loginReq(b);
     await persist(set, res);
     await syncInstitucion();
     return res;
