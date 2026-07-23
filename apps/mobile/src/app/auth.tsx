@@ -57,7 +57,11 @@ export default function Auth() {
   const [appleAvailable, setAppleAvailable] = useState(false);
 
   const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>();
-  const [mode, setMode] = useState<Mode>(modeParam === 'login' ? 'login' : 'register');
+  // Abre en LOGIN salvo que se pida registro explícitamente (?mode=register).
+  // Antes abría en registro y quien ya tenía cuenta escribía sus credenciales
+  // en el formulario equivocado ("el correo ya existe"); asi le paso al revisor
+  // de Google Play. Registrarse sigue a un toque, con el enlace de abajo.
+  const [mode, setMode] = useState<Mode>(modeParam === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
