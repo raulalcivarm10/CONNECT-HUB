@@ -33,15 +33,27 @@ function genNonce(): string {
 export function useGoogleAuth(onIdToken: (idToken: string, accessToken: string) => void) {
   // nonce estable durante la vida del request (obligatorio para id_token)
   const [nonce] = useState(genNonce);
+  // ANDROID va aparte: Google NO admite el flujo implícito en clientes de tipo
+  // Android ("Set the parameter value to `code` for installed applications" —
+  // developers.google.com/identity/protocols/oauth2/native-app). Mandarle
+  // 'id_token token' devuelve 400 invalid_request. Se usa authorization-code
+  // con PKCE (el default del provider), que igual entrega idToken Y accessToken
+  // en response.authentication, que es lo que register-google necesita.
+  // iOS y WEB conservan EXACTAMENTE el flujo anterior (no se tocan).
+  const esAndroid = Platform.OS === 'android';
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: WEB,
     iosClientId: IOS,
     androidClientId: ANDROID,
-    // híbrido: id_token (verificación server-side) + access_token (register-google)
-    responseType: 'id_token token' as ResponseType,
-    // PKCE solo aplica a authorization-code; en implícito Google lo rechaza
-    usePKCE: false,
-    extraParams: { nonce },
+    ...(esAndroid
+      ? {}
+      : {
+          // híbrido: id_token (verificación server-side) + access_token (register-google)
+          responseType: 'id_token token' as ResponseType,
+          // PKCE solo aplica a authorization-code; en implícito Google lo rechaza
+          usePKCE: false,
+          extraParams: { nonce },
+        }),
     // En WEB el redirect autorizado en el proyecto Google incluye la ruta
     // (p.ej. http://localhost:8100/auth), no solo el origen. En nativo se deja
     // el default (esquema reverso del client de Google).
