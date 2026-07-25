@@ -1,19 +1,18 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/design-system/theme';
 import { useI18n } from '@/i18n';
 
 export default function TabsLayout() {
   const t = useTheme();
   const { t: tr } = useI18n();
-  // Android 15+ dibuja edge-to-edge: la app queda DETRÁS de la barra de
-  // navegación del sistema (botones/gestos). Hay que sumar el inset inferior
-  // a la tab bar o los botones del sistema tapan las pestañas. En iOS se
-  // conservan los valores fijos de siempre (no se toca su comportamiento).
-  const insets = useSafeAreaInsets();
-  const androidBottom = Math.max(insets.bottom, 8);
+  // Android va SIEMPRE edge-to-edge (Expo SDK 57): la app se dibuja detrás de la
+  // barra de navegación del sistema. Antes forzábamos la altura sumando el inset
+  // a mano, pero si `insets.bottom` llega en 0 el margen se quedaba corto y los
+  // botones del sistema tapaban las pestañas. Ahora NO fijamos altura en Android:
+  // React Navigation v7 añade solo el inset inferior correcto a la tab bar
+  // (`tabBarSafeAreaInset` interno). iOS conserva EXACTAMENTE sus valores fijos.
   return (
     <Tabs
       screenOptions={{
@@ -23,9 +22,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: t.colors.bgElevated,
           borderTopColor: t.colors.border,
-          height: Platform.OS === 'ios' ? 88 : 56 + androidBottom,
           paddingTop: 6,
-          paddingBottom: Platform.OS === 'ios' ? 28 : androidBottom,
+          ...(Platform.OS === 'ios' ? { height: 88, paddingBottom: 28 } : {}),
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
