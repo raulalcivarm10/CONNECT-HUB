@@ -8,8 +8,9 @@ import { AppText, Button, Card } from '@/design-system/components';
 import { useTheme, useThemeMode, palette } from '@/design-system/theme';
 import { radius, spacing, fontSize, fontWeight, shadow } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { useConfirm } from '@/design-system/confirm';
 import { useAuth } from '@/store/auth';
-import { verifyReq } from '@/api/auth';
+import { verifyReq, forgotReq } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { useGoogleAuth } from '@/features/auth/useGoogleAuth';
 import { LoginHero } from '@/features/auth/LoginHero';
@@ -49,6 +50,7 @@ export default function Auth() {
   const t = useTheme();
   const themeMode = useThemeMode();
   const { t: tr } = useI18n();
+  const confirm = useConfirm();
   const router = useRouter();
   const register = useAuth((s) => s.register);
   const login = useAuth((s) => s.login);
@@ -70,8 +72,30 @@ export default function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [devToken, setDevToken] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const isRegister = mode === 'register';
+
+  // Recuperar contraseña: dispara el correo con el enlace de reset (nuestro
+  // backend /public/auth/forgot + SMTP propio). La clave nueva se pone en la
+  // página web /reset a la que apunta el correo. No revela si el correo existe.
+  async function onForgot() {
+    const dest = email.trim();
+    if (!dest) {
+      await confirm({ title: tr('auth.forgot'), message: tr('auth.forgotNeedEmail'), confirmText: tr('common.close'), icon: 'mail-outline' });
+      return;
+    }
+    setForgotLoading(true);
+    setError(null);
+    try {
+      await forgotReq(dest);
+    } catch {
+      /* respuesta uniforme: nunca revela si el correo existe */
+    } finally {
+      setForgotLoading(false);
+    }
+    await confirm({ title: tr('auth.forgotSent'), message: tr('auth.forgotSentBody'), confirmText: tr('common.close'), icon: 'mail-outline' });
+  }
 
   const onGoogleToken = useCallback(
     async (idToken: string, accessToken: string) => {
@@ -217,6 +241,20 @@ export default function Auth() {
               disabled={!email.trim() || !password}
               style={{ marginTop: spacing.sm }}
             />
+
+            {/* Recuperar contraseña — solo en modo login */}
+            {!isRegister ? (
+              <Pressable
+                onPress={onForgot}
+                disabled={forgotLoading}
+                hitSlop={8}
+                style={{ alignSelf: 'center', paddingVertical: spacing.xs, opacity: forgotLoading ? 0.5 : 1 }}
+              >
+                <AppText variant="caption" color={t.colors.brandText} style={{ fontWeight: fontWeight.semibold }}>
+                  {tr('auth.forgot')}
+                </AppText>
+              </Pressable>
+            ) : null}
           </Animated.View>
 
           {/* Divisor */}
