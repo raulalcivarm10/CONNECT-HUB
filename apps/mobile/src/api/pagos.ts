@@ -24,6 +24,7 @@ import { getPagosToken, refreshPagos, pagosUrl } from './pagos-session';
 export interface CheckoutInicio {
   reference: string;
   envMode: 'stg' | 'prod';
+  referencia: string; // dev_reference propia (para confirmar en NUESTRO backend)
 }
 
 export interface CheckoutConfirmacion {
@@ -125,47 +126,51 @@ export function crearCheckout(idEvento: number) {
 }
 
 /**
- * Genera la referencia del Checkout en el SERVICIO DE PAGOS EXTERNO.
- * POST /evento-usuario/eventos/{idEvento}/checkout  body: { idUsuario, cupon? }
- * → { reference, envMode } (tolera respuesta plana o envuelta en data).
+ * Genera la referencia del Checkout en NUESTRO backend (que cobra vía Nuvei del
+ * lado servidor con las credenciales de la institución). Usa la sesión de
+ * ConnectHub (@Asistente) — NO depende del token del servicio de pagos externo,
+ * que no existe cuando la clave se creó/reseteó en nuestro formato.
+ * POST /public/pagos/checkout/iniciar  { idEvento } → { reference, envMode, referencia }
  *
- * El descuento NO se calcula en la app: si el usuario ingresa un código, se
- * envía tal cual y el servicio externo lo valida (EVENTO_CUPONES) y genera la
- * referencia con el monto YA descontado (valor fijo a cobrar).
+ * NOTA (pendiente): este flujo del modal aún NO aplica cupón del lado servidor;
+ * cobra el monto del evento. El `cupon` se acepta por compatibilidad pero se ignora
+ * hasta que el backend lo soporte en iniciarCheckout.
  */
-export async function iniciarCheckout(
-  idEvento: number,
-  idUsuario: string,
-  cupon?: string,
-): Promise<CheckoutInicio> {
-  const body: { idUsuario: string; cupon?: string } = { idUsuario };
-  const codigo = cupon?.trim();
-  if (codigo) body.cupon = codigo;
-  const r = await pagosPost<{ reference?: string; envMode?: string; data?: { reference?: string; envMode?: string } }>(
-    `/evento-usuario/eventos/${idEvento}/checkout`,
-    body,
-  );
-  const reference = r.reference ?? r.data?.reference;
-  const envRaw = (r.envMode ?? r.data?.envMode ?? 'prod').toLowerCase();
-  if (!reference) throw new ApiError(0, 'No reference returned');
-  return { reference, envMode: envRaw.startsWith('prod') ? 'prod' : 'stg' };
+export async function iniciarCheckout(idEvento: number, _cupon?: string): Promise<CheckoutInicio> {
+  const r = await apiPost<{
+    yaAdquirido?: boolean;
+    reference?: string;
+    envMode?: string;
+    referencia?: string;
+  }>('/public/pagos/checkout/iniciar', { idEvento }, true);
+  if (!r.reference || !r.referencia) throw new ApiError(0, 'No reference returned');
+  const envRaw = (r.envMode ?? 'prod').toLowerCase();
+  return { reference: r.reference, envMode: envRaw.startsWith('prod') ? 'prod' : 'stg', referencia: r.referencia };
 }
 
 /**
- * Confirma el pago en el SERVICIO DE PAGOS EXTERNO (procesa e inscribe).
- * POST /evento-usuario/eventos/{idEvento}/checkout/confirmar
- * body: { idUsuario, transactionId, checkoutResponse }
+ * Confirma el pago en NUESTRO backend (verifica en Nuvei e inscribe, idempotente).
+ * POST /public/pagos/checkout/confirmar  { idEvento, referencia, transactionId }
+ * → { aprobado, ... }  (lo mapeamos a { success }).
  */
-export function confirmarCheckout(
+export async function confirmarCheckout(
   idEvento: number,
-  idUsuario: string,
+  referencia: string,
   transactionId: string,
-  checkoutResponse: unknown,
 ): Promise<CheckoutConfirmacion> {
-  return pagosPost<CheckoutConfirmacion>(
-    `/evento-usuario/eventos/${idEvento}/checkout/confirmar`,
-    { idUsuario, transactionId, checkoutResponse },
-  );
+  const r = await apiPost<{
+    aprobado?: boolean;
+    pendiente?: boolean;
+    message?: string;
+    mensaje?: string;
+    nombreEvento?: string;
+    transaccionId?: string;
+  }>('/public/pagos/checkout/confirmar', { idEvento, referencia, transactionId }, true);
+  return {
+    success: r.aprobado === true,
+    message: r.mensaje ?? r.message,
+    data: { transaccionId: r.transaccionId ?? transactionId, nombreEvento: r.nombreEvento },
+  };
 }
 
 /**
