@@ -19,9 +19,13 @@ type Mode = 'login' | 'register';
 
 function Field({
   icon,
+  secureTextEntry,
   ...props
 }: { icon: keyof typeof Ionicons.glyphMap } & React.ComponentProps<typeof TextInput>) {
   const t = useTheme();
+  // Campos de contraseña: ojo para mostrar/ocultar lo que se escribe.
+  const isPassword = !!secureTextEntry;
+  const [reveal, setReveal] = useState(false);
   return (
     <View
       style={{
@@ -40,8 +44,18 @@ function Field({
       <TextInput
         placeholderTextColor={t.colors.textFaint}
         style={{ flex: 1, color: t.colors.text, fontSize: fontSize.md }}
+        secureTextEntry={isPassword && !reveal}
         {...props}
       />
+      {isPassword ? (
+        <Pressable onPress={() => setReveal((v) => !v)} hitSlop={10}>
+          <Ionicons
+            name={reveal ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
+            color={t.colors.textFaint}
+          />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

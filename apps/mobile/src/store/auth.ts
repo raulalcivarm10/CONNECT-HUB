@@ -4,6 +4,7 @@ import { setAccessToken, setRefreshHandler } from '@/api/client';
 import { ApiError } from '@/api/client';
 import {
   meReq,
+  loginReq,
   refreshReq,
   registerReq,
   pagosExchangeReq,
@@ -88,17 +89,17 @@ export const useAuth = create<AuthState>((set, get) => ({
     await syncInstitucion();
     return res;
   },
-  // Login = SOLO servicio externo (api-ligaprocorp) + canje por sesión ConnectHub.
-  // Sin fallback a /public/auth/login A PROPÓSITO: entrar sin sesión de pagos
-  // deja el checkout roto ("token no proporcionado"). La cuenta DEBE validar en
-  // el servicio de pagos; como la tabla USUARIOS es compartida, eso exige que
-  // CLAVE_HASH esté en el formato SHA-256 hex que ese servicio valida (las
-  // cuentas demo de revisor se ajustaron así en BD el 2026-07-23).
+  // Login por correo/clave: NUESTRA API es la fuente de verdad. /public/auth/login
+  // valida CLAVE_HASH (pbkdf2) en USUARIOS y emite el session + refresh token de
+  // la app. La sesión del servicio de pagos se obtiene aparte y best-effort (solo
+  // hace falta para el checkout), sin bloquear el ingreso. Así "recuperar
+  // contraseña" —que reescribe la clave en NUESTRO formato— sí permite entrar.
   login: async (b) => {
-    const ok = await loginPagos(b.email, b.password);
-    if (!ok) throw new ApiError(401, 'invalid credentials');
-    const res = await pagosExchangeReq(getPagosToken()!);
+    const res = await loginReq(b);
     await persist(set, res);
+    // token de pagos para el checkout (si la cuenta también existe allí);
+    // si falla, el ingreso NO se ve afectado, solo el pago hasta reintentar.
+    void loginPagos(b.email, b.password);
     await syncInstitucion();
     return res;
   },

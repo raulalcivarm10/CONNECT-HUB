@@ -10,8 +10,8 @@ export default function Reset() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const token = new URLSearchParams(window.location.search).get('token');
-    if (!token) { setMsg('El enlace no es válido.'); return; }
-    if (password.length < 8) { setMsg('La contraseña debe tener al menos 8 caracteres.'); return; }
+    if (!token) { setMsg('Invalid link.'); return; }
+    if (password.length < 8) { setMsg('Password must be at least 8 characters.'); return; }
     setMsg('');
     setEstado('sending');
     try {
@@ -21,10 +21,10 @@ export default function Reset() {
         body: JSON.stringify({ token, password }),
       });
       if (r.ok) setEstado('ok');
-      else { setEstado('form'); setMsg('El enlace no es válido o ya expiró. Solicita uno nuevo desde la app.'); }
+      else { setEstado('form'); setMsg('This link is invalid or has expired. Request a new one from the app.'); }
     } catch {
       setEstado('form');
-      setMsg('No se pudo conectar. Intenta de nuevo.');
+      setMsg('Could not connect. Please try again.');
     }
   }
 
@@ -42,19 +42,19 @@ export default function Reset() {
         <div style={{ ...card, textAlign: 'center' }}>
           {brand}
           <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 10px', color: '#178a4f' }}>Contraseña actualizada</h1>
-          <p style={{ margin: 0, lineHeight: 1.6, color: '#4a4560' }}>Ya puedes volver a la app e iniciar sesión con tu nueva contraseña.</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 10px', color: '#178a4f' }}>Password updated</h1>
+          <p style={{ margin: 0, lineHeight: 1.6, color: '#4a4560' }}>You can now go back to the app and sign in with your new password.</p>
         </div>
       ) : (
         <form onSubmit={onSubmit} style={card}>
           {brand}
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 6px', textAlign: 'center' }}>Nueva contraseña</h1>
-          <p style={{ margin: '0 0 18px', lineHeight: 1.6, color: '#6b6480', textAlign: 'center', fontSize: 14 }}>Escribe tu nueva contraseña para tu cuenta de ConnectHub.</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 6px', textAlign: 'center' }}>New password</h1>
+          <p style={{ margin: '0 0 18px', lineHeight: 1.6, color: '#6b6480', textAlign: 'center', fontSize: 14 }}>Enter a new password for your ConnectHub account.</p>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Nueva contraseña (mín. 8)"
+            placeholder="New password (min. 8)"
             autoFocus
             style={{ width: '100%', boxSizing: 'border-box', height: 48, borderRadius: 12, border: '1.5px solid #e4dcee', padding: '0 14px', fontSize: 15, marginBottom: 10 }}
           />
@@ -64,7 +64,7 @@ export default function Reset() {
             disabled={estado === 'sending'}
             style={{ width: '100%', height: 48, borderRadius: 12, border: 'none', background: '#7e00dd', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: estado === 'sending' ? 0.7 : 1 }}
           >
-            {estado === 'sending' ? 'Guardando…' : 'Guardar contraseña'}
+            {estado === 'sending' ? 'Saving…' : 'Save password'}
           </button>
         </form>
       )}
