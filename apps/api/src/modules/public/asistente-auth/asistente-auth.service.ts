@@ -10,7 +10,12 @@ import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { OracleService } from '../../../database/oracle.service';
-import { hashPassword, verifyPassword } from '../../../auth/password.util';
+import {
+  verifyPassword,
+  hashPasswordPagos,
+  verifyPasswordPagos,
+  isPagosFormat,
+} from '../../../auth/password.util';
 import { AsistenteMailerService } from './asistente-mailer.service';
 import {
   ASISTENTE_ACCESS_SECRET_ENV,
@@ -54,10 +59,10 @@ function decodeIdCliente(token: string): string | null {
   }
 }
 
-/** CLAVE_HASH es una sola columna → empaquetamos 'salt$clave' del password.util. */
-function packHash(clave: string, salt: string): string {
-  return `${salt}$${clave}`; // pbkdf2sha256$100000$<hex>$<base64>  (4 partes)
-}
+/**
+ * Verifica el formato HEREDADO de ConnectHub: CLAVE_HASH = 'pbkdf2sha256$<iter>$<saltHex>$<claveBase64>'.
+ * (Las cuentas nuevas/reseteadas ya usan el formato del servicio de pagos; ver password.util.ts.)
+ */
 function verifyPacked(password: string, packed: string | null): boolean {
   if (!packed) return false;
   const parts = packed.split('$');
@@ -71,10 +76,10 @@ function verifyPacked(password: string, packed: string | null): boolean {
  * email no existe o no tiene clave: así el PBKDF2 corre SIEMPRE y no se filtra
  * por timing si la cuenta existe. Se computa una sola vez.
  */
-const DUMMY_PACKED = (() => {
-  const { clave, salt } = hashPassword('__decoy__');
-  return packHash(clave, salt);
-})();
+// Señuelo con clave ALEATORIA por proceso (nunca adivinable): si alguna cuenta
+// no tiene CLAVE_HASH, el PBKDF2 corre igual (anti-timing) pero su resultado
+// jamás puede ser true para un atacante. Además el login exige CLAVE_HASH real.
+const DUMMY_PAGOS = hashPasswordPagos(randomBytes(32).toString('hex'));
 
 interface UsuarioRow {
   ID_CLIENTE: string;
@@ -223,8 +228,9 @@ export class AsistenteAuthService {
       throw new ConflictException('Email already registered');
     }
     const id = randomUUID();
-    const { clave, salt } = hashPassword(dto.password);
-    const claveHash = packHash(clave, salt);
+    // Formato del servicio de pagos (Evento-back): la columna CLAVE_HASH es
+    // COMPARTIDA y su login del checkout debe poder validar esta clave. Ver password.util.ts.
+    const claveHash = hashPasswordPagos(dto.password);
     const verificationToken = randomBytes(24).toString('hex');
 
     try {
@@ -280,11 +286,32 @@ export class AsistenteAuthService {
   async login(dto: LoginDto) {
     const email = dto.email.trim().toLowerCase();
     const u = await this.findByEmail(email);
-    // corre PBKDF2 SIEMPRE (incluso si no existe el usuario) para no filtrar
-    // la existencia de la cuenta por timing.
-    const ok = verifyPacked(dto.password, u?.CLAVE_HASH ?? DUMMY_PACKED);
-    if (!u || !ok) {
+    // corre PBKDF2 SIEMPRE (incluso si no existe el usuario) para no filtrar la
+    // existencia de la cuenta por timing. Acepta AMBOS formatos de CLAVE_HASH:
+    // el del servicio de pagos (`salt:hash`) y el heredado de ConnectHub (`pbkdf2sha256$…`).
+    const stored = u?.CLAVE_HASH ?? DUMMY_PAGOS;
+    const ok = isPagosFormat(stored)
+      ? verifyPasswordPagos(dto.password, stored)
+      : verifyPacked(dto.password, stored);
+    // `ok` corre PBKDF2 SIEMPRE (anti-timing). Pero una cuenta SIN CLAVE_HASH
+    // (solo Google/Apple) NUNCA debe entrar por clave: se exige un hash real,
+    // no basta con que `ok` sea true contra el señuelo. Espeja al login del equipo.
+    if (!u || !u.CLAVE_HASH || !ok) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+    // Migración transparente: SOLO cuentas con hash heredado (no null, no pagos)
+    // se reescriben al formato del servicio de pagos para que el checkout (login
+    // externo) funcione sin que el usuario tenga que recuperar su clave. No bloquea.
+    if (u.CLAVE_HASH && !isPagosFormat(u.CLAVE_HASH)) {
+      try {
+        await this.oracle.execute(
+          `UPDATE USUARIOS SET CLAVE_HASH = :h, FECHA_ACTUALIZACION = SYSTIMESTAMP
+            WHERE ID_CLIENTE = :id`,
+          { h: hashPasswordPagos(dto.password), id: u.ID_CLIENTE },
+        );
+      } catch {
+        /* si falla la migración, el login continúa normal */
+      }
     }
     const tokens = await this.issueTokens(u.ID_CLIENTE, u.EMAIL);
     return { ...tokens, user: this.mapUser(u) };
@@ -625,11 +652,12 @@ export class AsistenteAuthService {
     // No permitir resetear la clave de una cuenta anonimizada (eliminada).
     const actual = await this.findById(payload.sub);
     if (!actual) throw new BadRequestException('Invalid reset token');
-    const { clave, salt } = hashPassword(newPassword);
+    // Escribe la nueva clave en el formato del servicio de pagos (Evento-back) para
+    // que el login del checkout la acepte (columna CLAVE_HASH compartida).
     const res = await this.oracle.execute(
       `UPDATE USUARIOS SET CLAVE_HASH = :h, FECHA_ACTUALIZACION = SYSTIMESTAMP
         WHERE ID_CLIENTE = :id`,
-      { h: packHash(clave, salt), id: payload.sub },
+      { h: hashPasswordPagos(newPassword), id: payload.sub },
     );
     if (!res.rowsAffected) throw new BadRequestException('Invalid reset token');
     return { reset: true };
