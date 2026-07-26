@@ -41,9 +41,16 @@ export function pagosUrl(path: string): string {
 
 const KEY_TOKEN = 'ch.pagos.token';
 const KEY_REFRESH = 'ch.pagos.refresh';
+// Credencial de re-login del servicio de pagos: { email, sha } donde sha =
+// SHA-256(clave) — lo MISMO que viaja por la red en login-user-password (nunca
+// el texto plano). Guardarla (SecureStore, cifrado) permite que el checkout
+// recupere la sesión de pagos por sí solo si el login inicial falló (red,
+// carrera con la migración de clave, etc.).
+const KEY_CREDS = 'ch.pagos.creds';
 
 let _token: string | null = null;
 let _refresh: string | null = null;
+let _creds: { email: string; sha: string } | null = null;
 
 export function getPagosToken(): string | null {
   return _token;
@@ -66,12 +73,24 @@ export async function setPagosTokens(token: string | null, refreshToken: string 
 
 /** Restaura la sesión de pagos persistida al arrancar (bootstrap). */
 export async function loadPagosToken() {
-  [_token, _refresh] = await Promise.all([getStoredItem(KEY_TOKEN), getStoredItem(KEY_REFRESH)]);
+  let credsRaw: string | null;
+  [_token, _refresh, credsRaw] = await Promise.all([
+    getStoredItem(KEY_TOKEN),
+    getStoredItem(KEY_REFRESH),
+    getStoredItem(KEY_CREDS),
+  ]);
+  try {
+    _creds = credsRaw ? (JSON.parse(credsRaw) as { email: string; sha: string }) : null;
+  } catch {
+    _creds = null;
+  }
 }
 
 /** Elimina la sesión de pagos (logout o refresh fallido = sesión expirada). */
 export async function clearPagosSession() {
   await setPagosTokens(null, null);
+  _creds = null;
+  await removeStoredItem(KEY_CREDS);
 }
 
 interface SessionResponse {
@@ -89,19 +108,58 @@ async function guardarSesion(res: Response): Promise<boolean> {
   return true;
 }
 
-/** Login email/clave (hashea la clave con SHA-256 antes de enviar). */
-export async function loginPagos(email: string, clave: string): Promise<boolean> {
+/** POST login-user-password con la credencial ya hasheada. */
+async function loginPagosConSha(email: string, sha: string): Promise<boolean> {
   try {
-    const password = await hashClave(clave);
     const res = await fetch(pagosUrl(LOGIN_PATH), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password: sha }),
     });
     return await guardarSesion(res);
   } catch {
     return false;
   }
+}
+
+/**
+ * Login email/clave (hashea la clave con SHA-256 antes de enviar). Guarda la
+ * credencial hasheada AUNQUE el login falle: si falló por una carrera (p.ej. la
+ * clave se migró de formato en ese instante) o por red, ensurePagosSession()
+ * podrá reintentarlo después — el checkout se auto-repara.
+ */
+export async function loginPagos(email: string, clave: string): Promise<boolean> {
+  const sha = await hashClave(clave);
+  _creds = { email, sha };
+  await setStoredItem(KEY_CREDS, JSON.stringify(_creds));
+  return loginPagosConSha(email, sha);
+}
+
+/* ---- recuperación perezosa de la sesión de pagos (para el checkout) ---- */
+
+let _ensuring: Promise<string | null> | null = null;
+
+/**
+ * Garantiza (mejor esfuerzo) un token de pagos ANTES de una llamada al servicio:
+ *  1) si hay token en memoria, se usa;
+ *  2) si no, intenta refresh con el refreshToken persistido;
+ *  3) si tampoco, re-login con la credencial guardada (email + SHA-256).
+ * Single-flight: llamadas concurrentes comparten un solo intento.
+ */
+export function ensurePagosSession(): Promise<string | null> {
+  if (_token) return Promise.resolve(_token);
+  if (_ensuring) return _ensuring;
+  _ensuring = (async () => {
+    try {
+      const renovado = await refreshPagos();
+      if (renovado) return renovado;
+      if (_creds && (await loginPagosConSha(_creds.email, _creds.sha))) return _token;
+      return null;
+    } finally {
+      _ensuring = null;
+    }
+  })();
+  return _ensuring;
 }
 
 /** Login Google en el servicio de pagos (con los tokens de Google OAuth). */

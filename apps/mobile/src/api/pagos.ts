@@ -10,7 +10,7 @@ import type {
   CuponValidacion,
 } from '@connecthub/shared-types';
 import { apiGet, apiPost, apiDelete, ApiError } from './client';
-import { getPagosToken, refreshPagos, pagosUrl } from './pagos-session';
+import { getPagosToken, refreshPagos, ensurePagosSession, pagosUrl } from './pagos-session';
 
 /**
  * Servicio de APIs de pagos (externo — el mismo backend que usa la app Ionic).
@@ -59,8 +59,9 @@ async function pagosPost<T>(path: string, body: unknown): Promise<T> {
   // El servicio externo SOLO acepta SU token (el emitido por su login de pagos).
   // NUNCA se manda el token de ConnectHub como fallback: el externo lo rechaza (401).
   let token = getPagosToken();
-  // Si no hay access en memoria pero sí un refresh persistido, restaura la sesión.
-  if (!token) token = await refreshPagos();
+  // Sin access en memoria → recupera la sesión: refresh persistido o RE-LOGIN
+  // con la credencial guardada (si el login inicial falló por red/carrera).
+  if (!token) token = await ensurePagosSession();
   let res = await send(token);
 
   // 401 (token vencido) → refresh (single-flight) → reintento único.
