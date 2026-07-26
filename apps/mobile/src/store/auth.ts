@@ -89,17 +89,17 @@ export const useAuth = create<AuthState>((set, get) => ({
     await syncInstitucion();
     return res;
   },
-  // Login por correo/clave: NUESTRA API es la fuente de verdad. /public/auth/login
-  // valida CLAVE_HASH (pbkdf2) en USUARIOS y emite el session + refresh token de
-  // la app. La sesión del servicio de pagos se obtiene aparte y best-effort (solo
-  // hace falta para el checkout), sin bloquear el ingreso. Así "recuperar
-  // contraseña" —que reescribe la clave en NUESTRO formato— sí permite entrar.
+  // Login por correo/clave — MISMO flujo que iOS y que la doc del equipo:
+  // PRIMARIO = login-user-password del SERVICIO DE PAGOS (deja token + refresh
+  // de pagos, los que exige el checkout) y se CANJEA por nuestra sesión
+  // (pagosExchangeReq). Si el servicio externo no valida la cuenta (clave
+  // reseteada aún sin migrar, red, etc.), FALLBACK a nuestra API para no
+  // bloquear el ingreso — patrón idéntico al de Apple. El checkout reintentará
+  // la sesión de pagos solo (ensurePagosSession) cuando haga falta.
   login: async (b) => {
-    const res = await loginReq(b);
+    const ok = await loginPagos(b.email, b.password);
+    const res = ok ? await pagosExchangeReq(getPagosToken()!) : await loginReq(b);
     await persist(set, res);
-    // token de pagos para el checkout (si la cuenta también existe allí);
-    // si falla, el ingreso NO se ve afectado, solo el pago hasta reintentar.
-    void loginPagos(b.email, b.password);
     await syncInstitucion();
     return res;
   },
