@@ -68,7 +68,7 @@ export default function Checkout() {
   const { data: resumen, isLoading, isError } = useResumenPago(evId);
 
   const [paying, setPaying] = useState(false);
-  const [checkout, setCheckout] = useState<{ reference: string; envMode: 'stg' | 'prod'; referencia: string } | null>(null);
+  const [checkout, setCheckout] = useState<{ reference: string; envMode: 'stg' | 'prod' } | null>(null);
   // Código de descuento (opcional). El descuento lo aplica el servicio de pagos;
   // el botón "validar" solo consulta EVENTO_CUPONES (ConnectHub) para dar feedback.
   const [cupon, setCupon] = useState('');
@@ -125,8 +125,8 @@ export default function Checkout() {
     if (!idUsuario) return;
     setPaying(true);
     try {
-      const res = await iniciarCheckout(evId, cupon);
-      setCheckout(res); // { reference, envMode, referencia } → renderiza el widget
+      const res = await iniciarCheckout(evId, idUsuario, cupon);
+      setCheckout(res); // { reference, envMode } → renderiza el widget
       // paying sigue true mientras el checkout está abierto
     } catch (err) {
       setPaying(false);
@@ -183,18 +183,18 @@ export default function Checkout() {
     }
   }
 
-  // onResponse del SDK → confirma en NUESTRO backend (verifica en Nuvei e inscribe):
-  //   POST /public/pagos/checkout/confirmar  { idEvento, referencia, transactionId }
+  // onResponse del SDK → confirma en el SERVICIO DE PAGOS (procesa e inscribe):
+  //   POST /evento-usuario/eventos/{id}/checkout/confirmar
+  //   { idUsuario, transactionId, checkoutResponse }
   async function onCheckoutResult(r: CheckoutWidgetResult) {
-    const referencia = checkout?.referencia; // capturar ANTES de limpiar el estado
     setCheckout(null);
     if (r.status === 'cancelled') {
       setPaying(false);
       return;
     }
-    if (r.status === 'success' && r.transactionId && referencia) {
+    if (r.status === 'success' && r.transactionId && idUsuario) {
       try {
-        const res = await confirmarCheckout(evId, referencia, r.transactionId);
+        const res = await confirmarCheckout(evId, idUsuario, r.transactionId, r.raw ?? null);
         setPaying(false);
         if (res.success) {
           // correo de confirmación (best-effort, no bloquea): monto = con descuento si aplicó
