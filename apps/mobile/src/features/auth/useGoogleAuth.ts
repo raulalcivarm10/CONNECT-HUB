@@ -1,20 +1,25 @@
 /**
- * Hook de Google Sign-In (expo-auth-session). Lee los Client IDs de env
- * (EXPO_PUBLIC_GOOGLE_*). Si no hay ninguno configurado, `available` es false
- * y el botón se muestra deshabilitado. Al obtener el id_token, llama onIdToken.
+ * Hook de Google Sign-In. Lee los Client IDs de env (EXPO_PUBLIC_GOOGLE_*).
+ * Si no hay ninguno configurado, `available` es false y el botón se deshabilita.
+ * Al obtener el id_token, llama onIdToken(idToken, accessToken).
  *
- * Flujo HÍBRIDO implícito ('id_token token'): el servicio de pagos exige
- * idToken Y accessToken en register-google. OJO: expo-auth-session solo
- * desactiva PKCE con los ResponseType estándar; con el response type híbrido
- * hay que apagar PKCE a mano (Google rechaza code_challenge_method en flujos
- * implícitos: "Parameter not allowed for this message type") y aportar el
- * nonce manualmente (obligatorio cuando se pide id_token).
+ * ANDROID → librería NATIVA (@react-native-google-signin). El flujo de navegador
+ * (expo-auth-session) fallaba en release: el redirect connecthub://oauthredirect
+ * volvía a la app como "Unmatched Route" y el id_token se perdía. El SDK nativo
+ * no usa redirects (Credential Manager / Play Services) y emite el idToken con
+ * audiencia = WEB client ID, que es la que aceptan los backends (register-google
+ * del servicio de pagos y /public/auth/google nuestro). accessToken sale de
+ * getTokens() — el servicio de pagos lo necesita para la People API.
+ *
+ * iOS y WEB → conservan EXACTAMENTE el flujo anterior (expo-auth-session,
+ * híbrido implícito 'id_token token'); no se tocan (iOS ya enviado a revisión).
  */
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { ResponseType, makeRedirectUri } from 'expo-auth-session';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -23,6 +28,22 @@ const IOS = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 const ANDROID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
 export const googleConfigured = !!(WEB || IOS || ANDROID);
+
+const esAndroid = Platform.OS === 'android';
+
+// configure() es sincrónico e idempotente: una sola vez al cargar el módulo.
+// webClientId (no el Android client) es lo que hace que el idToken salga con
+// audiencia web — la única en la lista de audiencias validada por los backends.
+// Los scopes por defecto (openid profile email) son los mismos del flujo web
+// que ya funcionaba contra register-google, no se piden scopes sensibles.
+if (esAndroid && WEB) {
+  try {
+    GoogleSignin.configure({ webClientId: WEB });
+  } catch {
+    // Expo Go / entorno sin el módulo nativo: el botón queda sin efecto en dev;
+    // en builds EAS (donde sí existe el módulo) configure nunca falla.
+  }
+}
 
 function genNonce(): string {
   let s = '';
@@ -33,14 +54,8 @@ function genNonce(): string {
 export function useGoogleAuth(onIdToken: (idToken: string, accessToken: string) => void) {
   // nonce estable durante la vida del request (obligatorio para id_token)
   const [nonce] = useState(genNonce);
-  // ANDROID va aparte: Google NO admite el flujo implícito en clientes de tipo
-  // Android ("Set the parameter value to `code` for installed applications" —
-  // developers.google.com/identity/protocols/oauth2/native-app). Mandarle
-  // 'id_token token' devuelve 400 invalid_request. Se usa authorization-code
-  // con PKCE (el default del provider), que igual entrega idToken Y accessToken
-  // en response.authentication, que es lo que register-google necesita.
-  // iOS y WEB conservan EXACTAMENTE el flujo anterior (no se tocan).
-  const esAndroid = Platform.OS === 'android';
+  // El hook de expo-auth-session se crea SIEMPRE (regla de hooks) pero en
+  // Android no se usa: promptAsync se reemplaza por el flujo nativo.
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: WEB,
     iosClientId: IOS,
@@ -61,6 +76,7 @@ export function useGoogleAuth(onIdToken: (idToken: string, accessToken: string) 
   });
 
   useEffect(() => {
+    if (esAndroid) return; // Android va por el flujo nativo (sin redirects)
     if (response?.type === 'success') {
       const idToken =
         response.authentication?.idToken ??
@@ -73,8 +89,23 @@ export function useGoogleAuth(onIdToken: (idToken: string, accessToken: string) 
     }
   }, [response, onIdToken]);
 
+  /** Flujo nativo Android: sin navegador ni redirect; entrega idToken+accessToken. */
+  async function nativeSignIn() {
+    // Si había una sesión previa a medias, se limpia para forzar el selector de cuenta.
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const res = await GoogleSignin.signIn();
+      if (res.type !== 'success') return; // 'cancelled' → sin error, igual que antes
+      const { idToken, accessToken } = await GoogleSignin.getTokens();
+      if (idToken) onIdToken(idToken, accessToken ?? '');
+    } catch {
+      // Errores del SDK (sin Play Services, red, etc.): el botón simplemente no
+      // avanza, igual que el comportamiento anterior ante un fallo del navegador.
+    }
+  }
+
   return {
-    promptAsync,
-    available: googleConfigured && !!request,
+    promptAsync: esAndroid ? nativeSignIn : promptAsync,
+    available: esAndroid ? googleConfigured && !!WEB : googleConfigured && !!request,
   };
 }

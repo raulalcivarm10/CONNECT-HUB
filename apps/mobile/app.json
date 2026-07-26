@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": ["connecthub", "com.fourstacklabs.connecthub"],
+    "scheme": [
+      "connecthub",
+      "com.fourstacklabs.connecthub"
+    ],
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.fourstacklabs.connecthub",
@@ -54,7 +57,8 @@
       ],
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import type { AsistenteProfile, AuthResponse } from '@connecthub/shared-types';
 import { setAccessToken, setRefreshHandler } from '@/api/client';
-import { ApiError } from '@/api/client';
 import {
   meReq,
   loginReq,
   refreshReq,
   registerReq,
   pagosExchangeReq,
+  googleReq,
   appleReq,
   deleteAccountReq,
   RegisterBody,
@@ -103,11 +103,13 @@ export const useAuth = create<AuthState>((set, get) => ({
     await syncInstitucion();
     return res;
   },
-  // Google = servicio externo (register-google) + canje.
+  // Google: primero el servicio externo (register-google) + canje, para dejar
+  // SESIÓN DE PAGOS (el checkout la usa). Si el externo falla (red/scopes/etc.),
+  // cae al Google NATIVO de ConnectHub (/public/auth/google) — mismo patrón que
+  // Apple: el login funciona aunque sin sesión de pagos hasta reintentar.
   google: async (idToken, accessToken) => {
     const ok = await loginPagosGoogle(idToken, accessToken ?? '');
-    if (!ok) throw new ApiError(401, 'google auth failed');
-    const res = await pagosExchangeReq(getPagosToken()!);
+    const res = ok ? await pagosExchangeReq(getPagosToken()!) : await googleReq(idToken);
     await persist(set, res);
     await syncInstitucion();
     return res;
