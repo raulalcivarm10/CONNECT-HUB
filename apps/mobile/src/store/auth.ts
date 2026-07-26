@@ -25,6 +25,7 @@ import {
   loginPagosApple,
 } from '@/api/pagos-session';
 import { clearTokens, loadTokens, saveTokens } from '@/lib/tokenStorage';
+import { dlog, jwtInfo, tokenBrief } from '@/lib/debuglog';
 import { useInstitucion } from './institucion';
 
 interface AuthState {
@@ -97,8 +98,17 @@ export const useAuth = create<AuthState>((set, get) => ({
   // bloquear el ingreso — patrón idéntico al de Apple. El checkout reintentará
   // la sesión de pagos solo (ensurePagosSession) cuando haga falta.
   login: async (b) => {
+    dlog('login:inicio', { email: b.email, flujo: 'API del equipo primero (como iOS)' });
     const ok = await loginPagos(b.email, b.password);
+    dlog(ok ? 'login:equipo OK → canje de sesión' : 'login:equipo FALLÓ → fallback API ConnectHub', {});
     const res = ok ? await pagosExchangeReq(getPagosToken()!) : await loginReq(b);
+    dlog('login:sesión ConnectHub OK', {
+      via: ok ? 'canje (pagosExchange)' : 'loginReq (fallback)',
+      accessToken: tokenBrief(res.accessToken),
+      accessPayload: jwtInfo(res.accessToken),
+      refreshToken: tokenBrief(res.refreshToken),
+      user: { id: res.user.id, email: res.user.email },
+    });
     await persist(set, res);
     await syncInstitucion();
     return res;

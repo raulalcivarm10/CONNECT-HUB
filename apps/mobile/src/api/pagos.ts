@@ -11,6 +11,7 @@ import type {
 } from '@connecthub/shared-types';
 import { apiGet, apiPost, apiDelete, ApiError } from './client';
 import { getPagosToken, refreshPagos, ensurePagosSession, pagosUrl } from './pagos-session';
+import { dlog, tokenBrief } from '@/lib/debuglog';
 
 /**
  * Servicio de APIs de pagos (externo — el mismo backend que usa la app Ionic).
@@ -62,10 +63,16 @@ async function pagosPost<T>(path: string, body: unknown): Promise<T> {
   // Sin access en memoria → recupera la sesión: refresh persistido o RE-LOGIN
   // con la credencial guardada (si el login inicial falló por red/carrera).
   if (!token) token = await ensurePagosSession();
+  dlog('checkout:request →', {
+    url: pagosUrl(path),
+    body,
+    authorization: token ? `Bearer ${tokenBrief(token)}` : '(SIN TOKEN — el servicio responderá "token no proporcionado")',
+  });
   let res = await send(token);
 
   // 401 (token vencido) → refresh (single-flight) → reintento único.
   if (res.status === 401) {
+    dlog('checkout:401 → intentando refresh');
     const nuevo = await refreshPagos();
     if (nuevo) res = await send(nuevo);
   }
@@ -74,8 +81,10 @@ async function pagosPost<T>(path: string, body: unknown): Promise<T> {
     | ({ success?: boolean; message?: string; data?: unknown } & Record<string, unknown>)
     | null;
   if (!res.ok) {
+    dlog('checkout:response ERROR', { httpStatus: res.status, respuesta: json ?? res.statusText });
     throw new ApiError(res.status, (json?.message as string) ?? res.statusText);
   }
+  dlog('checkout:response OK', { httpStatus: res.status, respuesta: json });
   return json as T;
 }
 

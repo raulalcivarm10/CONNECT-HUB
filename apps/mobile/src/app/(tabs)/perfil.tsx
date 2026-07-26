@@ -250,6 +250,15 @@ export default function Perfil() {
           />
         </Card>
       ) : null}
+
+      {/* Versión — MANTENER PRESIONADO abre el log de diagnóstico (oculto). */}
+      <Pressable
+        onLongPress={() => router.push('/debug-log' as never)}
+        delayLongPress={600}
+        style={{ alignItems: 'center', paddingVertical: spacing.lg }}
+      >
+        <AppText muted variant="caption">ConnectHub v1.0.0</AppText>
+      </Pressable>
     </Screen>
   );
 }

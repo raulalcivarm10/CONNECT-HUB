@@ -16,6 +16,7 @@
  */
 import * as Crypto from 'expo-crypto';
 import { getStoredItem, removeStoredItem, setStoredItem } from '@/lib/tokenStorage';
+import { dlog, jwtInfo, tokenBrief } from '@/lib/debuglog';
 
 /** Base del servicio de pagos (único host permitido para el checkout). */
 export const PAGOS_API =
@@ -101,23 +102,38 @@ interface SessionResponse {
 }
 
 async function guardarSesion(res: Response): Promise<boolean> {
-  if (!res.ok) return false;
   const j = (await res.json().catch(() => null)) as SessionResponse | null;
-  if (!j?.token) return false;
+  if (!res.ok) {
+    dlog('pagos:sesion RECHAZADA', { httpStatus: res.status, message: j?.message ?? '(sin cuerpo)' });
+    return false;
+  }
+  if (!j?.token) {
+    dlog('pagos:sesion SIN TOKEN', { httpStatus: res.status, message: j?.message });
+    return false;
+  }
   await setPagosTokens(j.token, j.refreshToken ?? null);
+  dlog('pagos:sesion OK', {
+    token: j.token, // access (~1 h) — completo para poder reproducir llamadas
+    tokenPayload: jwtInfo(j.token),
+    refreshToken: tokenBrief(j.refreshToken), // solo prefijo (30 d, no filtrarlo)
+    refreshPayload: jwtInfo(j.refreshToken),
+    message: j.message,
+  });
   return true;
 }
 
 /** POST login-user-password con la credencial ya hasheada. */
 async function loginPagosConSha(email: string, sha: string): Promise<boolean> {
   try {
+    dlog('pagos:login →', { url: pagosUrl(LOGIN_PATH), body: { email, password: `${sha.slice(0, 12)}… (sha256, len ${sha.length})` } });
     const res = await fetch(pagosUrl(LOGIN_PATH), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ email, password: sha }),
     });
     return await guardarSesion(res);
-  } catch {
+  } catch (e) {
+    dlog('pagos:login ERROR RED', { error: e instanceof Error ? e.message : String(e) });
     return false;
   }
 }
@@ -151,9 +167,17 @@ export function ensurePagosSession(): Promise<string | null> {
   if (_ensuring) return _ensuring;
   _ensuring = (async () => {
     try {
+      dlog('pagos:ensure', { tieneRefresh: !!_refresh, tieneCreds: !!_creds });
       const renovado = await refreshPagos();
-      if (renovado) return renovado;
-      if (_creds && (await loginPagosConSha(_creds.email, _creds.sha))) return _token;
+      if (renovado) {
+        dlog('pagos:ensure OK vía refresh', { token: tokenBrief(renovado) });
+        return renovado;
+      }
+      if (_creds && (await loginPagosConSha(_creds.email, _creds.sha))) {
+        dlog('pagos:ensure OK vía re-login', { token: tokenBrief(_token) });
+        return _token;
+      }
+      dlog('pagos:ensure FALLÓ', { motivo: _creds ? 're-login rechazado' : 'sin credencial guardada' });
       return null;
     } finally {
       _ensuring = null;
