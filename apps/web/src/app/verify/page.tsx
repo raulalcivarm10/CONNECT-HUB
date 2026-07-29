@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 type Estado = 'verificando' | 'ok' | 'error';
 
 export default function Verify() {
+  const { t } = useI18n();
   const [estado, setEstado] = useState<Estado>('verificando');
 
   useEffect(() => {
@@ -23,9 +25,9 @@ export default function Verify() {
   }, []);
 
   const contenido = {
-    verificando: { icon: '⏳', title: 'Verificando tu correo…', body: 'Un momento, estamos confirmando tu cuenta.', color: '#6b6480' },
-    ok: { icon: '✅', title: '¡Correo verificado!', body: 'Tu cuenta de ConnectHub quedó confirmada. Ya puedes volver a la app y explorar tus eventos.', color: '#178a4f' },
-    error: { icon: '⚠️', title: 'No pudimos verificar el enlace', body: 'El enlace no es válido o ya expiró. Vuelve a la app y solicita un nuevo correo de verificación.', color: '#c0392b' },
+    verificando: { icon: '⏳', title: t('vf.checking'), body: t('vf.checkingBody'), color: '#6b6480' },
+    ok: { icon: '✅', title: t('vf.ok'), body: t('vf.okBody'), color: '#178a4f' },
+    error: { icon: '⚠️', title: t('vf.fail'), body: t('vf.failBody'), color: '#c0392b' },
   }[estado];
 
   return (

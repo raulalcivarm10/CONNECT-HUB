@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 
 export default function Reset() {
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [estado, setEstado] = useState<'form' | 'sending' | 'ok'>('form');
   const [msg, setMsg] = useState('');
@@ -10,8 +12,8 @@ export default function Reset() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const token = new URLSearchParams(window.location.search).get('token');
-    if (!token) { setMsg('Invalid link.'); return; }
-    if (password.length < 8) { setMsg('Password must be at least 8 characters.'); return; }
+    if (!token) { setMsg(t('rs.invalid')); return; }
+    if (password.length < 8) { setMsg(t('rs.short')); return; }
     setMsg('');
     setEstado('sending');
     try {
@@ -21,10 +23,10 @@ export default function Reset() {
         body: JSON.stringify({ token, password }),
       });
       if (r.ok) setEstado('ok');
-      else { setEstado('form'); setMsg('This link is invalid or has expired. Request a new one from the app.'); }
+      else { setEstado('form'); setMsg(t('rs.expired')); }
     } catch {
       setEstado('form');
-      setMsg('Could not connect. Please try again.');
+      setMsg(t('rs.conn'));
     }
   }
 
@@ -42,19 +44,19 @@ export default function Reset() {
         <div style={{ ...card, textAlign: 'center' }}>
           {brand}
           <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 10px', color: '#178a4f' }}>Password updated</h1>
-          <p style={{ margin: 0, lineHeight: 1.6, color: '#4a4560' }}>You can now go back to the app and sign in with your new password.</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 10px', color: '#178a4f' }}>{t('rs.ok')}</h1>
+          <p style={{ margin: 0, lineHeight: 1.6, color: '#4a4560' }}>{t('rs.okBody')}</p>
         </div>
       ) : (
         <form onSubmit={onSubmit} style={card}>
           {brand}
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 6px', textAlign: 'center' }}>New password</h1>
-          <p style={{ margin: '0 0 18px', lineHeight: 1.6, color: '#6b6480', textAlign: 'center', fontSize: 14 }}>Enter a new password for your ConnectHub account.</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 6px', textAlign: 'center' }}>{t('rs.title')}</h1>
+          <p style={{ margin: '0 0 18px', lineHeight: 1.6, color: '#6b6480', textAlign: 'center', fontSize: 14 }}>{t('rs.body')}</p>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="New password (min. 8)"
+            placeholder={t('rs.ph')}
             autoFocus
             style={{ width: '100%', boxSizing: 'border-box', height: 48, borderRadius: 12, border: '1.5px solid #e4dcee', padding: '0 14px', fontSize: 15, marginBottom: 10 }}
           />
@@ -64,7 +66,7 @@ export default function Reset() {
             disabled={estado === 'sending'}
             style={{ width: '100%', height: 48, borderRadius: 12, border: 'none', background: '#7e00dd', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: estado === 'sending' ? 0.7 : 1 }}
           >
-            {estado === 'sending' ? 'Saving…' : 'Save password'}
+            {estado === 'sending' ? t('c.saving') : t('rs.save')}
           </button>
         </form>
       )}

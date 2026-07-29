@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { api } from '@/lib/api/client';
+import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 
@@ -78,8 +79,7 @@ function Card({
 
 export default function ReportesPage() {
   const { t } = useI18n();
-  const { qs, instituciones, idInstitucion, nombreFiltro } =
-    useInstitucionFiltro();
+  const { idInstitucion, nombreFiltro } = useInstitucionFiltro();
   const [datos, setDatos] = useState<Resumen | null>(null);
   const [anio, setAnio] = useState<string>('');
   const [meses, setMeses] = useState<number[]>([]);
@@ -102,15 +102,57 @@ export default function ReportesPage() {
     );
   }, [idInstitucion, anio, meses, idEvento]);
 
+  // cargar ya depende de idInstitucion (el filtro global), así que este único
+  // efecto cubre también el cambio de institución — antes había un segundo
+  // useEffect por [qs] que duplicaba cada fetch.
   useEffect(() => {
     cargar().catch((e) => setError(e.message));
   }, [cargar]);
 
-  // el filtro global de institución cambia qs; recargamos también con él
-  useEffect(() => {
-    cargar().catch((e) => setError(e.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qs]);
+  /** Exporta el reporte visible: hoja de resumen + hoja por evento. */
+  function exportarExcel() {
+    if (!datos) return;
+    const tot = datos.totales;
+    const resumen = [
+      { [t('x.metric')]: t('rep.events'), [t('x.value')]: tot.eventos },
+      { [t('x.metric')]: t('rep.registered'), [t('x.value')]: tot.inscritos },
+      { [t('x.metric')]: t('rep.attended'), [t('x.value')]: tot.asistieron },
+      { [t('x.metric')]: t('rep.noShow'), [t('x.value')]: tot.noAsistieron },
+      { [t('x.metric')]: t('rep.pending'), [t('x.value')]: tot.pendientes },
+      { [t('x.metric')]: t('rep.rate'), [t('x.value')]: `${tot.tasaAsistencia}%` },
+    ];
+    const porEvento = datos.porEvento.map((e) => {
+      const base = e.ASISTIERON + e.NO_ASISTIERON;
+      return {
+        [t('rep.event')]: e.TITULO,
+        [t('rep.date')]: e.FECHA,
+        [t('rep.expected')]: e.PUBLICO_ESPERADO,
+        [t('rep.registered')]: e.INSCRITOS,
+        [t('rep.attended')]: e.ASISTIERON,
+        [t('rep.noShow')]: e.NO_ASISTIERON,
+        [t('rep.pending')]: e.PENDIENTES,
+        [t('rep.rate')]: base > 0 ? `${Math.round((e.ASISTIERON / base) * 100)}%` : '0%',
+      };
+    });
+    void descargarExcel('attendance-report', [
+      { nombre: t('x.summary'), filas: resumen },
+      { nombre: t('x.byEvent'), filas: porEvento },
+    ]);
+  }
+
+  /** Exporta el detalle de inscritos del modal (incluye fechas no mostradas). */
+  function exportarDetalle() {
+    if (!detalle) return;
+    const filas = detalle.inscritos.map((u) => ({
+      [t('rep.name')]: [u.NOMBRE, u.APELLIDO].filter(Boolean).join(' '),
+      [t('rep.email')]: u.EMAIL,
+      [t('rep.phone')]: u.NUMERO_CELULAR,
+      [t('rep.status')]: t(`at.${u.ASISTENCIA}`),
+      [`${t('rep.date')} (${t('rep.registered')})`]: u.FECHA_REGISTRO,
+      [`${t('rep.date')} (${t('rep.attended')})`]: u.FECHA_ENTRADA,
+    }));
+    void descargarExcel('attendees', [{ nombre: t('x.attendees'), filas }]);
+  }
 
   async function verDetalle(ev: EventoRep) {
     setError(null);
@@ -155,6 +197,13 @@ export default function ReportesPage() {
               : t('rep.subtitle')}
           </p>
         </div>
+        <button
+          onClick={exportarExcel}
+          disabled={!datos || datos.porEvento.length === 0}
+          className="rounded-lg bg-success/15 px-4 py-2 text-sm font-semibold text-success hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          ⬇️ {t('c.excel')}
+        </button>
       </div>
 
       {/* filtros */}
@@ -353,12 +402,21 @@ export default function ReportesPage() {
               <h3 className="font-bold text-text">
                 {t('rep.attendees', { name: detalle.titulo })}
               </h3>
-              <button
-                onClick={() => setDetalle(null)}
-                className="rounded-lg border border-border-app px-3 py-1 text-sm text-text-2 hover:bg-surface-2"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={exportarDetalle}
+                  disabled={detalle.inscritos.length === 0}
+                  className="rounded-lg bg-success/15 px-3 py-1 text-sm font-semibold text-success hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  ⬇️ {t('c.excel')}
+                </button>
+                <button
+                  onClick={() => setDetalle(null)}
+                  className="rounded-lg border border-border-app px-3 py-1 text-sm text-text-2 hover:bg-surface-2"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="max-h-[70vh] overflow-y-auto">
               <table className="w-full text-sm">

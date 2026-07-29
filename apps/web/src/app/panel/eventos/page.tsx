@@ -1384,7 +1384,7 @@ function EventoForm({
               className="flex w-full items-center gap-2 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-left text-sm font-semibold text-text-2 transition hover:bg-surface"
             >
               <span className="text-brand">{certGenOpen ? '▾' : '▸'}</span>
-              Certificados
+              {t('ct.title')}
             </button>
             {certGenOpen && (
               <div className="mt-2">

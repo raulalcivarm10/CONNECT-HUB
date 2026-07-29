@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
 
 interface LogRow {
@@ -81,6 +82,28 @@ export default function AuditoriaPage() {
         />
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inputCls} title={t('aud.from')} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputCls} title={t('aud.to')} />
+        <button
+          onClick={() =>
+            void descargarExcel('audit-log', [
+              {
+                nombre: t('x.audit'),
+                filas: rows.map((r) => ({
+                  [t('aud.date')]: r.FECHA,
+                  [t('aud.user')]: r.USUARIO,
+                  [t('aud.action')]: r.ACCION,
+                  [t('aud.route')]: `${r.METODO} ${r.RUTA}`,
+                  Status: r.STATUS,
+                  IP: r.IP,
+                  Detail: r.DETALLE,
+                })),
+              },
+            ])
+          }
+          disabled={rows.length === 0}
+          className="rounded-lg bg-success/15 px-4 py-2 text-sm font-semibold text-success hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          ⬇️ {t('c.excel')}
+        </button>
       </div>
 
       {error && (
@@ -101,9 +124,8 @@ export default function AuditoriaPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <>
+              <Fragment key={r.ID_LOG}>
                 <tr
-                  key={r.ID_LOG}
                   onClick={() => setAbierto((a) => (a === r.ID_LOG ? null : r.ID_LOG))}
                   className="cursor-pointer border-b border-border-app/60 hover:bg-surface-2"
                 >
@@ -123,7 +145,7 @@ export default function AuditoriaPage() {
                   <td className="whitespace-nowrap px-3 py-2 text-text-muted">{r.IP ?? '—'}</td>
                 </tr>
                 {abierto === r.ID_LOG && r.DETALLE && (
-                  <tr key={`${r.ID_LOG}-d`} className="border-b border-border-app/60 bg-surface-2/60">
+                  <tr className="border-b border-border-app/60 bg-surface-2/60">
                     <td colSpan={6} className="px-4 py-2">
                       <code className="block max-w-full whitespace-pre-wrap break-all text-xs text-text-2">
                         {r.DETALLE}
@@ -131,7 +153,7 @@ export default function AuditoriaPage() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
             {rows.length === 0 && (
               <tr>

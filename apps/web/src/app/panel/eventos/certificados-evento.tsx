@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
+import { useI18n } from '@/lib/i18n';
 
 interface OverlayCampo {
   x: number;
@@ -25,15 +26,17 @@ interface Asistente {
   certificadoCodigo: string | null;
 }
 
-/** Metadatos de cada campo: etiqueta del control, texto de ejemplo en el preview y default. */
+/** Metadatos de cada campo: CLAVE i18n de la etiqueta, clave (o literal) del
+ * texto de ejemplo del preview y default. t() devuelve la clave tal cual si no
+ * existe, así que los ejemplos neutrales ('09:00 - 17:00') van como literales. */
 const CAMPOS: { key: CampoKey; label: string; sample: string; def: OverlayCampo }[] = [
-  { key: 'nombre', label: 'Nombre', sample: 'Nombre del participante', def: { x: 0.5, y: 0.46, size: 0.06, color: '#1e293b', align: 'center', weight: 'bold' } },
-  { key: 'evento', label: 'Evento', sample: 'Nombre del evento', def: { x: 0.5, y: 0.6, size: 0.035, color: '#334155', align: 'center' } },
-  { key: 'fecha', label: 'Fecha', sample: '16 de julio de 2026', def: { x: 0.5, y: 0.72, size: 0.028, color: '#334155', align: 'center' } },
-  { key: 'tipo', label: 'Tipo', sample: 'Asistencia', def: { x: 0.5, y: 0.34, size: 0.03, color: '#64748b', align: 'center' } },
-  { key: 'hora', label: 'Hora', sample: '09:00 - 17:00', def: { x: 0.5, y: 0.78, size: 0.024, color: '#64748b', align: 'center' } },
-  { key: 'institucion', label: 'Institución', sample: 'Institución organizadora', def: { x: 0.5, y: 0.84, size: 0.024, color: '#64748b', align: 'center' } },
-  { key: 'codigo', label: 'Código', sample: 'CERT-XXXXXX', def: { x: 0.5, y: 0.92, size: 0.02, color: '#94a3b8', align: 'center' } },
+  { key: 'nombre', label: 'ct.name', sample: 'ct.sNombre', def: { x: 0.5, y: 0.46, size: 0.06, color: '#1e293b', align: 'center', weight: 'bold' } },
+  { key: 'evento', label: 'ct.fEvento', sample: 'ct.sEvento', def: { x: 0.5, y: 0.6, size: 0.035, color: '#334155', align: 'center' } },
+  { key: 'fecha', label: 'ct.fFecha', sample: 'ct.sFecha', def: { x: 0.5, y: 0.72, size: 0.028, color: '#334155', align: 'center' } },
+  { key: 'tipo', label: 'ct.fTipo', sample: 'ct.sTipo', def: { x: 0.5, y: 0.34, size: 0.03, color: '#64748b', align: 'center' } },
+  { key: 'hora', label: 'ct.fHora', sample: '09:00 - 17:00', def: { x: 0.5, y: 0.78, size: 0.024, color: '#64748b', align: 'center' } },
+  { key: 'institucion', label: 'ct.fInst', sample: 'ct.sInst', def: { x: 0.5, y: 0.84, size: 0.024, color: '#64748b', align: 'center' } },
+  { key: 'codigo', label: 'ct.fCodigo', sample: 'CERT-XXXXXX', def: { x: 0.5, y: 0.92, size: 0.02, color: '#94a3b8', align: 'center' } },
 ];
 const META: Record<CampoKey, (typeof CAMPOS)[number]> = Object.fromEntries(CAMPOS.map((c) => [c.key, c])) as Record<
   CampoKey,
@@ -49,6 +52,7 @@ const DEF: Config = {
 
 /** Gestión de certificados por evento: plantilla-imagen + overlay parametrizable + generación en lote. */
 export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: number; tituloEvento: string }) {
+  const { t } = useI18n();
   const [config, setConfig] = useState<Config>(DEF);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -124,7 +128,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
 
   async function guardar() {
     if (!blob) {
-      setMsg('Sube una imagen de plantilla primero.');
+      setMsg(t('ct.uploadFirst'));
       return;
     }
     setBusy(true);
@@ -134,7 +138,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
       form.append('file', blob, 'plantilla.png');
       form.append('config', JSON.stringify(config));
       await api.upload(`/eventos/${idEvento}/certificados/plantilla`, form);
-      setMsg('Plantilla y posición guardadas ✓');
+      setMsg(t('ct.saved'));
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Error');
     } finally {
@@ -182,7 +186,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
         `/eventos/${idEvento}/certificados/generar`,
         ids ? { idsClientes: ids } : {},
       );
-      setMsg(`Certificados generados: ${res.generados} de ${res.total}.`);
+      setMsg(t('ct.generated', { n: res.generados, total: res.total }));
       setSel(new Set());
       await cargar();
     } catch (err) {
@@ -193,25 +197,22 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
   }
 
   function sampleLabel(k: CampoKey): string {
-    if (k === 'evento') return tituloEvento || META.evento.sample;
-    return META[k].sample;
+    if (k === 'evento') return tituloEvento || t(META.evento.sample);
+    return t(META[k].sample);
   }
 
   const activos = CAMPOS.filter((c) => config[c.key]);
 
   return (
     <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
-      <p className="mb-2 text-sm font-semibold text-text">Certificados</p>
-      <p className="mb-3 text-xs text-text-muted">
-        Sube una imagen de plantilla, activa los datos que quieras mostrar y arrástralos a su posición. Solo se
-        escriben los campos activados. Luego genera los certificados de los asistentes.
-      </p>
+      <p className="mb-2 text-sm font-semibold text-text">{t('ct.title')}</p>
+      <p className="mb-3 text-xs text-text-muted">{t('ct.help')}</p>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Editor de plantilla */}
         <div>
           <label className="inline-block cursor-pointer rounded-lg border border-border-app bg-surface px-3 py-2 text-sm text-text hover:border-brand">
-            {preview ? 'Cambiar plantilla' : 'Subir plantilla (imagen)'}
+            {preview ? t('ct.changeTemplate') : t('ct.uploadTemplate')}
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={onFile} className="hidden" />
           </label>
 
@@ -233,7 +234,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                       }`}
                     >
                       {on ? '✓ ' : '+ '}
-                      {c.label}
+                      {t(c.label)}
                     </button>
                   );
                 })}
@@ -282,9 +283,9 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                 const cfg = config[c.key]!;
                 return (
                   <div key={c.key} className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-                    <span className="w-24 font-semibold text-text">{c.label}</span>
+                    <span className="w-24 font-semibold text-text">{t(c.label)}</span>
                     <label className="flex items-center gap-1">
-                      Tamaño
+                      {t('ct.size')}
                       <input
                         type="range"
                         min={1.5}
@@ -296,7 +297,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                     </label>
                     <input
                       type="color"
-                      aria-label={`color ${c.label}`}
+                      aria-label={`color ${t(c.label)}`}
                       value={cfg.color}
                       onChange={(e) => setCampo(c.key, { color: e.target.value })}
                       className="h-7 w-10 rounded border border-border-app"
@@ -307,15 +308,15 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                         checked={cfg.weight === 'bold'}
                         onChange={(e) => setCampo(c.key, { weight: e.target.checked ? 'bold' : 'normal' })}
                       />
-                      Negrita
+                      {t('ct.bold')}
                     </label>
                     <button
                       type="button"
                       onClick={() => toggleCampo(c.key)}
                       className="ml-auto text-text-muted hover:text-red-500"
-                      aria-label={`quitar ${c.label}`}
+                      aria-label={`${t('ct.remove')} ${t(c.label)}`}
                     >
-                      Quitar
+                      {t('ct.remove')}
                     </button>
                   </div>
                 );
@@ -327,27 +328,27 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                 disabled={busy}
                 className="mt-3 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
               >
-                {busy ? 'Guardando…' : 'Guardar plantilla'}
+                {busy ? t('c.saving') : t('ct.saveTemplate')}
               </button>
             </>
           ) : (
-            <p className="mt-2 text-xs text-text-muted">Aún no hay plantilla para este evento.</p>
+            <p className="mt-2 text-xs text-text-muted">{t('ct.noTemplate')}</p>
           )}
         </div>
 
         {/* Asistentes + generar */}
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-text">Asistentes ({asistentes.length})</span>
+            <span className="text-sm font-semibold text-text">{t('ct.attendees', { n: asistentes.length })}</span>
             <div className="flex items-center gap-2">
               {/* Gafetes imprimibles (nombre + QR de check-in) para entregar en el evento */}
               <a
                 href={`/panel/eventos/gafetes?ev=${idEvento}`}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-border-app px-3 py-1.5 text-sm font-semibold text-text hover:bg-surface-alt"
+                className="rounded-lg border border-border-app px-3 py-1.5 text-sm font-semibold text-text hover:bg-surface-2"
               >
-                🖨 Imprimir gafetes
+                {t('ct.printBadges')}
               </a>
               <button
                 type="button"
@@ -355,7 +356,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                 disabled={busy || asistentes.length === 0}
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
               >
-                {sel.size ? `Generar (${sel.size})` : 'Generar todos'}
+                {sel.size ? t('ct.generateN', { n: sel.size }) : t('ct.generateAll')}
               </button>
             </div>
           </div>
@@ -364,10 +365,10 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
               <thead className="sticky top-0 bg-surface-2 text-xs text-text-muted">
                 <tr>
                   <th className="p-2">
-                    <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="todos" />
+                    <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label={t('gaf.selectAll')} />
                   </th>
-                  <th className="p-2">Nombre</th>
-                  <th className="p-2">Asistió</th>
+                  <th className="p-2">{t('ct.name')}</th>
+                  <th className="p-2">{t('ct.attended')}</th>
                   <th className="p-2">Cert.</th>
                 </tr>
               </thead>
@@ -388,7 +389,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                 {asistentes.length === 0 && (
                   <tr>
                     <td colSpan={4} className="p-3 text-center text-xs text-text-muted">
-                      No hay asistentes inscritos todavía.
+                      {t('ct.noAttendees')}
                     </td>
                   </tr>
                 )}

@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
 
 interface FeedbackRow {
@@ -118,13 +119,35 @@ export default function FeedbackPage() {
       )}
 
       {user?.esSuper && (
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className={inp}>
             <option value="">{t('fb.allStates')}</option>
             {ESTADOS.map((x) => (
               <option key={x} value={x}>{t(`fb.state${x}`)}</option>
             ))}
           </select>
+          <button
+            onClick={() =>
+              void descargarExcel('feedback', [
+                {
+                  nombre: t('fb.title'),
+                  filas: items.map((f) => ({
+                    [t('aud.date')]: f.FECHA,
+                    [t('aud.user')]: f.USUARIO,
+                    [t('ct.fInst')]: f.INSTITUCION,
+                    [t('ct.fTipo')]: t(`fb.type${f.TIPO}`),
+                    [t('rep.status')]: t(`fb.state${f.ESTADO}`),
+                    [t('fb.title')]: f.MENSAJE,
+                    [t('fb.response')]: f.RESPUESTA ?? '',
+                  })),
+                },
+              ])
+            }
+            disabled={items.length === 0}
+            className="rounded-lg bg-success/15 px-4 py-2 text-sm font-semibold text-success hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            ⬇️ {t('c.excel')}
+          </button>
         </div>
       )}
 

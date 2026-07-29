@@ -52,11 +52,18 @@ export default function ReservasPage() {
 
   const porDia = useMemo(() => {
     const m: Record<string, EventoRow[]> = {};
+    const prefijo = `${anio}-${String(mes + 1).padStart(2, '0')}`;
     for (const e of eventos) {
-      const f = (e.FECHA_EVENTO ?? '').slice(0, 10);
-      if (!f.startsWith(`${anio}-${String(mes + 1).padStart(2, '0')}`)) continue;
       if (!delEspacio(e)) continue;
-      (m[f] ??= []).push(e);
+      // Un evento multi-día ocupa TODOS sus días reales (EVENTO_HORAS), no solo
+      // FECHA_EVENTO — igual que el calendario. Si no, sus otros días se ven
+      // "libres" e invitan a dobles reservas.
+      const dias = (e.DIAS ? e.DIAS.split(',') : [e.FECHA_EVENTO ?? '']).filter(Boolean);
+      for (const d of dias) {
+        const f = d.slice(0, 10);
+        if (!f.startsWith(prefijo)) continue;
+        (m[f] ??= []).push(e);
+      }
     }
     return m;
   }, [eventos, anio, mes, delEspacio]);
@@ -193,11 +200,11 @@ function DiaPanel({
     if (!idLocal) return setError(t('rsv.pick'));
     setSending(true);
     try {
+      // CreateEventoDto exige `dias: DiaDto[]` (fecha/horaInicio/horaFin por día);
+      // el body plano anterior (fechaEvento/horaInicio/horaFin) devolvía 400 siempre.
       await api.post('/eventos', {
         titulo: titulo.trim(),
-        fechaEvento: fecha,
-        horaInicio,
-        horaFin,
+        dias: [{ fecha, horaInicio, horaFin }],
         idLocal: Number(idLocal),
         ...(idSalon ? { idSalon: Number(idSalon) } : {}),
         noPublicar: true,

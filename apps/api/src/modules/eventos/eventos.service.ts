@@ -1012,6 +1012,8 @@ export class EventosService {
       ID_CLIENTE: string;
       NOMBRE: string | null;
       APELLIDO: string | null;
+      EMAIL: string | null;
+      NUMERO_ID: string | null;
       QR_TOKEN: string;
       TITULO: string;
       ASISTIO: string | null;
@@ -1019,12 +1021,16 @@ export class EventosService {
       `SELECT eu.ID_CLIENTE,
               COALESCE(u.NOMBRE, lg.NOMBRE) AS NOMBRE,
               COALESCE(u.APELLIDO, lg.APELLIDO) AS APELLIDO,
+              CASE WHEN u.EMAIL LIKE '%@deleted.connecthub.local'
+                   THEN lg.EMAIL ELSE u.EMAIL END AS EMAIL,
+              COALESCE(u.NUMERO_ID, lg.NUMERO_ID) AS NUMERO_ID,
               eu.QR_TOKEN, e.TITULO, eu.ASISTIO
          FROM EVENTOS_USUARIOS eu
          JOIN EVENTOS e ON e.ID_EVENTO = eu.ID_EVENTO
          JOIN USUARIOS u ON u.ID_CLIENTE = eu.ID_CLIENTE
          LEFT JOIN (SELECT ID_CLIENTE, ID_EVENTO, MAX(NOMBRE) AS NOMBRE,
-                           MAX(APELLIDO) AS APELLIDO
+                           MAX(APELLIDO) AS APELLIDO, MAX(EMAIL) AS EMAIL,
+                           MAX(NUMERO_ID) AS NUMERO_ID
                       FROM LOG_PARTICIPANTES_EVENTO GROUP BY ID_CLIENTE, ID_EVENTO) lg
                 ON lg.ID_CLIENTE = eu.ID_CLIENTE AND lg.ID_EVENTO = eu.ID_EVENTO
         WHERE eu.ID_EVENTO = :e AND eu.QR_TOKEN IS NOT NULL
@@ -1036,6 +1042,8 @@ export class EventosService {
       asistentes: rows.map((r) => ({
         idCliente: r.ID_CLIENTE,
         nombre: [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ').trim() || 'Participante',
+        email: r.EMAIL ?? '',
+        numeroId: r.NUMERO_ID ?? '',
         qrToken: r.QR_TOKEN,
         asistio: (r.ASISTIO ?? 'N') === 'S',
       })),
