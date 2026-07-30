@@ -1,8 +1,10 @@
-const NAS_URL =
-  process.env.NEXT_PUBLIC_NAS_URL ?? 'https://api-ligaprocorp.ec:3443/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 /**
- * URL pública de la imagen activa en el NAS de archivos.
+ * URL de la imagen activa, SIEMPRE a través de NUESTRO API:
+ *  - CONFIGURACION → se guarda en nuestra BD (el NAS no soporta esa entidad).
+ *  - Resto → proxy con caché Redis del NAS (/archivos/proxy): mucho más rápido
+ *    y sigue sirviendo aunque el NAS ande lento o caído.
  * `version` fuerza recarga tras subir una imagen nueva (rompe caché del navegador).
  */
 export type NasEntidad =
@@ -26,8 +28,11 @@ export function nasImagenUrl(
     | 'FOTO' = 'PORTADA',
   version?: number,
 ): string {
+  if (tipoEntidad === 'CONFIGURACION') {
+    return `${API_URL}/configuraciones/${id}/imagen${version ? `?v=${version}` : ''}`;
+  }
   return (
-    `${NAS_URL}/archivos/activo?tipoEntidad=${tipoEntidad}&id=${id}` +
+    `${API_URL}/archivos/proxy?tipoEntidad=${tipoEntidad}&id=${id}` +
     `&tipoArchivo=${tipoArchivo}${version ? `&v=${version}` : ''}`
   );
 }

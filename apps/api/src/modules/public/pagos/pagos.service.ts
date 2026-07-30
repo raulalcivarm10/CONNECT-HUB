@@ -48,7 +48,8 @@ export interface NuevaTarjeta {
   cvc: string;
 }
 
-const NAS_URL = process.env.NAS_URL ?? 'https://api-ligaprocorp.ec:3443/api';
+// Imágenes vía NUESTRO proxy con caché Redis (no directo al NAS: ver archivos-proxy.controller)
+const PROXY_BASE = `${process.env.APP_URL ?? 'https://connecthub.fourstacklabs.com'}/api`;
 
 /**
  * Cobro de eventos de pago vía Nuvei/Paymentez. El servidor recalcula el monto
@@ -429,7 +430,7 @@ export class PagosService {
       ...m,
       yaAdquirido: !!ya,
       padreRequerido,
-      portadaUrl: `${NAS_URL}/archivos/activo?tipoEntidad=EVENTO&id=${ev.ID_EVENTO}&tipoArchivo=PORTADA`,
+      portadaUrl: `${PROXY_BASE}/archivos/proxy?tipoEntidad=EVENTO&id=${ev.ID_EVENTO}&tipoArchivo=PORTADA`,
     };
   }
 

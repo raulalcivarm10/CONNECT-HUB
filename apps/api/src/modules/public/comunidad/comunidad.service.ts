@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OracleService } from '../../../database/oracle.service';
 
-const NAS_URL = process.env.NAS_URL ?? 'https://api-ligaprocorp.ec:3443/api';
+// Imágenes vía NUESTRO proxy con caché Redis (no directo al NAS: ver archivos-proxy.controller)
+const PROXY_BASE = `${process.env.APP_URL ?? 'https://connecthub.fourstacklabs.com'}/api`;
 function portadaUrl(id: number) {
-  return `${NAS_URL}/archivos/activo?tipoEntidad=EVENTO&id=${id}&tipoArchivo=PORTADA`;
+  return `${PROXY_BASE}/archivos/proxy?tipoEntidad=EVENTO&id=${id}&tipoArchivo=PORTADA`;
 }
 
 /**

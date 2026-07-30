@@ -1,15 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OracleService } from '../../../database/oracle.service';
 
-const NAS_URL = process.env.NAS_URL ?? 'https://api-ligaprocorp.ec:3443/api';
+// Las imágenes se sirven vía NUESTRO proxy con caché Redis (/archivos/proxy),
+// no directo al NAS: la app carga en ms y sobrevive lentitud/caídas del NAS.
+const PROXY_BASE =
+  `${process.env.APP_URL ?? 'https://connecthub.fourstacklabs.com'}/api`;
 
 /**
- * URL pública de una imagen del NAS (usable directo en <Image>). Con `version`
+ * URL pública de una imagen (usable directo en <Image>). Con `version`
  * (timestamp de la última carga en ARCHIVOS) agrega `&v=...` como cache-bust:
  * al reemplazar la imagen en el panel la URL cambia → el cliente muestra la nueva.
  */
 function nasUrl(tipoEntidad: string, id: number, tipoArchivo = 'PORTADA', version?: string | null) {
-  const base = `${NAS_URL}/archivos/activo?tipoEntidad=${tipoEntidad}&id=${id}&tipoArchivo=${tipoArchivo}`;
+  const base = `${PROXY_BASE}/archivos/proxy?tipoEntidad=${tipoEntidad}&id=${id}&tipoArchivo=${tipoArchivo}`;
   return version ? `${base}&v=${version}` : base;
 }
 

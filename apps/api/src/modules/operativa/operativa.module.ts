@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ArchivosModule } from '../archivos/archivos.module';
 import { OperativaController } from './operativa.controller';
+import { ConfiguracionImagenController } from './configuracion-imagen.controller';
 import { ScopeService } from './scope.service';
 import { LocalesService } from './locales.service';
 import { SalonesService } from './salones.service';
@@ -12,7 +13,7 @@ import { EspaciosImagenesService } from './espacios-imagenes.service';
 // que proveerá el usuario; esa integración reemplazará la lógica BLOB local.
 @Module({
   imports: [ArchivosModule],
-  controllers: [OperativaController],
+  controllers: [OperativaController, ConfiguracionImagenController],
   providers: [
     ScopeService,
     LocalesService,

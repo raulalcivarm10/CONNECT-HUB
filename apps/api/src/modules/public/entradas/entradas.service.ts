@@ -8,9 +8,10 @@ import { randomBytes } from 'node:crypto';
 import { OracleService } from '../../../database/oracle.service';
 import { renderCertificado, type CertOverlayConfig } from './certificado-render';
 
-const NAS_URL = process.env.NAS_URL ?? 'https://api-ligaprocorp.ec:3443/api';
+// Imágenes vía NUESTRO proxy con caché Redis (no directo al NAS: ver archivos-proxy.controller)
+const PROXY_BASE = `${process.env.APP_URL ?? 'https://connecthub.fourstacklabs.com'}/api`;
 function portadaUrl(id: number) {
-  return `${NAS_URL}/archivos/activo?tipoEntidad=EVENTO&id=${id}&tipoArchivo=PORTADA`;
+  return `${PROXY_BASE}/archivos/proxy?tipoEntidad=EVENTO&id=${id}&tipoArchivo=PORTADA`;
 }
 
 const MESES_ES = [
