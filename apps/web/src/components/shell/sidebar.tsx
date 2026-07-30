@@ -161,6 +161,12 @@ export function Sidebar() {
               href="/panel/reportes"
               label={t('side.attendance')}
               icon={IconChart}
+              exact
+            />
+            <NavLink
+              href="/panel/reportes/salones"
+              label={t('side.venueUsage')}
+              icon={IconChart}
             />
           </div>
         )}

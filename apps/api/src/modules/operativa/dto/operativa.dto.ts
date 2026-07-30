@@ -4,10 +4,12 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateLocalDto {
@@ -29,23 +31,31 @@ export class CreateSalonDto {
   @ApiProperty() @IsString() @MaxLength(150) nombre: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() esSubdivisible?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsInt() @IsPositive() capacidadMax?: number;
+  @ApiPropertyOptional({ description: 'Tarifa de alquiler por día (USD)' })
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) precio?: number;
 }
 
 export class UpdateSalonDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(150) nombre?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() esSubdivisible?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsInt() @IsPositive() capacidadMax?: number;
+  @ApiPropertyOptional({ description: 'Tarifa de alquiler por día (USD)' })
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) precio?: number;
 }
 
 export class CreateSubsalonDto {
   @ApiProperty() @IsInt() idSalon: number;
   @ApiProperty() @IsString() @MaxLength(150) nombre: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @IsPositive() capacidadMax?: number;
+  @ApiPropertyOptional({ description: 'Tarifa de alquiler por día (USD)' })
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) precio?: number;
 }
 
 export class UpdateSubsalonDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(150) nombre?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @IsPositive() capacidadMax?: number;
+  @ApiPropertyOptional({ description: 'Tarifa de alquiler por día (USD)' })
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) precio?: number;
 }
 
 export class CreateConfiguracionDto {

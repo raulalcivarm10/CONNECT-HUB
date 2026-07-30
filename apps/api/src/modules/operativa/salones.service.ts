@@ -24,7 +24,7 @@ export class SalonesService {
     await this.scope.local(actor, idLocal);
     return this.oracle.query(
       `SELECT s.ID_SALON, s.ID_LOCAL, s.NOMBRE, s.ES_SUBDIVISIBLE, s.CAPACIDAD_MAX,
-              s.FECHA_REGISTRO,
+              s.PRECIO, s.FECHA_REGISTRO,
               (SELECT COUNT(*) FROM SUBSALONES ss WHERE ss.ID_SALON = s.ID_SALON) AS TOTAL_SUBSALONES,
               (SELECT COUNT(*) FROM SUBSALON_CONFIGURACIONES c WHERE c.ID_SALON = s.ID_SALON) AS TOTAL_CONFIGURACIONES
          FROM SALONES s
@@ -37,14 +37,15 @@ export class SalonesService {
   async create(actor: JwtUser, dto: CreateSalonDto) {
     await this.scope.local(actor, dto.idLocal);
     const result = await this.oracle.execute(
-      `INSERT INTO SALONES (ID_LOCAL, NOMBRE, ES_SUBDIVISIBLE, CAPACIDAD_MAX)
-       VALUES (:idLocal, :nombre, :subdiv, :capacidad)
+      `INSERT INTO SALONES (ID_LOCAL, NOMBRE, ES_SUBDIVISIBLE, CAPACIDAD_MAX, PRECIO)
+       VALUES (:idLocal, :nombre, :subdiv, :capacidad, :precio)
        RETURNING ID_SALON INTO :out`,
       {
         idLocal: dto.idLocal,
         nombre: dto.nombre,
         subdiv: dto.esSubdivisible ? 'S' : 'N',
         capacidad: dto.capacidadMax ?? null,
+        precio: { val: dto.precio ?? null, type: this.oracle.NUMBER },
         out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
       },
     );
@@ -106,7 +107,8 @@ export class SalonesService {
       `UPDATE SALONES SET
          NOMBRE = NVL(:nombre, NOMBRE),
          ES_SUBDIVISIBLE = NVL(:subdiv, ES_SUBDIVISIBLE),
-         CAPACIDAD_MAX = COALESCE(:capacidad, CAPACIDAD_MAX)
+         CAPACIDAD_MAX = COALESCE(:capacidad, CAPACIDAD_MAX),
+         PRECIO = COALESCE(:precio, PRECIO)
        WHERE ID_SALON = :id`,
       {
         nombre: dto.nombre ?? null,
@@ -114,6 +116,7 @@ export class SalonesService {
           dto.esSubdivisible == null ? null : dto.esSubdivisible ? 'S' : 'N',
         // tipado explícito: bind numérico nulo dentro de COALESCE (ORA-00932)
         capacidad: { val: dto.capacidadMax ?? null, type: this.oracle.NUMBER },
+        precio: { val: dto.precio ?? null, type: this.oracle.NUMBER },
         id: idSalon,
       },
     );
@@ -173,7 +176,7 @@ export class SalonesService {
   async listSubsalones(actor: JwtUser, idSalon: number) {
     await this.scope.salon(actor, idSalon);
     return this.oracle.query(
-      `SELECT ID_SUBSALON, ID_SALON, NOMBRE, CAPACIDAD_MAX, FECHA_REGISTRO
+      `SELECT ID_SUBSALON, ID_SALON, NOMBRE, CAPACIDAD_MAX, PRECIO, FECHA_REGISTRO
          FROM SUBSALONES WHERE ID_SALON = :idSalon ORDER BY NOMBRE`,
       { idSalon },
     );
@@ -183,13 +186,14 @@ export class SalonesService {
     await this.scope.salon(actor, dto.idSalon);
     await this.validarCapacidad(dto.idSalon, dto.capacidadMax);
     const result = await this.oracle.execute(
-      `INSERT INTO SUBSALONES (ID_SALON, NOMBRE, CAPACIDAD_MAX)
-       VALUES (:idSalon, :nombre, :capacidad)
+      `INSERT INTO SUBSALONES (ID_SALON, NOMBRE, CAPACIDAD_MAX, PRECIO)
+       VALUES (:idSalon, :nombre, :capacidad, :precio)
        RETURNING ID_SUBSALON INTO :out`,
       {
         idSalon: dto.idSalon,
         nombre: dto.nombre,
         capacidad: dto.capacidadMax ?? null,
+        precio: { val: dto.precio ?? null, type: this.oracle.NUMBER },
         out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
       },
     );
@@ -202,11 +206,13 @@ export class SalonesService {
     await this.oracle.execute(
       `UPDATE SUBSALONES SET
          NOMBRE = NVL(:nombre, NOMBRE),
-         CAPACIDAD_MAX = COALESCE(:capacidad, CAPACIDAD_MAX)
+         CAPACIDAD_MAX = COALESCE(:capacidad, CAPACIDAD_MAX),
+         PRECIO = COALESCE(:precio, PRECIO)
        WHERE ID_SUBSALON = :id`,
       {
         nombre: dto.nombre ?? null,
         capacidad: { val: dto.capacidadMax ?? null, type: this.oracle.NUMBER },
+        precio: { val: dto.precio ?? null, type: this.oracle.NUMBER },
         id: idSubsalon,
       },
     );

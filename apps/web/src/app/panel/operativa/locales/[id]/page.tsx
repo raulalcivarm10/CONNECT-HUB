@@ -126,6 +126,11 @@ export default function LocalDetallePage() {
                       subs: s.TOTAL_SUBSALONES,
                       confs: s.TOTAL_CONFIGURACIONES,
                     })}
+                    {s.PRECIO != null && (
+                      <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
+                        ${Number(s.PRECIO).toFixed(2)} / {t('sal.perDay')}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -184,6 +189,9 @@ function SalonForm({
   const [capacidad, setCapacidad] = useState(
     salon?.CAPACIDAD_MAX ? String(salon.CAPACIDAD_MAX) : '',
   );
+  const [precio, setPrecio] = useState(
+    salon?.PRECIO != null ? String(salon.PRECIO) : '',
+  );
   const [subdivisible, setSubdivisible] = useState(
     salon?.ES_SUBDIVISIBLE === 'S',
   );
@@ -198,6 +206,7 @@ function SalonForm({
       nombre: nombre.trim(),
       esSubdivisible: subdivisible,
       ...(capacidad ? { capacidadMax: Number(capacidad) } : {}),
+      ...(precio !== '' ? { precio: Number(precio) } : {}),
     };
     try {
       if (salon) await api.patch(`/salones/${salon.ID_SALON}`, data);
@@ -234,6 +243,20 @@ function SalonForm({
           min={1}
           value={capacidad}
           onChange={(e) => setCapacidad(e.target.value)}
+          className="w-32 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-text-2">
+          {t('sal.price')}
+        </label>
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
+          placeholder="0.00"
           className="w-32 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
         />
       </div>
@@ -303,6 +326,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
   const [items, setItems] = useState<SubsalonRow[]>([]);
   const [nombre, setNombre] = useState('');
   const [capacidad, setCapacidad] = useState('');
+  const [precio, setPrecio] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -324,9 +348,11 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
         idSalon,
         nombre: nombre.trim(),
         ...(capacidad ? { capacidadMax: Number(capacidad) } : {}),
+        ...(precio !== '' ? { precio: Number(precio) } : {}),
       });
       setNombre('');
       setCapacidad('');
+      setPrecio('');
       await cargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error');
@@ -368,6 +394,15 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
           placeholder={t('sal.capacity')}
           value={capacidad}
           onChange={(e) => setCapacidad(e.target.value)}
+          className="w-28 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-brand"
+        />
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          placeholder={t('sal.price')}
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
           className="w-28 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-sm text-text outline-none focus:border-brand"
         />
         <button
@@ -417,6 +452,9 @@ function SubsalonItem({
   const [capacidad, setCapacidad] = useState(
     subsalon.CAPACIDAD_MAX ? String(subsalon.CAPACIDAD_MAX) : '',
   );
+  const [precio, setPrecio] = useState(
+    subsalon.PRECIO != null ? String(subsalon.PRECIO) : '',
+  );
   const [sending, setSending] = useState(false);
 
   async function guardar(e: FormEvent) {
@@ -427,6 +465,7 @@ function SubsalonItem({
       await api.patch(`/subsalones/${subsalon.ID_SUBSALON}`, {
         nombre: nombre.trim(),
         ...(capacidad ? { capacidadMax: Number(capacidad) } : {}),
+        ...(precio !== '' ? { precio: Number(precio) } : {}),
       });
       setEditando(false);
       onGuardado();
@@ -456,6 +495,15 @@ function SubsalonItem({
           value={capacidad}
           onChange={(e) => setCapacidad(e.target.value)}
           className="w-16 rounded border border-border-app bg-surface px-2 py-1 text-sm text-text outline-none focus:border-brand"
+        />
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          placeholder="$"
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
+          className="w-20 rounded border border-border-app bg-surface px-2 py-1 text-sm text-text outline-none focus:border-brand"
         />
         <button
           disabled={sending}
@@ -491,6 +539,11 @@ function SubsalonItem({
           <span className="ml-2 text-xs text-text-muted">
             cap. {subsalon.CAPACIDAD_MAX ?? t('c.na')}
           </span>
+          {subsalon.PRECIO != null && (
+            <span className="ml-2 text-xs font-semibold text-success">
+              ${Number(subsalon.PRECIO).toFixed(2)}
+            </span>
+          )}
         </span>
       </span>
       <span className="flex shrink-0 gap-2">

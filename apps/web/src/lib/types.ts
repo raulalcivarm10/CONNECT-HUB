@@ -93,6 +93,7 @@ export interface SalonRow {
   NOMBRE: string;
   ES_SUBDIVISIBLE: 'S' | 'N';
   CAPACIDAD_MAX: number | null;
+  PRECIO: number | null;
   FECHA_REGISTRO: string | null;
   TOTAL_SUBSALONES: number;
   TOTAL_CONFIGURACIONES: number;
@@ -103,6 +104,7 @@ export interface SubsalonRow {
   ID_SALON: number;
   NOMBRE: string;
   CAPACIDAD_MAX: number | null;
+  PRECIO: number | null;
 }
 
 export interface ConfiguracionRow {

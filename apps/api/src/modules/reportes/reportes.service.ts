@@ -134,6 +134,191 @@ export class ReportesService {
     };
   }
 
+  /**
+   * Reporte de INGRESOS Y OCUPACIÓN POR SALÓN. Ocupación = días reales de
+   * EVENTO_HORAS de eventos principales (los workshops hijos no ocupan espacio
+   * propio). Ingreso de ALQUILER = snapshot congelado EVENTOS.PRECIO_ESPACIO_DIA
+   * (tarifa aplicada al reservar; cambiar la tarifa de lista no reescribe la
+   * historia). Ingreso de ENTRADAS = PAGOS APPROVED del evento, por fecha de
+   * cobro. Son conceptos separados y se reportan por separado.
+   */
+  async salones(
+    actor: JwtUser,
+    filtros: {
+      idInstitucion?: number;
+      anio?: number;
+      meses?: number[];
+      idLocal?: number;
+    },
+  ) {
+    const inst = this.scope.institucionForRead(actor, filtros.idInstitucion);
+    const OCUPACION = `
+      SELECT e.ID_EVENTO, e.ID_SALON, s.NOMBRE AS SALON, l.NOMBRE AS NOMBRE_LOCAL,
+             l.ID_LOCAL, l.ID_INSTITUCION, eh.FECHA,
+             NVL(e.PRECIO_ESPACIO_DIA, 0) AS ALQUILER_DIA
+        FROM EVENTO_HORAS eh
+        JOIN EVENTOS e ON e.ID_EVENTO = eh.ID_EVENTO
+        JOIN SALONES s ON s.ID_SALON = e.ID_SALON
+        JOIN LOCALES l ON l.ID_LOCAL = s.ID_LOCAL
+       WHERE e.ID_EVENTO_PADRE IS NULL`;
+    const ENTRADAS = `
+      SELECT p.MONTO, NVL(p.FECHA_PAGO, p.FECHA_REGISTRO) AS FECHA,
+             e.ID_SALON, l.ID_LOCAL, l.ID_INSTITUCION
+        FROM PAGOS p
+        JOIN EVENTOS e ON e.ID_EVENTO = p.ID_EVENTO
+        JOIN SALONES s ON s.ID_SALON = e.ID_SALON
+        JOIN LOCALES l ON l.ID_LOCAL = s.ID_LOCAL
+       WHERE p.ESTADO = 'APPROVED'`;
+
+    // filtros comunes (institución + año + meses + local) sobre p.FECHA
+    const armarWhere = (binds: Record<string, number | null>) => {
+      let where = ' WHERE (:inst IS NULL OR p.ID_INSTITUCION = :inst)';
+      if (filtros.anio) {
+        binds.anio = filtros.anio;
+        where += ' AND EXTRACT(YEAR FROM p.FECHA) = :anio';
+      }
+      const validos = (filtros.meses ?? []).filter(
+        (m) => Number.isInteger(m) && m >= 1 && m <= 12,
+      );
+      if (validos.length > 0) {
+        const ph = validos.map((m, i) => {
+          binds[`mes${i}`] = m;
+          return `:mes${i}`;
+        });
+        where += ` AND EXTRACT(MONTH FROM p.FECHA) IN (${ph.join(',')})`;
+      }
+      if (filtros.idLocal) {
+        binds.idLocal = filtros.idLocal;
+        where += ' AND p.ID_LOCAL = :idLocal';
+      }
+      return where;
+    };
+    const binds: Record<string, number | null> = { inst };
+    const where = armarWhere(binds);
+    const bindsPag: Record<string, number | null> = { inst };
+    const wherePag = armarWhere(bindsPag);
+
+    const [resumen, porSalon, porDia, anios, entradas, salonesAmbito] =
+      await Promise.all([
+        this.oracle.query<{
+          RESERVAS: number;
+          DIAS_OCUPADOS: number;
+          SALONES_USADOS: number;
+          INGRESO_ALQUILER: number;
+        }>(
+          `SELECT COUNT(DISTINCT p.ID_EVENTO) AS RESERVAS,
+                  COUNT(DISTINCT p.ID_SALON || '-' || TO_CHAR(p.FECHA, 'YYYYMMDD')) AS DIAS_OCUPADOS,
+                  COUNT(DISTINCT p.ID_SALON) AS SALONES_USADOS,
+                  NVL(SUM(p.ALQUILER_DIA), 0) AS INGRESO_ALQUILER
+             FROM (${OCUPACION}) p ${where}`,
+          binds,
+        ),
+        this.oracle.query(
+          `SELECT p.ID_SALON, p.SALON, p.NOMBRE_LOCAL,
+                  COUNT(DISTINCT p.ID_EVENTO) AS RESERVAS,
+                  COUNT(DISTINCT TO_CHAR(p.FECHA, 'YYYYMMDD')) AS DIAS_OCUPADOS,
+                  NVL(SUM(p.ALQUILER_DIA), 0) AS INGRESO_ALQUILER
+             FROM (${OCUPACION}) p ${where}
+            GROUP BY p.ID_SALON, p.SALON, p.NOMBRE_LOCAL
+            ORDER BY DIAS_OCUPADOS DESC, INGRESO_ALQUILER DESC`,
+          binds,
+        ),
+        this.oracle.query(
+          `SELECT TO_CHAR(p.FECHA, 'YYYY-MM-DD') AS FECHA,
+                  COUNT(DISTINCT p.ID_EVENTO) AS RESERVAS,
+                  COUNT(DISTINCT p.ID_SALON) AS SALONES,
+                  NVL(SUM(p.ALQUILER_DIA), 0) AS INGRESO_ALQUILER
+             FROM (${OCUPACION}) p ${where}
+            GROUP BY TO_CHAR(p.FECHA, 'YYYY-MM-DD')
+            ORDER BY FECHA`,
+          binds,
+        ),
+        this.oracle.query<{ ANIO: number }>(
+          `SELECT DISTINCT EXTRACT(YEAR FROM p.FECHA) AS ANIO
+             FROM (${OCUPACION}) p
+            WHERE (:inst IS NULL OR p.ID_INSTITUCION = :inst)
+            ORDER BY ANIO DESC`,
+          { inst },
+        ),
+        this.oracle.query<{ ID_SALON: number; INGRESO_ENTRADAS: number }>(
+          `SELECT p.ID_SALON, NVL(SUM(p.MONTO), 0) AS INGRESO_ENTRADAS
+             FROM (${ENTRADAS}) p ${wherePag}
+            GROUP BY p.ID_SALON`,
+          bindsPag,
+        ),
+        // salones del ámbito (denominador de la tasa de ocupación)
+        this.oracle.query<{ TOTAL: number }>(
+          `SELECT COUNT(*) AS TOTAL
+             FROM SALONES s JOIN LOCALES l ON l.ID_LOCAL = s.ID_LOCAL
+            WHERE (:inst IS NULL OR l.ID_INSTITUCION = :inst)
+              AND (:idLocal IS NULL OR l.ID_LOCAL = :idLocal)`,
+          {
+            inst,
+            idLocal: { val: filtros.idLocal ?? null, type: this.oracle.NUMBER },
+          },
+        ),
+      ]);
+
+    // días del período: meses elegidos del año (o el año completo)
+    const anioRef = filtros.anio ?? new Date().getFullYear();
+    const mesesRef =
+      filtros.meses && filtros.meses.length > 0
+        ? filtros.meses.filter((m) => m >= 1 && m <= 12)
+        : Array.from({ length: 12 }, (_, i) => i + 1);
+    const diasPeriodo = mesesRef.reduce(
+      (acc, m) => acc + new Date(anioRef, m, 0).getDate(),
+      0,
+    );
+
+    const entradasMap = new Map(
+      entradas.map((e) => [Number(e.ID_SALON), Number(e.INGRESO_ENTRADAS)]),
+    );
+    const r = resumen[0];
+    const totalSalones = Number(salonesAmbito[0]?.TOTAL ?? 0);
+    const diasOcupados = Number(r?.DIAS_OCUPADOS ?? 0);
+    const capacidadDias = totalSalones * diasPeriodo;
+    const ingresoEntradasTotal = [...entradasMap.values()].reduce(
+      (a, b) => a + b,
+      0,
+    );
+
+    return {
+      idInstitucion: inst,
+      resumen: {
+        reservas: Number(r?.RESERVAS ?? 0),
+        diasOcupados,
+        salonesUsados: Number(r?.SALONES_USADOS ?? 0),
+        totalSalones,
+        ingresoAlquiler: Number(r?.INGRESO_ALQUILER ?? 0),
+        ingresoEntradas: ingresoEntradasTotal,
+        tasaOcupacion:
+          capacidadDias > 0
+            ? Math.round((diasOcupados / capacidadDias) * 1000) / 10
+            : 0,
+      },
+      porSalon: (porSalon as Array<Record<string, unknown>>).map((s) => ({
+        idSalon: Number(s.ID_SALON),
+        salon: s.SALON,
+        local: s.NOMBRE_LOCAL,
+        reservas: Number(s.RESERVAS),
+        diasOcupados: Number(s.DIAS_OCUPADOS),
+        ingresoAlquiler: Number(s.INGRESO_ALQUILER),
+        ingresoEntradas: entradasMap.get(Number(s.ID_SALON)) ?? 0,
+        tasaOcupacion:
+          diasPeriodo > 0
+            ? Math.round((Number(s.DIAS_OCUPADOS) / diasPeriodo) * 1000) / 10
+            : 0,
+      })),
+      porDia: (porDia as Array<Record<string, unknown>>).map((d) => ({
+        fecha: d.FECHA,
+        reservas: Number(d.RESERVAS),
+        salones: Number(d.SALONES),
+        ingresoAlquiler: Number(d.INGRESO_ALQUILER),
+      })),
+      aniosDisponibles: anios.map((a) => Number(a.ANIO)),
+    };
+  }
+
   /** Detalle: inscritos de un evento con su estado de asistencia */
   async inscritos(actor: JwtUser, idEvento: number) {
     // valida ámbito del evento: su institución debe ser la del actor

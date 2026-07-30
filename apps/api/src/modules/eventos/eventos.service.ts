@@ -266,6 +266,38 @@ export class EventosService {
     }
   }
 
+  /**
+   * Tarifa de alquiler POR DÍA del espacio reservado, según la granularidad:
+   * subsalón(es) → SUM(SUBSALONES.PRECIO) de los reservados; salón completo →
+   * SALONES.PRECIO; local completo → sin tarifa (null). Devuelve null cuando no
+   * hay tarifa definida. Se usa para CONGELAR el snapshot en EVENTOS
+   * (PRECIO_ESPACIO_DIA / PRECIO_ESPACIO): cambiar la tarifa de lista después
+   * NO reescribe reservas ya creadas.
+   */
+  private async tarifaEspacioDia(
+    idSalon: number | null | undefined,
+    subsalones: number[],
+  ): Promise<number | null> {
+    if (subsalones.length > 0) {
+      const binds: Record<string, number> = {};
+      subsalones.forEach((id, i) => (binds[`s${i}`] = id));
+      const marcas = subsalones.map((_, i) => `:s${i}`).join(', ');
+      const r = await this.oracle.query<{ TARIFA: number | null }>(
+        `SELECT SUM(PRECIO) AS TARIFA FROM SUBSALONES WHERE ID_SUBSALON IN (${marcas})`,
+        binds,
+      );
+      return r[0]?.TARIFA != null ? Number(r[0].TARIFA) : null;
+    }
+    if (idSalon != null) {
+      const r = await this.oracle.query<{ PRECIO: number | null }>(
+        `SELECT PRECIO FROM SALONES WHERE ID_SALON = :id`,
+        { id: idSalon },
+      );
+      return r[0]?.PRECIO != null ? Number(r[0].PRECIO) : null;
+    }
+    return null; // local completo: sin tarifa por ahora
+  }
+
   async create(actor: JwtUser, dto: CreateEventoDto) {
     // ámbito: el local debe ser de la institución del actor; el salón (si hay)
     // debe pertenecer a ese local. Sin salón = se reserva el local completo.
@@ -308,21 +340,32 @@ export class EventosService {
       });
     }
 
+    // Snapshot CONGELADO de la tarifa del espacio (los hijos/workshops no
+    // reservan espacio propio → sin tarifa).
+    const tarifaDia =
+      idEventoPadre == null
+        ? await this.tarifaEspacioDia(dto.idSalon ?? null, subsalones)
+        : null;
+    const tarifaTotal = tarifaDia != null ? tarifaDia * ordenados.length : null;
+
     return this.oracle.withConnection(async (conn) => {
       const result = await conn.execute(
         `INSERT INTO EVENTOS
            (TITULO, DESCRIPCION, FECHA_EVENTO, FECHA_FIN, HORA_INICIO, HORA_FIN,
             ID_EVENTO_PADRE, ID_LOCAL, ID_SALON, ID_SUBSALON, ID_CONFIGURACION,
             PRECIO, PUBLICO_ESPERADO, TIEMPO_SETUP_MIN, TIEMPO_CLEAN_MIN,
-            COD_ITEM, NO_PUBLICAR, INCLUYE_IVA, MONTO_IVA, IMAGEN_URL)
+            COD_ITEM, NO_PUBLICAR, INCLUYE_IVA, MONTO_IVA, IMAGEN_URL,
+            PRECIO_ESPACIO_DIA, PRECIO_ESPACIO)
          VALUES
            (:titulo, :descripcion, TO_DATE(:fecha, 'YYYY-MM-DD'),
             TO_DATE(:fechaFin, 'YYYY-MM-DD'), :horaInicio, :horaFin,
             :idEventoPadre, :idLocal, :idSalon, :idSubsalon, :idConfiguracion,
             :precio, :publico, :setupMin, :cleanMin, :codItem, :noPublicar,
-            :incluyeIva, :montoIva, :imagenUrl)
+            :incluyeIva, :montoIva, :imagenUrl, :tarifaDia, :tarifaTotal)
          RETURNING ID_EVENTO INTO :out`,
         {
+          tarifaDia: { val: tarifaDia, type: this.oracle.NUMBER },
+          tarifaTotal: { val: tarifaTotal, type: this.oracle.NUMBER },
           titulo: dto.titulo,
           descripcion: dto.descripcion ?? null,
           fecha: fechaEvento,
@@ -558,6 +601,15 @@ export class EventosService {
       });
     }
 
+    // Re-congela el snapshot de la tarifa del espacio con las tarifas VIGENTES:
+    // el espacio o los días efectivos pueden haber cambiado en esta edición.
+    const tarifaDia =
+      idEventoPadre == null
+        ? await this.tarifaEspacioDia(idSalon ?? null, subsalones)
+        : null;
+    const tarifaTotal =
+      tarifaDia != null ? tarifaDia * diasEfectivos.length : null;
+
     await this.oracle.withConnection(async (conn) => {
       await conn.execute(
         `UPDATE EVENTOS SET
@@ -581,9 +633,13 @@ export class EventosService {
            PUBLICO_ESPERADO = COALESCE(:publico, PUBLICO_ESPERADO),
            TIEMPO_SETUP_MIN = COALESCE(:setupMin, TIEMPO_SETUP_MIN),
            TIEMPO_CLEAN_MIN = COALESCE(:cleanMin, TIEMPO_CLEAN_MIN),
-           IMAGEN_URL = COALESCE(:imagenUrl, IMAGEN_URL)
+           IMAGEN_URL = COALESCE(:imagenUrl, IMAGEN_URL),
+           PRECIO_ESPACIO_DIA = :tarifaDia,
+           PRECIO_ESPACIO = :tarifaTotal
          WHERE ID_EVENTO = :id`,
         {
+          tarifaDia: { val: tarifaDia, type: this.oracle.NUMBER },
+          tarifaTotal: { val: tarifaTotal, type: this.oracle.NUMBER },
           titulo: dto.titulo ?? null,
           descripcion: dto.descripcion ?? null,
           fecha,

@@ -47,6 +47,31 @@ export class ReportesController {
     });
   }
 
+  @Get('salones')
+  @ApiOperation({
+    summary:
+      'Ingresos y ocupación por salón (filtros: idInstitucion, anio, meses csv, idLocal)',
+  })
+  salones(
+    @CurrentUser() user: JwtUser,
+    @Query('idInstitucion') idInstitucion?: string,
+    @Query('anio') anio?: string,
+    @Query('meses') meses?: string,
+    @Query('idLocal') idLocal?: string,
+  ) {
+    return this.reportes.salones(user, {
+      idInstitucion: idInstitucion ? Number(idInstitucion) : undefined,
+      anio: anio ? Number(anio) : undefined,
+      meses: meses
+        ? meses
+            .split(',')
+            .map((m) => Number(m.trim()))
+            .filter((m) => !Number.isNaN(m))
+        : undefined,
+      idLocal: idLocal ? Number(idLocal) : undefined,
+    });
+  }
+
   @Get('asistencia/:idEvento/inscritos')
   @ApiOperation({ summary: 'Detalle de inscritos de un evento con su asistencia' })
   inscritos(
