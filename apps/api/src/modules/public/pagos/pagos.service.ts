@@ -152,9 +152,14 @@ export class PagosService {
 
   /** Verifica que el asistente pertenezca a la institución (USUARIO_INSTITUCIONES). */
   private async exigirMembresia(idCliente: string, idInstitucion: number) {
+    // La institución además debe estar APROBADA: si se suspende, se bloquean
+    // pagos/tarjetas/checkout de sus eventos de inmediato (sin tocar las apps).
     const rows = await this.oracle.query<{ N: number }>(
-      `SELECT COUNT(*) AS N FROM USUARIO_INSTITUCIONES
-        WHERE ID_CLIENTE = :c AND ID_INSTITUCION = :i`,
+      `SELECT COUNT(*) AS N
+         FROM USUARIO_INSTITUCIONES ui
+         JOIN INSTITUCIONES i ON i.ID_INSTITUCION = ui.ID_INSTITUCION
+        WHERE ui.ID_CLIENTE = :c AND ui.ID_INSTITUCION = :i
+          AND i.ESTADO = 'APROBADA'`,
       { c: idCliente, i: idInstitucion },
     );
     if ((rows[0]?.N ?? 0) === 0) {

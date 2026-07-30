@@ -227,8 +227,13 @@ export class CatalogoService {
     const offset = (page - 1) * size;
     const q = opts.q?.trim() ? opts.q.trim() : null;
 
+    // SOLO instituciones APROBADAS: una institución suspendida/rechazada
+    // desaparece del feed aunque el asistente siga vinculado a ella.
     const where = `COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) IN (
-             SELECT ID_INSTITUCION FROM USUARIO_INSTITUCIONES WHERE ID_CLIENTE = :cli)
+             SELECT ui.ID_INSTITUCION
+               FROM USUARIO_INSTITUCIONES ui
+               JOIN INSTITUCIONES ins ON ins.ID_INSTITUCION = ui.ID_INSTITUCION
+              WHERE ui.ID_CLIENTE = :cli AND ins.ESTADO = 'APROBADA')
          AND NVL(e.NO_PUBLICAR,'N') = 'N'
          AND e.ID_EVENTO_PADRE IS NULL
          AND (:q IS NULL OR UPPER(e.TITULO) LIKE '%' || UPPER(:q) || '%')`;
@@ -341,19 +346,26 @@ export class CatalogoService {
 
   /** Verifica que el evento sea público; devuelve su fila base o NotFound. */
   private async eventoPublico(id: number): Promise<EventoBaseRow> {
-    const rows = await this.oracle.query<EventoBaseRow>(
+    const rows = await this.oracle.query<EventoBaseRow & { INST_ESTADO?: string | null }>(
       `SELECT e.ID_EVENTO,
               COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) AS ID_INSTITUCION,
-              e.NO_PUBLICAR
+              e.NO_PUBLICAR, ins.ESTADO AS INST_ESTADO
          FROM EVENTOS e
          LEFT JOIN LOCALES l ON l.ID_LOCAL = e.ID_LOCAL
          LEFT JOIN SALONES s ON s.ID_SALON = e.ID_SALON
          LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
+         LEFT JOIN INSTITUCIONES ins
+                ON ins.ID_INSTITUCION = COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION)
         WHERE e.ID_EVENTO = :id`,
       { id },
     );
     const ev = rows[0];
-    if (!ev || (ev.NO_PUBLICAR ?? 'N') === 'S') {
+    // evento oculto O de institución no APROBADA (suspendida/rechazada) → no existe
+    if (
+      !ev ||
+      (ev.NO_PUBLICAR ?? 'N') === 'S' ||
+      (ev.INST_ESTADO != null && ev.INST_ESTADO !== 'APROBADA')
+    ) {
       throw new NotFoundException('Event not found');
     }
     return ev;
