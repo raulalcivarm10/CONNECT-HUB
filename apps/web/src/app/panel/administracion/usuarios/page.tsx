@@ -9,6 +9,12 @@ import { useDialogo } from '@/lib/dialogo';
 import type { InstitucionRow, RolRow, UsuarioRow } from '@/lib/types';
 import { ROL } from '@/lib/types';
 
+/** etiqueta traducida del rol; si no hay key `role.<NOMBRE>` muestra el nombre crudo */
+function rolLabel(t: (k: string) => string, nombre: string): string {
+  const label = t(`role.${nombre}`);
+  return label === `role.${nombre}` ? nombre : label;
+}
+
 export default function UsuariosPage() {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -114,6 +120,8 @@ export default function UsuariosPage() {
         <EditarUsuarioForm
           key={editar.COD_USUARIO}
           usuario={editar}
+          roles={roles}
+          esSuper={!!user?.esSuper}
           onDone={(msg) => {
             setOk(msg);
             setEditar(null);
@@ -149,8 +157,19 @@ export default function UsuariosPage() {
                 <td className="px-4 py-3 text-text-2">
                   {[u.NOMBRES, u.APELLIDOS].filter(Boolean).join(' ') ||
                     u.NOMBRE_USUARIO}
+                  {(u.grupo ?? u.GRUPO) && (
+                    <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-muted">
+                      {u.grupo ?? u.GRUPO}
+                    </span>
+                  )}
                 </td>
-                <td className="px-4 py-3 text-text-2">{u.ROLES ?? '—'}</td>
+                <td className="px-4 py-3 text-text-2">
+                  {u.ROLES
+                    ? u.ROLES.split(',')
+                        .map((r) => rolLabel(t, r.trim()))
+                        .join(', ')
+                    : '—'}
+                </td>
                 {user?.esSuper && (
                   <td className="px-4 py-3 text-text-2">
                     {u.INSTITUCION ?? '—'}
@@ -214,10 +233,14 @@ export default function UsuariosPage() {
 
 function EditarUsuarioForm({
   usuario,
+  roles,
+  esSuper,
   onDone,
   onCancel,
 }: {
   usuario: UsuarioRow;
+  roles: RolRow[];
+  esSuper: boolean;
   onDone: (msg: string) => void;
   onCancel: () => void;
 }) {
@@ -225,9 +248,28 @@ function EditarUsuarioForm({
   const [nombres, setNombres] = useState(usuario.NOMBRES ?? '');
   const [apellidos, setApellidos] = useState(usuario.APELLIDOS ?? '');
   const [email, setEmail] = useState(usuario.EMAIL ?? '');
+  const [grupo, setGrupo] = useState(usuario.grupo ?? usuario.GRUPO ?? '');
   const [password, setPassword] = useState('');
+  const rolesActuales = (usuario.ROLES ?? '')
+    .split(',')
+    .map((r) => r.trim())
+    .filter(Boolean);
+  const [rolesSel, setRolesSel] = useState<string[]>(rolesActuales);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+
+  // el rol SYSTEM solo lo asigna/quita el superadmin (misma regla que al crear)
+  function toggleRol(nombre: string) {
+    if (nombre === ROL.SYSTEM && !esSuper) return;
+    setRolesSel((prev) =>
+      prev.includes(nombre)
+        ? prev.filter((r) => r !== nombre)
+        : [...prev, nombre],
+    );
+  }
+
+  const rolesCambiaron =
+    [...rolesSel].sort().join(',') !== [...rolesActuales].sort().join(',');
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -239,8 +281,15 @@ function EditarUsuarioForm({
         nombres: nombres.trim() || undefined,
         apellidos: apellidos.trim() || undefined,
         email: email.trim() || undefined,
+        grupo: grupo.trim() || null,
         ...(password ? { password } : {}),
       });
+      if (rolesCambiaron) {
+        await api.patch(
+          `/usuarios/${encodeURIComponent(usuario.COD_USUARIO)}/roles`,
+          { roles: rolesSel },
+        );
+      }
       onDone(
         password
           ? t('us.updatedPwd', { user: usuario.COD_USUARIO })
@@ -311,6 +360,48 @@ function EditarUsuarioForm({
           className={inputCls}
         />
       </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-text-2">
+          {t('us.group')}
+        </label>
+        <input
+          maxLength={100}
+          placeholder={t('us.groupPh')}
+          value={grupo}
+          onChange={(e) => setGrupo(e.target.value)}
+          className={inputCls}
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <div className="mb-1 text-sm font-medium text-text-2">
+          {t('us.editRoles')}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {roles
+            .filter((r) => esSuper || r.NOMBRE !== ROL.SYSTEM || rolesSel.includes(ROL.SYSTEM))
+            .map((r) => {
+              const bloqueado = r.NOMBRE === ROL.SYSTEM && !esSuper;
+              return (
+                <button
+                  key={r.ID_ROL}
+                  type="button"
+                  disabled={bloqueado}
+                  onClick={() => toggleRol(r.NOMBRE)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                    rolesSel.includes(r.NOMBRE)
+                      ? 'border-brand bg-brand/15 font-semibold text-brand'
+                      : 'border-border-app text-text-2 hover:bg-surface-2'
+                  } ${bloqueado ? 'cursor-not-allowed opacity-60' : ''}`}
+                >
+                  {rolLabel(t, r.NOMBRE)}
+                </button>
+              );
+            })}
+        </div>
+        {rolesSel.length === 0 && (
+          <p className="mt-1 text-sm text-text-muted">{t('us.selectRole')}</p>
+        )}
+      </div>
       {error && (
         <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger sm:col-span-2">
           {error}
@@ -319,7 +410,7 @@ function EditarUsuarioForm({
       <div className="flex gap-2 sm:col-span-2">
         <button
           type="submit"
-          disabled={sending}
+          disabled={sending || rolesSel.length === 0}
           className="rounded-lg bg-brand px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
           {sending ? t('c.saving') : t('ld.saveChanges')}
@@ -351,13 +442,14 @@ function NuevoUsuarioForm({
   const [usuario, setUsuario] = useState('');
   const [nombres, setNombres] = useState('');
   const [apellidos, setApellidos] = useState('');
+  const [grupo, setGrupo] = useState('');
   const [rolesSel, setRolesSel] = useState<string[]>([]);
   const [idInstitucion, setIdInstitucion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   // el rol SYSTEM solo lo asigna el superadmin (es el usuario genérico de la institución)
-  const asignables = roles.filter((r) => esSuper || r.NOMBRE !== 'SYSTEM');
+  const asignables = roles.filter((r) => esSuper || r.NOMBRE !== ROL.SYSTEM);
 
   function toggleRol(nombre: string) {
     setRolesSel((prev) =>
@@ -380,6 +472,7 @@ function NuevoUsuarioForm({
         nombres: nombres.trim(),
         apellidos: apellidos.trim(),
         roles: rolesSel,
+        ...(grupo.trim() ? { grupo: grupo.trim() } : {}),
         ...(esSuper && idInstitucion
           ? { idInstitucion: Number(idInstitucion) }
           : {}),
@@ -457,6 +550,18 @@ function NuevoUsuarioForm({
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
         />
       </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-text-2">
+          {t('us.group')}
+        </label>
+        <input
+          maxLength={100}
+          placeholder={t('us.groupPh')}
+          value={grupo}
+          onChange={(e) => setGrupo(e.target.value)}
+          className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
+        />
+      </div>
       <div className="sm:col-span-2 rounded-lg bg-brand/5 px-3 py-2 text-xs text-text-2">
         {t('us.autoPassword')}
       </div>
@@ -476,7 +581,7 @@ function NuevoUsuarioForm({
                   : 'border-border-app text-text-2 hover:bg-surface-2'
               }`}
             >
-              {r.NOMBRE}
+              {rolLabel(t, r.NOMBRE)}
             </button>
           ))}
         </div>

@@ -38,7 +38,7 @@ export class UsuariosService {
     const filtro = actor.esSuper ? (idInstitucion ?? null) : actor.idInstitucion;
     return this.oracle.query(
       `SELECT u.COD_USUARIO, u.EMAIL, u.NOMBRES, u.APELLIDOS, u.NOMBRE_USUARIO,
-              u.ESTADOS, u.ES_SUPER, u.ID_INSTITUCION, u.FECHA_REGISTRO,
+              u.ESTADOS, u.ES_SUPER, u.ID_INSTITUCION, u.FECHA_REGISTRO, u.GRUPO,
               i.NOMBRE AS INSTITUCION,
               (SELECT LISTAGG(r.NOMBRE, ',') WITHIN GROUP (ORDER BY r.NOMBRE)
                  FROM USUARIO_ROL_INSTITUCION uri
@@ -104,9 +104,9 @@ export class UsuariosService {
       await conn.execute(
         `INSERT INTO USUARIOS_INSTITUCIONES
            (COD_USUARIO, NOMBRE_USUARIO, EMAIL, ESTADOS, CLAVE, SALT,
-            ID_INSTITUCION, NOMBRES, APELLIDOS, ES_SUPER, DEBE_CAMBIAR_CLAVE)
+            ID_INSTITUCION, NOMBRES, APELLIDOS, ES_SUPER, DEBE_CAMBIAR_CLAVE, GRUPO)
          VALUES (:cod, :nombreUsuario, :email, 'A', :clave, :salt,
-                 :idInstitucion, :nombres, :apellidos, 'N', :debeCambiar)`,
+                 :idInstitucion, :nombres, :apellidos, 'N', :debeCambiar, :grupo)`,
         {
           cod,
           nombreUsuario: `${dto.nombres} ${dto.apellidos}`.trim(),
@@ -116,6 +116,7 @@ export class UsuariosService {
           idInstitucion,
           nombres: dto.nombres,
           apellidos: dto.apellidos,
+          grupo: dto.grupo ?? null,
           debeCambiar,
         },
       );
@@ -179,9 +180,12 @@ export class UsuariosService {
          NOMBRE_USUARIO = NVL(:nombreUsuario, NOMBRE_USUARIO),
          CLAVE = NVL(:clave, CLAVE),
          SALT = NVL(:salt, SALT),
-         DEBE_CAMBIAR_CLAVE = CASE WHEN :clave IS NULL THEN DEBE_CAMBIAR_CLAVE ELSE 'N' END
+         DEBE_CAMBIAR_CLAVE = CASE WHEN :clave IS NULL THEN DEBE_CAMBIAR_CLAVE ELSE 'N' END,
+         GRUPO = CASE WHEN :grupoSet = 1 THEN :grupo ELSE GRUPO END
        WHERE COD_USUARIO = :cod`,
       {
+        grupoSet: dto.grupo === undefined ? 0 : 1,
+        grupo: dto.grupo ?? null,
         nombres: dto.nombres ?? null,
         apellidos: dto.apellidos ?? null,
         email: dto.email ? dto.email.toUpperCase() : null,

@@ -27,7 +27,7 @@ import { UpdateMapaDto } from './dto/operativa.dto';
 @ApiTags('mapas')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(ROL.SYSTEM, ROL.GESTION_OPERATIVA)
+@Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT)
 @Controller('mapas')
 export class MapasController {
   constructor(private readonly mapas: MapasService) {}

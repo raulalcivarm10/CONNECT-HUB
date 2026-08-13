@@ -10,7 +10,7 @@ import { FinanzasService } from './finanzas.service';
 @ApiTags('finanzas')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(ROL.SYSTEM, ROL.FINANCIERO)
+@Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.FINANCE)
 @Controller('finanzas')
 export class FinanzasController {
   constructor(private readonly finanzas: FinanzasService) {}

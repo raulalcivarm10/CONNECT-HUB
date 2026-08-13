@@ -1,10 +1,19 @@
-/** Nombres de rol tal como existen en ROLES_INSTITUCIONES */
+/**
+ * Nombres de rol tal como existen en ROLES_INSTITUCIONES (la BD los guarda en
+ * INGLÉS: SYSTEM, ADMINISTRATION, FINANCE, OPERATIONS MANAGEMENT, EVENT,
+ * VENUE_APPROVER, PUBLISHER). Las constantes DEBEN coincidir letra a letra:
+ * RolesGuard compara por string exacto contra JwtUser.roles.
+ */
 export const ROL = {
   SYSTEM: 'SYSTEM',
-  ADMINISTRATIVO: 'ADMINISTRATIVO',
-  FINANCIERO: 'FINANCIERO',
-  GESTION_OPERATIVA: 'GESTION OPERATIVA',
-  EVENTOS: 'EVENTOS',
+  ADMINISTRATION: 'ADMINISTRATION',
+  FINANCE: 'FINANCE',
+  OPERATIONS_MANAGEMENT: 'OPERATIONS MANAGEMENT',
+  EVENT: 'EVENT',
+  /** Aprueba el salón/espacio solicitado por un evento (paso 1) */
+  VENUE_APPROVER: 'VENUE_APPROVER',
+  /** Da el OK final que publica el evento en la app (paso 2) */
+  PUBLISHER: 'PUBLISHER',
 } as const;
 
 export type RolNombre = (typeof ROL)[keyof typeof ROL];
@@ -20,6 +29,22 @@ export interface JwtUser {
   idInstitucion: number | null;
   institucion: string | null;
   roles: string[];
+  /** Grupo/facultad del usuario (USUARIOS_INSTITUCIONES.GRUPO); hereda a sus eventos */
+  grupo: string | null;
   /** true = ingresó con clave temporal y debe cambiarla antes de usar el panel */
   debeCambiarClave: boolean;
+}
+
+/** ¿El actor ve TODO (super, SYSTEM o ADMINISTRATION)? Si no, se escopa a sus eventos. */
+export function veTodo(user: Pick<JwtUser, 'esSuper' | 'roles'>): boolean {
+  return (
+    user.esSuper ||
+    user.roles.includes(ROL.SYSTEM) ||
+    user.roles.includes(ROL.ADMINISTRATION)
+  );
+}
+
+/** ¿El actor está limitado a SUS eventos (rol EVENT sin SYSTEM/ADMINISTRATION)? */
+export function soloSusEventos(user: Pick<JwtUser, 'esSuper' | 'roles'>): boolean {
+  return !veTodo(user) && user.roles.includes(ROL.EVENT);
 }

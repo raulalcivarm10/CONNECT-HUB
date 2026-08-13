@@ -175,7 +175,7 @@ export class InstitucionesService {
     const permitido =
       actor.esSuper ||
       (actor.idInstitucion === id &&
-        actor.roles.some((r) => r === ROL.SYSTEM || r === ROL.ADMINISTRATIVO));
+        actor.roles.some((r) => r === ROL.SYSTEM || r === ROL.ADMINISTRATION));
     if (!permitido) {
       throw new ForbiddenException(
         `Only the superadmin or a SYSTEM/ADMINISTRATIVE user of the institution can ${accion}`,
@@ -334,8 +334,8 @@ export class InstitucionesService {
       actor.esSuper ||
       (actor.idInstitucion === id &&
         actor.roles.some((r) =>
-          [ROL.SYSTEM, ROL.ADMINISTRATIVO].includes(
-            r as typeof ROL.SYSTEM | typeof ROL.ADMINISTRATIVO,
+          [ROL.SYSTEM, ROL.ADMINISTRATION].includes(
+            r as typeof ROL.SYSTEM | typeof ROL.ADMINISTRATION,
           ),
         ));
     if (!puedeGestionar) {

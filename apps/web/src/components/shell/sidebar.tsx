@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ComponentType, SVGProps } from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
-import { MODULOS, puedeVer, ROL } from '@/lib/types';
+import { esEventoRestringido, MODULOS, puedeVer, ROL } from '@/lib/types';
 import {
   IconBuilding,
   IconChat,
@@ -133,11 +133,14 @@ export function Sidebar() {
             <div className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
               {t('side.events')}
             </div>
-            <NavLink
-              href="/panel/reservas"
-              label={t('side.reservations')}
-              icon={IconVenue}
-            />
+            {/* rol EVENT raso: solo lista + calendario (sin reservas privadas) */}
+            {!esEventoRestringido(user) && (
+              <NavLink
+                href="/panel/reservas"
+                label={t('side.reservations')}
+                icon={IconVenue}
+              />
+            )}
             <NavLink
               href="/panel/eventos/calendario"
               label={t('side.calendar')}
@@ -152,7 +155,7 @@ export function Sidebar() {
           </div>
         )}
 
-        {puedeVer(user, [ROL.SYSTEM, ROL.ADMINISTRATIVO, ROL.EVENTOS]) && (
+        {puedeVer(user, [ROL.SYSTEM, ROL.ADMINISTRATION]) && (
           <div>
             <div className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
               {t('side.reports')}

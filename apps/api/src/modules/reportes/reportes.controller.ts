@@ -17,7 +17,7 @@ import { ReportesService } from './reportes.service';
 @ApiTags('reportes')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(ROL.SYSTEM, ROL.ADMINISTRATIVO, ROL.EVENTOS)
+@Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.EVENT)
 @Controller('reportes')
 export class ReportesController {
   constructor(private readonly reportes: ReportesService) {}

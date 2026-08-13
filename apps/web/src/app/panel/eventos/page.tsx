@@ -7,9 +7,16 @@ import { CertificadosEvento } from './certificados-evento';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { useLightbox } from '@/lib/lightbox';
 import { useDialogo } from '@/lib/dialogo';
+import { useAuth } from '@/lib/auth/auth-context';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { useI18n } from '@/lib/i18n';
+import {
+  esEventoRestringido,
+  puedeVer,
+  ROLES_APROBAR_SALON,
+  ROLES_PUBLICAR,
+} from '@/lib/types';
 import type {
   ConfiguracionRow,
   EventoRow,
@@ -125,9 +132,44 @@ function ventanaReal(a: {
   return `${toHora(ini)}–${toHora(fin)}`;
 }
 
+/** Badge del flujo de aprobación (nada si es legado o ya está publicado) */
+function BadgeAprobacion({ ev }: { ev: EventoRow }) {
+  const { t } = useI18n();
+  const estado = ev.estadoAprobacion;
+  if (estado == null || estado === 'PUBLICADO') return null;
+  if (estado === 'BORRADOR') {
+    return (
+      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
+        {t('ev.aprPendingVenue')}
+      </span>
+    );
+  }
+  if (estado === 'SALON_APROBADO') {
+    return (
+      <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-500">
+        {t('ev.aprPendingPublish')}
+      </span>
+    );
+  }
+  // RECHAZADO: rojo, con el motivo como tooltip
+  return (
+    <span
+      title={
+        ev.motivoRechazo
+          ? `${t('ev.aprReason')}: ${ev.motivoRechazo}`
+          : undefined
+      }
+      className="rounded-full bg-danger/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger"
+    >
+      {t('ev.aprRejected')}
+    </span>
+  );
+}
+
 export default function EventosPage() {
   const { qs, nombreFiltro } = useInstitucionFiltro();
   const { t, locale } = useI18n();
+  const { user } = useAuth();
   const lightbox = useLightbox();
   const dialogo = useDialogo();
   const [eventos, setEventos] = useState<EventoRow[]>([]);
@@ -139,6 +181,11 @@ export default function EventosPage() {
   // sube al guardar una portada: remonta las miniaturas del listado
   // (rompe la caché y reintenta las que estaban ocultas por error)
   const [imgVersion, setImgVersion] = useState(0);
+  // flujo de aprobación: permisos según roles del JWT (superadmin ve todo)
+  const puedeAprobarSalon = puedeVer(user, ROLES_APROBAR_SALON);
+  const puedePublicar = puedeVer(user, ROLES_PUBLICAR);
+  // evento en proceso de rechazo (abre el modal de motivo)
+  const [rechazar, setRechazar] = useState<EventoRow | null>(null);
 
   const cargar = useCallback(async () => {
     setEventos(await api.get<EventoRow[]>(`/eventos${qs}`));
@@ -207,6 +254,43 @@ export default function EventosPage() {
       await api.patch(`/eventos/${ev.ID_EVENTO}/destacar`, {
         destacado: ev.DESTACADO !== 1,
       });
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error');
+    }
+  }
+
+  async function aprobarSalon(ev: EventoRow) {
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(`/eventos/${ev.ID_EVENTO}/aprobar-salon`);
+      setOk(t('ev.aprVenueOk', { name: ev.TITULO }));
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error');
+    }
+  }
+
+  async function aprobarPublicacion(ev: EventoRow) {
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(`/eventos/${ev.ID_EVENTO}/aprobar-publicacion`);
+      setOk(t('ev.aprPublishOk', { name: ev.TITULO }));
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error');
+    }
+  }
+
+  async function rechazarEvento(ev: EventoRow, motivo: string) {
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(`/eventos/${ev.ID_EVENTO}/rechazar`, { motivo });
+      setOk(t('ev.aprRejectOk', { name: ev.TITULO }));
+      setRechazar(null);
       await cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
@@ -344,12 +428,19 @@ export default function EventosPage() {
                             {t('ev.workshopBadge')}
                           </span>
                         )}
+                        <BadgeAprobacion ev={ev} />
                       </div>
                       <div className="text-xs text-text-muted">
                         {ev.ID_EVENTO_PADRE != null && ev.PADRE_TITULO
                           ? `↳ ${ev.PADRE_TITULO}`
                           : (ev.INSTITUCION ?? '')}
                       </div>
+                      {ev.estadoAprobacion === 'RECHAZADO' &&
+                        ev.motivoRechazo && (
+                          <div className="text-xs text-danger">
+                            {t('ev.aprReason')}: {ev.motivoRechazo}
+                          </div>
+                        )}
                     </div>
                   </div>
                 </td>
@@ -382,6 +473,34 @@ export default function EventosPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
+                    {ev.estadoAprobacion === 'BORRADOR' && puedeAprobarSalon && (
+                      <button
+                        onClick={() => aprobarSalon(ev)}
+                        className="rounded-lg bg-success/10 px-3 py-1 text-xs font-semibold text-success hover:bg-success/20"
+                      >
+                        {t('ev.aprApproveVenue')}
+                      </button>
+                    )}
+                    {ev.estadoAprobacion === 'SALON_APROBADO' &&
+                      puedePublicar && (
+                        <button
+                          onClick={() => aprobarPublicacion(ev)}
+                          className="rounded-lg bg-success/10 px-3 py-1 text-xs font-semibold text-success hover:bg-success/20"
+                        >
+                          {t('ev.aprApprovePublish')}
+                        </button>
+                      )}
+                    {((ev.estadoAprobacion === 'BORRADOR' &&
+                      puedeAprobarSalon) ||
+                      (ev.estadoAprobacion === 'SALON_APROBADO' &&
+                        puedePublicar)) && (
+                      <button
+                        onClick={() => setRechazar(ev)}
+                        className="rounded-lg border border-danger/40 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/10"
+                      >
+                        {t('ev.aprReject')}
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setVer(ev);
@@ -423,6 +542,74 @@ export default function EventosPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {rechazar && (
+        <RechazoModal
+          evento={rechazar}
+          onConfirm={(motivo) => rechazarEvento(rechazar, motivo)}
+          onCancel={() => setRechazar(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Modal para rechazar un evento pidiendo el motivo (obligatorio) */
+function RechazoModal({
+  evento,
+  onConfirm,
+  onCancel,
+}: {
+  evento: EventoRow;
+  onConfirm: (motivo: string) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useI18n();
+  const [motivo, setMotivo] = useState('');
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-border-app bg-surface p-6 shadow-2xl"
+      >
+        <h2 className="text-lg font-semibold text-text">
+          {t('ev.aprRejectTitle', { name: evento.TITULO })}
+        </h2>
+        <label className="mt-3 mb-1 block text-sm font-medium text-text-2">
+          {t('ev.aprReason')}
+        </label>
+        <textarea
+          autoFocus
+          rows={3}
+          maxLength={500}
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          placeholder={t('ev.aprReasonPh')}
+          className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-border-app px-4 py-2 text-sm font-medium text-text-2 hover:bg-surface-2"
+          >
+            {t('c.cancel')}
+          </button>
+          <button
+            type="button"
+            disabled={!motivo.trim()}
+            onClick={() => onConfirm(motivo.trim())}
+            className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {t('ev.aprReject')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -613,6 +800,9 @@ function EventoForm({
 }) {
   const { idInstitucion } = useInstitucionFiltro();
   const { t } = useI18n();
+  const { user } = useAuth();
+  // rol EVENT raso: no decide la publicación (el API la fuerza a revisión)
+  const revisionObligatoria = esEventoRestringido(user);
   const [titulo, setTitulo] = useState(evento?.TITULO ?? '');
   const [descripcion, setDescripcion] = useState(evento?.DESCRIPCION ?? '');
   // Horario POR DÍA: un evento tiene 1+ días, cada uno con su rango horario.
@@ -1280,14 +1470,20 @@ function EventoForm({
             />
             {t('ev.featuredCheck')}
           </label>
-          <label className="flex items-center gap-2 text-sm text-text-2">
-            <input
-              type="checkbox"
-              checked={noPublicar}
-              onChange={(e) => setNoPublicar(e.target.checked)}
-            />
-            {t('ev.privateCheck')}
-          </label>
+          {revisionObligatoria ? (
+            <span className="text-sm text-text-muted">
+              {t('ev.aprReviewNotice')}
+            </span>
+          ) : (
+            <label className="flex items-center gap-2 text-sm text-text-2">
+              <input
+                type="checkbox"
+                checked={noPublicar}
+                onChange={(e) => setNoPublicar(e.target.checked)}
+              />
+              {t('ev.privateCheck')}
+            </label>
+          )}
           {destacado && (
             <label className="flex items-center gap-2 text-sm text-text-2">
               {t('ev.order')}

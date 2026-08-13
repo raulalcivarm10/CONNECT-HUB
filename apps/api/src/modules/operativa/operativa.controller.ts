@@ -43,7 +43,7 @@ import {
 @ApiTags('operativa')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(ROL.SYSTEM, ROL.GESTION_OPERATIVA)
+@Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT)
 @Controller()
 export class OperativaController {
   constructor(

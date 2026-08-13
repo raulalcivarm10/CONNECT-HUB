@@ -45,7 +45,7 @@ export class CreateUsuarioDto {
 
   @ApiProperty({
     description: 'Nombres de rol de ROLES_INSTITUCIONES',
-    example: ['ADMINISTRATIVO'],
+    example: ['ADMINISTRATION'],
   })
   @IsArray()
   @ArrayNotEmpty()
@@ -58,6 +58,15 @@ export class CreateUsuarioDto {
   @IsOptional()
   @IsInt()
   idInstitucion?: number;
+
+  @ApiPropertyOptional({
+    description: 'Grupo/facultad del usuario (se hereda a los eventos que cree)',
+    example: 'School of Medicine',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  grupo?: string;
 }
 
 export class UpdateUsuarioDto {
@@ -84,6 +93,15 @@ export class UpdateUsuarioDto {
   @IsString()
   @MinLength(8)
   password?: string;
+
+  @ApiPropertyOptional({
+    description: 'Grupo/facultad del usuario (vacío = quitar grupo)',
+    example: 'School of Medicine',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  grupo?: string;
 }
 
 export class UpdateEstadoDto {

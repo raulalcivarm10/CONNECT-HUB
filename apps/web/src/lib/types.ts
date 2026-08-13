@@ -1,10 +1,34 @@
+/** Nombres EXACTOS del catálogo ROLES_INSTITUCIONES (en inglés) */
 export const ROL = {
   SYSTEM: 'SYSTEM',
-  ADMINISTRATIVO: 'ADMINISTRATIVO',
-  FINANCIERO: 'FINANCIERO',
-  GESTION_OPERATIVA: 'GESTION OPERATIVA',
-  EVENTOS: 'EVENTOS',
+  ADMINISTRATION: 'ADMINISTRATION',
+  FINANCE: 'FINANCE',
+  OPERATIONS_MANAGEMENT: 'OPERATIONS MANAGEMENT',
+  EVENT: 'EVENT',
+  VENUE_APPROVER: 'VENUE_APPROVER',
+  PUBLISHER: 'PUBLISHER',
 } as const;
+
+/** Flujo de aprobación de eventos (EVENTOS.ESTADO_APROBACION); null = evento legado (tratar como publicado) */
+export type EstadoAprobacion =
+  | 'BORRADOR'
+  | 'SALON_APROBADO'
+  | 'PUBLICADO'
+  | 'RECHAZADO';
+
+/** Roles que aprueban el salón de un evento (BORRADOR → SALON_APROBADO) */
+export const ROLES_APROBAR_SALON: readonly string[] = [
+  ROL.SYSTEM,
+  ROL.ADMINISTRATION,
+  ROL.VENUE_APPROVER,
+];
+
+/** Roles que publican un evento (SALON_APROBADO → PUBLICADO) */
+export const ROLES_PUBLICAR: readonly string[] = [
+  ROL.SYSTEM,
+  ROL.ADMINISTRATION,
+  ROL.PUBLISHER,
+];
 
 export interface Usuario {
   sub: string;
@@ -16,6 +40,7 @@ export interface Usuario {
   idInstitucion: number | null;
   institucion: string | null;
   roles: string[];
+  grupo?: string | null;
   debeCambiarClave: boolean;
 }
 
@@ -30,6 +55,9 @@ export interface UsuarioRow {
   ID_INSTITUCION: number | null;
   INSTITUCION: string | null;
   ROLES: string | null;
+  /** grupo/área del usuario (p. ej. facultad); el API lo expone como `grupo` */
+  GRUPO?: string | null;
+  grupo?: string | null;
   FECHA_REGISTRO: string | null;
 }
 
@@ -176,37 +204,48 @@ export interface EventoRow {
   ID_INSTITUCION: number | null;
   INSTITUCION: string | null;
   INSCRITOS: number;
+  /** flujo de aprobación (camelCase, contrato del API); undefined/null = evento legado */
+  creadoPor?: string | null;
+  grupo?: string | null;
+  estadoAprobacion?: EstadoAprobacion | null;
+  motivoRechazo?: string | null;
 }
 
-/** Módulos del panel y qué roles los ven (SYSTEM y superadmin ven todos) */
+/** Módulos del panel y qué roles los ven (SYSTEM, ADMINISTRATION y superadmin ven todos) */
 export const MODULOS = [
   {
     id: 'administracion',
     nombreKey: 'mod.admin.name',
     descKey: 'mod.admin.desc',
     href: '/panel/administracion/usuarios',
-    roles: [ROL.SYSTEM, ROL.ADMINISTRATIVO],
+    roles: [ROL.SYSTEM, ROL.ADMINISTRATION],
   },
   {
     id: 'financiero',
     nombreKey: 'mod.fin.name',
     descKey: 'mod.fin.desc',
     href: '/panel/financiero',
-    roles: [ROL.SYSTEM, ROL.FINANCIERO],
+    roles: [ROL.SYSTEM, ROL.ADMINISTRATION, ROL.FINANCE],
   },
   {
     id: 'operativa',
     nombreKey: 'mod.op.name',
     descKey: 'mod.op.desc',
     href: '/panel/operativa/locales',
-    roles: [ROL.SYSTEM, ROL.GESTION_OPERATIVA],
+    roles: [ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT],
   },
   {
     id: 'eventos',
     nombreKey: 'mod.ev.name',
     descKey: 'mod.ev.desc',
     href: '/panel/eventos',
-    roles: [ROL.SYSTEM, ROL.EVENTOS],
+    roles: [
+      ROL.SYSTEM,
+      ROL.ADMINISTRATION,
+      ROL.EVENT,
+      ROL.VENUE_APPROVER,
+      ROL.PUBLISHER,
+    ],
   },
 ] as const;
 
@@ -217,4 +256,20 @@ export function puedeVer(
   if (!user) return false;
   if (user.esSuper) return true;
   return user.roles.some((r) => roles.includes(r));
+}
+
+/**
+ * Rol EVENT "raso": crea eventos pero sin SYSTEM/ADMINISTRATION.
+ * Solo ve el módulo de Eventos (lista + calendario) y sus eventos pasan
+ * por el flujo de aprobación (no puede decidir la publicación).
+ */
+export function esEventoRestringido(user: Usuario | null): boolean {
+  if (!user || user.esSuper) return false;
+  if (
+    user.roles.includes(ROL.SYSTEM) ||
+    user.roles.includes(ROL.ADMINISTRATION)
+  ) {
+    return false;
+  }
+  return user.roles.includes(ROL.EVENT);
 }

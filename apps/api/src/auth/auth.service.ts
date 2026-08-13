@@ -27,6 +27,7 @@ interface UsuarioRow {
   ES_SUPER: string;
   ID_INSTITUCION: number | null;
   DEBE_CAMBIAR_CLAVE: string;
+  GRUPO: string | null;
   ESTADO_INSTITUCION: string | null;
   NOMBRE_INSTITUCION: string | null;
 }
@@ -44,7 +45,7 @@ export class AuthService {
     const rows = await this.oracle.query<UsuarioRow>(
       `SELECT u.COD_USUARIO, u.EMAIL, u.NOMBRES, u.APELLIDOS, u.NOMBRE_USUARIO,
               u.ESTADOS, u.CLAVE, u.SALT, u.ES_SUPER, u.ID_INSTITUCION,
-              u.DEBE_CAMBIAR_CLAVE,
+              u.DEBE_CAMBIAR_CLAVE, u.GRUPO,
               i.ESTADO AS ESTADO_INSTITUCION, i.NOMBRE AS NOMBRE_INSTITUCION
          FROM USUARIOS_INSTITUCIONES u
          LEFT JOIN INSTITUCIONES i ON i.ID_INSTITUCION = u.ID_INSTITUCION
@@ -99,6 +100,7 @@ export class AuthService {
       idInstitucion: row.ID_INSTITUCION,
       institucion: row.NOMBRE_INSTITUCION,
       roles,
+      grupo: row.GRUPO ?? null,
       debeCambiarClave: row.DEBE_CAMBIAR_CLAVE === 'S',
     };
   }
@@ -186,6 +188,7 @@ export class AuthService {
       idInstitucion: row.ID_INSTITUCION,
       institucion: row.NOMBRE_INSTITUCION,
       roles,
+      grupo: row.GRUPO ?? null,
       debeCambiarClave: row.DEBE_CAMBIAR_CLAVE === 'S',
     };
     return { user, ...this.issueTokens(user) };
@@ -250,6 +253,7 @@ export class AuthService {
       idInstitucion: row.ID_INSTITUCION,
       institucion: row.NOMBRE_INSTITUCION,
       roles,
+      grupo: row.GRUPO ?? null,
       debeCambiarClave: row.DEBE_CAMBIAR_CLAVE === 'S',
     };
     return { user, ...this.issueTokens(user) };

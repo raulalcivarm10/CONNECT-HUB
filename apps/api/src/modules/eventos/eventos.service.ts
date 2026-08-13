@@ -8,7 +8,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { OracleService } from '../../database/oracle.service';
-import { JwtUser } from '../../auth/types';
+import { JwtUser, soloSusEventos } from '../../auth/types';
 import { ScopeService } from '../operativa/scope.service';
 import { ArchivosService } from '../archivos/archivos.service';
 import { PushService } from '../push/push.service';
@@ -52,6 +52,10 @@ export class EventosService {
 
   list(actor: JwtUser, idInstitucion?: number) {
     const filtro = this.scope.institucionForRead(actor, idInstitucion);
+    // Visibilidad por rol: EVENT (sin SYSTEM/ADMINISTRATION) solo ve SUS
+    // eventos: los que creó o los de su mismo GRUPO (facultad).
+    const usr = soloSusEventos(actor) ? actor.sub : null;
+    const grp = actor.grupo ?? null;
     return this.oracle.query(
       `SELECT e.ID_EVENTO, e.TITULO, e.DESCRIPCION,
               TO_CHAR(e.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
@@ -60,6 +64,8 @@ export class EventosService {
               e.PRECIO, e.PUBLICO_ESPERADO, e.DESTACADO, e.ORDEN_DESTACADO,
               e.COD_ITEM, e.NO_PUBLICAR, e.INCLUYE_IVA, e.MONTO_IVA,
               e.IMAGEN_URL, e.FECHA_REGISTRO,
+              e.CREADO_POR, e.GRUPO, e.ESTADO_APROBACION, e.MOTIVO_RECHAZO,
+              e.SALON_APROBADO_POR, e.PUBLICADO_POR,
               e.ID_EVENTO_PADRE, p.TITULO AS PADRE_TITULO,
               e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               l.NOMBRE AS LOCAL_NOMBRE, s.NOMBRE AS SALON_NOMBRE,
@@ -81,8 +87,10 @@ export class EventosService {
          LEFT JOIN EVENTOS p ON p.ID_EVENTO = e.ID_EVENTO_PADRE
          LEFT JOIN INSTITUCIONES i ON i.ID_INSTITUCION = COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION)
         WHERE (:filtro IS NULL OR COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) = :filtro)
+          AND (:usr IS NULL OR e.CREADO_POR = :usr
+               OR (e.GRUPO IS NOT NULL AND e.GRUPO = :grp))
         ORDER BY e.FECHA_EVENTO DESC, e.HORA_INICIO`,
-      { filtro },
+      { filtro, usr, grp },
     );
   }
 
@@ -348,6 +356,14 @@ export class EventosService {
         : null;
     const tarifaTotal = tarifaDia != null ? tarifaDia * ordenados.length : null;
 
+    // Flujo de aprobación: el rol EVENT (sin SYSTEM/ADMINISTRATION) crea en
+    // BORRADOR con NO_PUBLICAR='S' FORZADO — reutiliza el check de público
+    // existente, así la app móvil jamás ve el evento sin aprobar (cero cambios
+    // allá). SYSTEM/ADMINISTRATION crean como siempre (publicado directo).
+    const requiereAprobacion = soloSusEventos(actor);
+    const noPublicarEfectivo = requiereAprobacion ? 'S' : dto.noPublicar ? 'S' : 'N';
+    const estadoAprobacion = requiereAprobacion ? 'BORRADOR' : 'PUBLICADO';
+
     return this.oracle.withConnection(async (conn) => {
       const result = await conn.execute(
         `INSERT INTO EVENTOS
@@ -355,13 +371,17 @@ export class EventosService {
             ID_EVENTO_PADRE, ID_LOCAL, ID_SALON, ID_SUBSALON, ID_CONFIGURACION,
             PRECIO, PUBLICO_ESPERADO, TIEMPO_SETUP_MIN, TIEMPO_CLEAN_MIN,
             COD_ITEM, NO_PUBLICAR, INCLUYE_IVA, MONTO_IVA, IMAGEN_URL,
-            PRECIO_ESPACIO_DIA, PRECIO_ESPACIO)
+            PRECIO_ESPACIO_DIA, PRECIO_ESPACIO,
+            CREADO_POR, GRUPO, ESTADO_APROBACION, PUBLICADO_POR, FECHA_PUBLICADO)
          VALUES
            (:titulo, :descripcion, TO_DATE(:fecha, 'YYYY-MM-DD'),
             TO_DATE(:fechaFin, 'YYYY-MM-DD'), :horaInicio, :horaFin,
             :idEventoPadre, :idLocal, :idSalon, :idSubsalon, :idConfiguracion,
             :precio, :publico, :setupMin, :cleanMin, :codItem, :noPublicar,
-            :incluyeIva, :montoIva, :imagenUrl, :tarifaDia, :tarifaTotal)
+            :incluyeIva, :montoIva, :imagenUrl, :tarifaDia, :tarifaTotal,
+            :creadoPor, :grupo, :estadoAprobacion,
+            CASE WHEN :estadoAprobacion = 'PUBLICADO' THEN :creadoPor END,
+            CASE WHEN :estadoAprobacion = 'PUBLICADO' THEN SYSDATE END)
          RETURNING ID_EVENTO INTO :out`,
         {
           tarifaDia: { val: tarifaDia, type: this.oracle.NUMBER },
@@ -385,7 +405,10 @@ export class EventosService {
           setupMin: dto.tiempoSetupMin ?? 0,
           cleanMin: dto.tiempoCleanMin ?? 0,
           codItem: dto.codItem ?? null,
-          noPublicar: dto.noPublicar ? 'S' : 'N',
+          noPublicar: noPublicarEfectivo,
+          creadoPor: actor.sub,
+          grupo: actor.grupo ?? null,
+          estadoAprobacion,
           incluyeIva: dto.incluyeIva ? 'S' : 'N',
           montoIva: {
             val: dto.incluyeIva ? (dto.montoIva ?? null) : null,
@@ -417,11 +440,13 @@ export class EventosService {
         );
       }
       await conn.commit();
-      // aviso push a los asistentes vinculados a la institución (no bloquea)
-      if (!dto.noPublicar) {
+      // aviso push a los asistentes vinculados a la institución (no bloquea).
+      // Un BORRADOR nunca notifica: el push del flujo de aprobación se dispara
+      // al aprobar la publicación (aprobarPublicacion).
+      if (noPublicarEfectivo === 'N') {
         void this.push.notificarNuevoEvento(idEvento);
       }
-      return { idEvento, subsalonesReservados: subsalones };
+      return { idEvento, subsalonesReservados: subsalones, estadoAprobacion };
     });
   }
 
@@ -444,6 +469,9 @@ export class EventosService {
       PADRE_TITULO: string | null;
       ID_INSTITUCION: number | null;
       DIAS: string | null;
+      CREADO_POR: string | null;
+      GRUPO: string | null;
+      ESTADO_APROBACION: string | null;
     }>(
       `SELECT e.ID_EVENTO, e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               TO_CHAR(e.FECHA_EVENTO,'YYYY-MM-DD') AS FECHA_EVENTO,
@@ -451,6 +479,7 @@ export class EventosService {
               e.HORA_INICIO, e.HORA_FIN, e.TIEMPO_SETUP_MIN, e.TIEMPO_CLEAN_MIN, e.TITULO,
               e.ID_EVENTO_PADRE, p.TITULO AS PADRE_TITULO,
               COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) AS ID_INSTITUCION,
+              e.CREADO_POR, e.GRUPO, e.ESTADO_APROBACION,
               (SELECT LISTAGG(TO_CHAR(h.FECHA, 'YYYY-MM-DD'), ',') WITHIN GROUP (ORDER BY h.FECHA)
                  FROM EVENTO_HORAS h WHERE h.ID_EVENTO = e.ID_EVENTO) AS DIAS
          FROM EVENTOS e
@@ -464,6 +493,15 @@ export class EventosService {
     const ev = rows[0];
     if (!ev) throw new NotFoundException('Event not found');
     if (!actor.esSuper && ev.ID_INSTITUCION !== actor.idInstitucion) {
+      throw new NotFoundException('Event not found');
+    }
+    // Rol EVENT raso: solo puede tocar SUS eventos (propios o de su grupo).
+    // Cierra de una vez update/eliminar/imagen/cupones/etc. (todos pasan por aquí).
+    if (
+      soloSusEventos(actor) &&
+      ev.CREADO_POR !== actor.sub &&
+      !(ev.GRUPO != null && ev.GRUPO === (actor.grupo ?? null))
+    ) {
       throw new NotFoundException('Event not found');
     }
     return ev;
@@ -624,6 +662,11 @@ export class EventosService {
            ID_SALON = :idSalon,
            COD_ITEM = COALESCE(:codItem, COD_ITEM),
            NO_PUBLICAR = COALESCE(:noPublicar, NO_PUBLICAR),
+           ESTADO_APROBACION = COALESCE(:estadoReset, ESTADO_APROBACION),
+           SALON_APROBADO_POR = CASE WHEN :estadoReset IS NULL THEN SALON_APROBADO_POR END,
+           FECHA_SALON_APROBADO = CASE WHEN :estadoReset IS NULL THEN FECHA_SALON_APROBADO END,
+           PUBLICADO_POR = CASE WHEN :estadoReset IS NULL THEN PUBLICADO_POR END,
+           FECHA_PUBLICADO = CASE WHEN :estadoReset IS NULL THEN FECHA_PUBLICADO END,
            INCLUYE_IVA = COALESCE(:incluyeIva, INCLUYE_IVA),
            MONTO_IVA = CASE WHEN :incluyeIva = 'N' THEN NULL
                             ELSE COALESCE(:montoIva, MONTO_IVA) END,
@@ -650,8 +693,17 @@ export class EventosService {
           idLocal,
           idSalon: { val: idSalon ?? null, type: this.oracle.NUMBER },
           codItem: dto.codItem ?? null,
-          noPublicar:
-            dto.noPublicar === undefined ? null : dto.noPublicar ? 'S' : 'N',
+          // Rol EVENT raso: NUNCA puede poner el evento como público a mano
+          // (eso lo hace la aprobación); además cualquier edición suya lo
+          // regresa a BORRADOR + oculto para re-aprobar.
+          noPublicar: soloSusEventos(actor)
+            ? 'S'
+            : dto.noPublicar === undefined
+              ? null
+              : dto.noPublicar
+                ? 'S'
+                : 'N',
+          estadoReset: soloSusEventos(actor) ? 'BORRADOR' : null,
           incluyeIva:
             dto.incluyeIva === undefined ? null : dto.incluyeIva ? 'S' : 'N',
           montoIva: { val: dto.montoIva ?? null, type: this.oracle.NUMBER },
@@ -1614,5 +1666,105 @@ export class EventosService {
       tipoArchivo.toUpperCase(),
     );
     return { idEvento, idExpositor, ...r };
+  }
+
+  /* ---------- flujo de aprobación (BORRADOR → SALON_APROBADO → PUBLICADO) ---------- */
+
+  private async estadoActual(actor: JwtUser, idEvento: number) {
+    // eventoEnAmbito valida institución (y pertenencia si fuera rol raso; los
+    // aprobadores no son rol raso, así que ven todos los de su institución).
+    const ev = await this.eventoEnAmbito(actor, idEvento);
+    return ev;
+  }
+
+  /** Paso 1: aprueba el salón/espacio solicitado. Revalida disponibilidad. */
+  async aprobarSalon(actor: JwtUser, idEvento: number) {
+    const ev = await this.estadoActual(actor, idEvento);
+    if (ev.ESTADO_APROBACION !== 'BORRADOR') {
+      throw new BadRequestException('The event is not pending venue approval');
+    }
+    // La agenda pudo cambiar desde que se creó el borrador → revalidar choques
+    // con las horas REALES de cada día (EVENTO_HORAS), excluyéndose a sí mismo.
+    const horas = await this.oracle.query<{
+      FECHA: string;
+      HORA_INICIO: string;
+      HORA_FIN: string;
+    }>(
+      `SELECT TO_CHAR(FECHA,'YYYY-MM-DD') AS FECHA, HORA_INICIO, HORA_FIN
+         FROM EVENTO_HORAS WHERE ID_EVENTO = :id ORDER BY FECHA`,
+      { id: idEvento },
+    );
+    if (ev.ID_LOCAL && horas.length) {
+      await this.validarDisponibilidad({
+        idLocal: ev.ID_LOCAL,
+        idSalon: ev.ID_SALON ?? null,
+        subsalones: await this.subsalonesDeEvento(idEvento),
+        dias: horas.map((h) => ({
+          fecha: h.FECHA,
+          horaInicio: h.HORA_INICIO,
+          horaFin: h.HORA_FIN,
+        })),
+        setupMin: ev.TIEMPO_SETUP_MIN ?? 0,
+        cleanMin: ev.TIEMPO_CLEAN_MIN ?? 0,
+        excluirEvento: idEvento,
+      });
+    }
+    await this.oracle.execute(
+      `UPDATE EVENTOS SET
+         ESTADO_APROBACION = 'SALON_APROBADO',
+         SALON_APROBADO_POR = :usr, FECHA_SALON_APROBADO = SYSDATE,
+         RECHAZADO_POR = NULL, FECHA_RECHAZO = NULL, MOTIVO_RECHAZO = NULL
+       WHERE ID_EVENTO = :id AND ESTADO_APROBACION = 'BORRADOR'`,
+      { usr: actor.sub, id: idEvento },
+    );
+    return { ok: true, idEvento, estadoAprobacion: 'SALON_APROBADO' };
+  }
+
+  /** Paso 2: OK final → publica (NO_PUBLICAR='N') y notifica a los asistentes. */
+  async aprobarPublicacion(actor: JwtUser, idEvento: number) {
+    const ev = await this.estadoActual(actor, idEvento);
+    if (ev.ESTADO_APROBACION !== 'SALON_APROBADO') {
+      throw new BadRequestException('The event venue must be approved first');
+    }
+    const r = await this.oracle.execute(
+      `UPDATE EVENTOS SET
+         ESTADO_APROBACION = 'PUBLICADO',
+         PUBLICADO_POR = :usr, FECHA_PUBLICADO = SYSDATE,
+         NO_PUBLICAR = 'N',
+         RECHAZADO_POR = NULL, FECHA_RECHAZO = NULL, MOTIVO_RECHAZO = NULL
+       WHERE ID_EVENTO = :id AND ESTADO_APROBACION = 'SALON_APROBADO'`,
+      { usr: actor.sub, id: idEvento },
+    );
+    if (r.rowsAffected) {
+      // este es el momento real de publicación → mismo push que create() directo
+      void this.push.notificarNuevoEvento(idEvento);
+    }
+    return { ok: true, idEvento, estadoAprobacion: 'PUBLICADO' };
+  }
+
+  /** Rechaza (en cualquier paso pendiente) con motivo; vuelve al creador. */
+  async rechazar(actor: JwtUser, idEvento: number, motivo: string) {
+    const ev = await this.estadoActual(actor, idEvento);
+    if (ev.ESTADO_APROBACION !== 'BORRADOR' && ev.ESTADO_APROBACION !== 'SALON_APROBADO') {
+      throw new BadRequestException('The event is not pending approval');
+    }
+    await this.oracle.execute(
+      `UPDATE EVENTOS SET
+         ESTADO_APROBACION = 'RECHAZADO',
+         RECHAZADO_POR = :usr, FECHA_RECHAZO = SYSDATE,
+         MOTIVO_RECHAZO = :motivo, NO_PUBLICAR = 'S'
+       WHERE ID_EVENTO = :id`,
+      { usr: actor.sub, motivo: motivo.slice(0, 2000), id: idEvento },
+    );
+    return { ok: true, idEvento, estadoAprobacion: 'RECHAZADO' };
+  }
+
+  /** Subsalones ya reservados por un evento (para revalidar disponibilidad). */
+  private async subsalonesDeEvento(idEvento: number): Promise<number[]> {
+    const rows = await this.oracle.query<{ ID_SUBSALON: number }>(
+      `SELECT ID_SUBSALON FROM EVENTO_SUBSALONES WHERE ID_EVENTO = :id`,
+      { id: idEvento },
+    );
+    return rows.map((r) => r.ID_SUBSALON);
   }
 }
