@@ -42,6 +42,11 @@ import {
   UpdateExpositorDto,
 } from './dto/detalle.dto';
 
+class RechazarEventoDto {
+  @IsString()
+  motivo!: string;
+}
+
 class GenerarCertDto {
   @IsOptional()
   @IsArray()
@@ -363,9 +368,4 @@ export class EventosController {
   ) {
     return this.eventos.rechazar(user, id, dto.motivo);
   }
-}
-
-class RechazarEventoDto {
-  @IsString()
-  motivo!: string;
 }
