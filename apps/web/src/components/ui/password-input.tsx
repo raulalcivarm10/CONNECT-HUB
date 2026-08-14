@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 
 /** Campo de contraseña con botón para mostrar/ocultar (ojo) */
 export function PasswordInput({
@@ -34,6 +35,7 @@ export function PasswordInput({
         autoComplete={autoComplete}
         required={required}
         minLength={minLength}
+        {...propsValidacion(t('common.requiredField'))}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

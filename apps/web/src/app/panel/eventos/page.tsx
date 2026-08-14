@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import {
   esEventoRestringido,
   puedeVer,
@@ -1315,6 +1316,7 @@ function EventoForm({
         <input
           required
           maxLength={200}
+          {...propsValidacion(t('common.requiredField'))}
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
           className={inputCls}
@@ -1380,6 +1382,7 @@ function EventoForm({
                 <input
                   type="date"
                   required
+                  {...propsValidacion(t('common.requiredField'))}
                   value={d.fecha}
                   onChange={(e) => actualizarDia(i, 'fecha', e.target.value)}
                   className={inputCls}
@@ -1392,6 +1395,7 @@ function EventoForm({
                 <input
                   type="time"
                   required
+                  {...propsValidacion(t('common.requiredField'))}
                   value={d.horaInicio}
                   onChange={(e) =>
                     actualizarDia(i, 'horaInicio', e.target.value)
@@ -1406,6 +1410,7 @@ function EventoForm({
                 <input
                   type="time"
                   required
+                  {...propsValidacion(t('common.requiredField'))}
                   value={d.horaFin}
                   onChange={(e) => actualizarDia(i, 'horaFin', e.target.value)}
                   className={inputCls}
@@ -1436,6 +1441,7 @@ function EventoForm({
         <label className={labelCls}>{t('ev.venue')}</label>
         <select
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={idLocal}
           onChange={(e) => {
             setIdLocal(e.target.value);
@@ -1507,6 +1513,7 @@ function EventoForm({
           <label className={labelCls}>{t('ev.layout')}</label>
           <select
             required
+            {...propsValidacion(t('common.requiredField'))}
             value={idConfiguracion}
             onChange={(e) => setIdConfiguracion(e.target.value)}
             className={inputCls}
@@ -1525,6 +1532,7 @@ function EventoForm({
           <label className={labelCls}>{t('ev.subhall')}</label>
           <select
             required
+            {...propsValidacion(t('common.requiredField'))}
             value={idSubsalon}
             onChange={(e) => setIdSubsalon(e.target.value)}
             className={inputCls}

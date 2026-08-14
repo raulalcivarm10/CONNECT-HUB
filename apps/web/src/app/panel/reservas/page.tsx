@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import type { EventoRow, LocalRow, SalonRow } from '@/lib/types';
 
 const hoy = new Date();
@@ -246,7 +247,7 @@ function DiaPanel({
         {eventos.length === 0 && <p className="text-sm text-success">{t('rsv.free')}</p>}
       </div>
       <form onSubmit={reservar} className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-app pt-3">
-        <input required placeholder={t('rsv.name')} value={titulo} onChange={(e) => setTitulo(e.target.value)} className={`${inp} min-w-56 flex-1`} />
+        <input required {...propsValidacion(t('common.requiredField'))} placeholder={t('rsv.name')} value={titulo} onChange={(e) => setTitulo(e.target.value)} className={`${inp} min-w-56 flex-1`} />
         <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} className={inp} title={t('rsv.start')} />
         <input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} className={inp} title={t('rsv.end')} />
         <button disabled={sending} className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">

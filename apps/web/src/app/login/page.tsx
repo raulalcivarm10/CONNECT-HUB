@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import { PasswordInput } from '@/components/ui/password-input';
 import { LoginArt } from '@/components/login/login-art';
 
@@ -100,6 +101,7 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="username"
                   required
+                  {...propsValidacion(t('common.requiredField'))}
                   value={usuario}
                   onChange={(e) => setUsuario(e.target.value)}
                   className={inputCls}
@@ -165,6 +167,7 @@ export default function LoginPage() {
                   id="usuarioRec"
                   type="email"
                   required
+                  {...propsValidacion(t('common.requiredField'))}
                   value={usuarioRec}
                   onChange={(e) => setUsuarioRec(e.target.value)}
                   className={inputCls}

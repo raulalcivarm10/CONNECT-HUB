@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 
 interface FeedbackRow {
   ID_FEEDBACK: number;
@@ -103,6 +104,7 @@ export default function FeedbackPage() {
             required
             minLength={5}
             maxLength={2000}
+            {...propsValidacion(t('common.requiredField'))}
             rows={4}
             placeholder={t('fb.placeholder')}
             value={mensaje}

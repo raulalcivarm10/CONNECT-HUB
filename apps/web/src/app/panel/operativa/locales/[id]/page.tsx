@@ -7,6 +7,7 @@ import { api } from '@/lib/api/client';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { useDialogo } from '@/lib/dialogo';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import type { ConfiguracionRow, SalonRow, SubsalonRow } from '@/lib/types';
 
 export default function LocalDetallePage() {
@@ -229,6 +230,7 @@ function SalonForm({
         </label>
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
@@ -383,6 +385,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
       <form onSubmit={crear} className="mb-3 flex flex-wrap items-end gap-2">
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           placeholder={t('sal.subName')}
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
@@ -484,6 +487,7 @@ function SubsalonItem({
       >
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           className="min-w-0 flex-1 rounded border border-border-app bg-surface px-2 py-1 text-sm text-text outline-none focus:border-brand"
@@ -678,6 +682,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
         <div className="flex flex-wrap items-end gap-2">
           <input
             required
+            {...propsValidacion(t('common.requiredField'))}
             placeholder={t('sal.cfgName')}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}

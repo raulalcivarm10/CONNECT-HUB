@@ -243,18 +243,21 @@ export interface HistorialEspacioRow {
 /** Módulos del panel y qué roles los ven (SYSTEM, ADMINISTRATION y superadmin ven todos) */
 export const MODULOS = [
   {
+    // Administración (usuarios/institución) es SOLO de SYSTEM.
     id: 'administracion',
     nombreKey: 'mod.admin.name',
     descKey: 'mod.admin.desc',
     href: '/panel/administracion/usuarios',
-    roles: [ROL.SYSTEM, ROL.ADMINISTRATION],
+    roles: [ROL.SYSTEM],
   },
   {
+    // ADMINISTRATION no ve Finanzas por defecto: si se desea, se le agrega
+    // el rol FINANCE al usuario.
     id: 'financiero',
     nombreKey: 'mod.fin.name',
     descKey: 'mod.fin.desc',
     href: '/panel/financiero',
-    roles: [ROL.SYSTEM, ROL.ADMINISTRATION, ROL.FINANCE],
+    roles: [ROL.SYSTEM, ROL.FINANCE],
   },
   {
     id: 'operativa',

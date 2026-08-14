@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import { useDialogo } from '@/lib/dialogo';
 import type { InstitucionRow, RolRow, UsuarioRow } from '@/lib/types';
 import { ROL } from '@/lib/types';
@@ -318,6 +319,7 @@ function EditarUsuarioForm({
         </label>
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={nombres}
           onChange={(e) => setNombres(e.target.value)}
           className={inputCls}
@@ -329,6 +331,7 @@ function EditarUsuarioForm({
         </label>
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={apellidos}
           onChange={(e) => setApellidos(e.target.value)}
           className={inputCls}
@@ -341,6 +344,7 @@ function EditarUsuarioForm({
         <input
           type="email"
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputCls}
@@ -501,6 +505,7 @@ function NuevoUsuarioForm({
         <input
           type="email"
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={usuario}
           onChange={(e) => setUsuario(e.target.value)}
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
@@ -513,6 +518,7 @@ function NuevoUsuarioForm({
           </label>
           <select
             required
+            {...propsValidacion(t('common.requiredField'))}
             value={idInstitucion}
             onChange={(e) => setIdInstitucion(e.target.value)}
             className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text"
@@ -534,6 +540,7 @@ function NuevoUsuarioForm({
         </label>
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={nombres}
           onChange={(e) => setNombres(e.target.value)}
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
@@ -545,6 +552,7 @@ function NuevoUsuarioForm({
         </label>
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={apellidos}
           onChange={(e) => setApellidos(e.target.value)}
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"

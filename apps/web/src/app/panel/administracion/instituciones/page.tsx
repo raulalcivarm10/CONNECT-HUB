@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import { useDialogo } from '@/lib/dialogo';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
@@ -339,6 +340,7 @@ function AprobarForm({
           <input
             type="email"
             required
+            {...propsValidacion(t('common.requiredField'))}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
@@ -420,6 +422,7 @@ function NuevaInstitucionForm({
           </label>
           <input
             required
+            {...propsValidacion(t('common.requiredField'))}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             className={inputCls}

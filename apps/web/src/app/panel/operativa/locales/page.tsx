@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import { useDialogo } from '@/lib/dialogo';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { ImagenNas } from '@/components/ui/imagen-nas';
@@ -232,6 +233,7 @@ function LocalForm({
         </label>
         <input
           required
+          {...propsValidacion(t('common.requiredField'))}
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
@@ -244,6 +246,7 @@ function LocalForm({
           </label>
           <select
             required
+            {...propsValidacion(t('common.requiredField'))}
             value={idInstitucion}
             onChange={(e) => setIdInstitucion(e.target.value)}
             className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text"

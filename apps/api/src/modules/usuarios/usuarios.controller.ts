@@ -31,7 +31,7 @@ export class UsuariosController {
   constructor(private readonly usuarios: UsuariosService) {}
 
   @Get()
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION)
+  @Roles(ROL.SYSTEM)
   @ApiOperation({ summary: 'Usuarios de la institución (superadmin: todas)' })
   list(
     @CurrentUser() user: JwtUser,

@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useI18n } from '@/lib/i18n';
+import { propsValidacion } from '@/lib/validacion';
 import type { PerfilInstitucion } from '@/lib/types';
 
 const inputCls =
@@ -186,7 +187,7 @@ export function PerfilInstitucionForm({
     >
       <div className="sm:col-span-2">
         <label className={labelCls}>{t('pf.name')}</label>
-        <input required maxLength={150} value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
+        <input required maxLength={150} {...propsValidacion(t('common.requiredField'))} value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
       </div>
       <div>
         <label className={labelCls}>{t('pf.connCode')}</label>
