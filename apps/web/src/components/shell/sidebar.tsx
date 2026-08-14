@@ -5,7 +5,13 @@ import { usePathname } from 'next/navigation';
 import type { ComponentType, SVGProps } from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
-import { esEventoRestringido, MODULOS, puedeVer, ROL } from '@/lib/types';
+import {
+  esEventoRestringido,
+  MODULOS,
+  puedeVer,
+  ROL,
+  ROLES_VER_APROBACIONES,
+} from '@/lib/types';
 import {
   IconBuilding,
   IconChat,
@@ -152,6 +158,14 @@ export function Sidebar() {
               icon={IconTicket}
               exact
             />
+            {/* aprobación de salones: solo quien aprueba salones o publica */}
+            {puedeVer(user, ROLES_VER_APROBACIONES) && (
+              <NavLink
+                href="/panel/eventos/aprobaciones"
+                label={t('side.approvals')}
+                icon={IconVenue}
+              />
+            )}
           </div>
         )}
 

@@ -1,7 +1,7 @@
 /**
  * Nombres de rol tal como existen en ROLES_INSTITUCIONES (la BD los guarda en
  * INGLÉS: SYSTEM, ADMINISTRATION, FINANCE, OPERATIONS MANAGEMENT, EVENT,
- * VENUE_APPROVER, PUBLISHER). Las constantes DEBEN coincidir letra a letra:
+ * — 5 roles). Las constantes DEBEN coincidir letra a letra:
  * RolesGuard compara por string exacto contra JwtUser.roles.
  */
 export const ROL = {
@@ -10,10 +10,6 @@ export const ROL = {
   FINANCE: 'FINANCE',
   OPERATIONS_MANAGEMENT: 'OPERATIONS MANAGEMENT',
   EVENT: 'EVENT',
-  /** Aprueba el salón/espacio solicitado por un evento (paso 1) */
-  VENUE_APPROVER: 'VENUE_APPROVER',
-  /** Da el OK final que publica el evento en la app (paso 2) */
-  PUBLISHER: 'PUBLISHER',
 } as const;
 
 export type RolNombre = (typeof ROL)[keyof typeof ROL];

@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { CertificadosEvento } from './certificados-evento';
+import {
+  BadgeAprobacion,
+  esPendiente,
+  ESTILO_APROBACION,
+  listoParaPublicar,
+  RechazoModal,
+} from './aprobacion-ui';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { useLightbox } from '@/lib/lightbox';
 import { useDialogo } from '@/lib/dialogo';
@@ -136,64 +143,6 @@ function ventanaReal(a: {
   return `${toHora(ini)}–${toHora(fin)}`;
 }
 
-/** Estados del flujo que aún no terminan en publicación */
-const ESTADOS_PENDIENTES = ['BORRADOR', 'SALON_APROBADO', 'REUBICADO'] as const;
-
-const esPendiente = (e: EventoRow['estadoAprobacion']): boolean =>
-  e != null && (ESTADOS_PENDIENTES as readonly string[]).includes(e);
-
-/** REUBICADO equivale a salón resuelto: puede publicarse */
-const listoParaPublicar = (e: EventoRow['estadoAprobacion']): boolean =>
-  e === 'SALON_APROBADO' || e === 'REUBICADO';
-
-/** key i18n + clases de color por estado del flujo de aprobación */
-const ESTILO_APROBACION: Record<
-  string,
-  { labelKey: string; chip: string; banner: string }
-> = {
-  BORRADOR: {
-    labelKey: 'ev.aprPendingVenue',
-    chip: 'bg-amber-500/10 text-amber-500',
-    banner: 'border-amber-500/40 bg-amber-500/10 text-amber-500',
-  },
-  SALON_APROBADO: {
-    labelKey: 'ev.aprPendingPublish',
-    chip: 'bg-sky-500/10 text-sky-500',
-    banner: 'border-sky-500/40 bg-sky-500/10 text-sky-500',
-  },
-  REUBICADO: {
-    labelKey: 'ev.aprMoved',
-    chip: 'bg-violet-500/10 text-violet-500',
-    banner: 'border-violet-500/40 bg-violet-500/10 text-violet-500',
-  },
-  RECHAZADO: {
-    labelKey: 'ev.aprRejected',
-    chip: 'bg-danger/10 text-danger',
-    banner: 'border-danger/40 bg-danger/10 text-danger',
-  },
-};
-
-/** Badge del flujo de aprobación (nada si es legado o ya está publicado) */
-function BadgeAprobacion({ ev }: { ev: EventoRow }) {
-  const { t } = useI18n();
-  const estado = ev.estadoAprobacion;
-  if (estado == null || estado === 'PUBLICADO') return null;
-  const estilo = ESTILO_APROBACION[estado];
-  if (!estilo) return null;
-  return (
-    <span
-      title={
-        estado === 'RECHAZADO' && ev.motivoRechazo
-          ? `${t('ev.aprReason')}: ${ev.motivoRechazo}`
-          : undefined
-      }
-      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${estilo.chip}`}
-    >
-      {t(estilo.labelKey)}
-    </span>
-  );
-}
-
 /** texto legible de un espacio del historial: LOCAL — SALON · sala/config · días */
 function espacioTexto(e: EspacioHistorial): string {
   const lugar = [e.local, e.salon, e.configuracion ?? e.subsalon]
@@ -320,6 +269,12 @@ function BannerAprobacion({
             >
               {t('ev.aprApproveVenue')}
             </button>
+          )}
+          {/* ADMINISTRATION publica pero no aprueba salones: solo espera */}
+          {estado === 'BORRADOR' && !puedeAprobarSalon && puedePublicar && (
+            <span className="self-center text-sm font-semibold">
+              {t('ev.aprWaitingVenue')}
+            </span>
           )}
           {listoParaPublicar(estado) && puedePublicar && (
             <button
@@ -771,65 +726,6 @@ export default function EventosPage() {
   );
 }
 
-/** Modal para rechazar un evento pidiendo el motivo (obligatorio) */
-function RechazoModal({
-  evento,
-  onConfirm,
-  onCancel,
-}: {
-  evento: EventoRow;
-  onConfirm: (motivo: string) => void;
-  onCancel: () => void;
-}) {
-  const { t } = useI18n();
-  const [motivo, setMotivo] = useState('');
-  return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={onCancel}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-border-app bg-surface p-6 shadow-2xl"
-      >
-        <h2 className="text-lg font-semibold text-text">
-          {t('ev.aprRejectTitle', { name: evento.TITULO })}
-        </h2>
-        <label className="mt-3 mb-1 block text-sm font-medium text-text-2">
-          {t('ev.aprReason')}
-        </label>
-        <textarea
-          autoFocus
-          rows={3}
-          maxLength={500}
-          value={motivo}
-          onChange={(e) => setMotivo(e.target.value)}
-          placeholder={t('ev.aprReasonPh')}
-          className="w-full rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-text outline-none focus:border-brand"
-        />
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-border-app px-4 py-2 text-sm font-medium text-text-2 hover:bg-surface-2"
-          >
-            {t('c.cancel')}
-          </button>
-          <button
-            type="button"
-            disabled={!motivo.trim()}
-            onClick={() => onConfirm(motivo.trim())}
-            className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {t('ev.aprReject')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 type TipoEspacio = 'salon' | 'configuracion' | 'subsalon';
 

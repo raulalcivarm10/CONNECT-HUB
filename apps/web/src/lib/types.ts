@@ -5,8 +5,6 @@ export const ROL = {
   FINANCE: 'FINANCE',
   OPERATIONS_MANAGEMENT: 'OPERATIONS MANAGEMENT',
   EVENT: 'EVENT',
-  VENUE_APPROVER: 'VENUE_APPROVER',
-  PUBLISHER: 'PUBLISHER',
 } as const;
 
 /**
@@ -21,19 +19,26 @@ export type EstadoAprobacion =
   | 'PUBLICADO'
   | 'RECHAZADO';
 
-/** Roles que aprueban el salón de un evento (BORRADOR → SALON_APROBADO) y pueden moverlo */
+/**
+ * Roles que aprueban el salón de un evento (BORRADOR → SALON_APROBADO) y
+ * pueden moverlo: quien administra los salones es quien los aprueba.
+ */
 export const ROLES_APROBAR_SALON: readonly string[] = [
   ROL.SYSTEM,
-  ROL.ADMINISTRATION,
   ROL.OPERATIONS_MANAGEMENT,
-  ROL.VENUE_APPROVER,
 ];
 
-/** Roles que publican un evento (SALON_APROBADO → PUBLICADO) */
+/** Roles que publican un evento (SALON_APROBADO/REUBICADO → PUBLICADO) */
 export const ROLES_PUBLICAR: readonly string[] = [
   ROL.SYSTEM,
   ROL.ADMINISTRATION,
-  ROL.PUBLISHER,
+];
+
+/** Roles que ven la vista de aprobación de salones (rechazar = la unión de ambos grupos) */
+export const ROLES_VER_APROBACIONES: readonly string[] = [
+  ROL.SYSTEM,
+  ROL.ADMINISTRATION,
+  ROL.OPERATIONS_MANAGEMENT,
 ];
 
 export interface Usuario {
@@ -276,8 +281,6 @@ export const MODULOS = [
       ROL.ADMINISTRATION,
       ROL.OPERATIONS_MANAGEMENT,
       ROL.EVENT,
-      ROL.VENUE_APPROVER,
-      ROL.PUBLISHER,
     ],
   },
 ] as const;

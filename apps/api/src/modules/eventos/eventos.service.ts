@@ -56,7 +56,11 @@ export class EventosService {
     // eventos: los que creó o los de su mismo GRUPO (facultad).
     const usr = soloSusEventos(actor) ? actor.sub : null;
     const grp = actor.grupo ?? null;
-    return this.oracle.query(
+    return this.listQuery(usr, grp, filtro);
+  }
+
+  private async listQuery(usr: string | null, grp: string | null, filtro: number | null) {
+    const rows = await this.oracle.query<Record<string, unknown>>(
       `SELECT e.ID_EVENTO, e.TITULO, e.DESCRIPCION,
               TO_CHAR(e.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
               TO_CHAR(NVL(e.FECHA_FIN, e.FECHA_EVENTO), 'YYYY-MM-DD') AS FECHA_FIN,
@@ -92,6 +96,15 @@ export class EventosService {
         ORDER BY e.FECHA_EVENTO DESC, e.HORA_INICIO`,
       { filtro, usr, grp },
     );
+    // El panel consume los campos de aprobación en camelCase (contrato del UI);
+    // el resto de columnas viaja como siempre (mayúsculas de Oracle).
+    return rows.map((r) => ({
+      ...r,
+      creadoPor: (r.CREADO_POR as string | null) ?? null,
+      grupo: (r.GRUPO as string | null) ?? null,
+      estadoAprobacion: (r.ESTADO_APROBACION as string | null) ?? null,
+      motivoRechazo: (r.MOTIVO_RECHAZO as string | null) ?? null,
+    }));
   }
 
   /** Subsalones que reservará el evento según el espacio elegido */

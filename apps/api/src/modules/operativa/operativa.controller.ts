@@ -139,7 +139,7 @@ export class OperativaController {
   // ---------- Locales ----------
 
   @Get('locales')
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT, ROL.VENUE_APPROVER, ROL.PUBLISHER)
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT)
   @ApiOperation({ summary: 'Locales de la institución' })
   listLocales(
     @CurrentUser() user: JwtUser,
@@ -191,7 +191,7 @@ export class OperativaController {
   // ---------- Salones ----------
 
   @Get('locales/:id/salones')
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT, ROL.VENUE_APPROVER, ROL.PUBLISHER)
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT)
   @ApiOperation({ summary: 'Salones de un local' })
   listSalones(
     @CurrentUser() user: JwtUser,
@@ -228,7 +228,7 @@ export class OperativaController {
   // ---------- Subsalones ----------
 
   @Get('salones/:id/subsalones')
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT, ROL.VENUE_APPROVER, ROL.PUBLISHER)
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT)
   @ApiOperation({ summary: 'Subsalones de un salón' })
   listSubsalones(
     @CurrentUser() user: JwtUser,
@@ -265,7 +265,7 @@ export class OperativaController {
   // ---------- Configuraciones ----------
 
   @Get('salones/:id/configuraciones')
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT, ROL.VENUE_APPROVER, ROL.PUBLISHER)
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.EVENT)
   @ApiOperation({ summary: 'Configuraciones de subdivisión de un salón' })
   listConfiguraciones(
     @CurrentUser() user: JwtUser,

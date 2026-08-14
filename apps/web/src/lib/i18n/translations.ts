@@ -167,8 +167,6 @@ const en: Dict = {
   'role.FINANCE': 'Finance',
   'role.OPERATIONS MANAGEMENT': 'Operations management',
   'role.EVENT': 'Events',
-  'role.VENUE_APPROVER': 'Venue approver',
-  'role.PUBLISHER': 'Publisher',
   // sidebar
   'side.home': 'Home',
   'side.administration': 'Administration',
@@ -238,6 +236,15 @@ const en: Dict = {
   'ev.histRECHAZADO': 'Rejected',
   'ev.histFrom': 'previously',
   'ev.histEmpty': 'No history yet',
+  'ev.aprWaitingVenue': 'Waiting for venue approval',
+  'side.approvals': 'Hall approvals',
+  'apr.subtitle': 'Review venue requests and publish approved events',
+  'apr.readyTitle': 'Venue approved — ready to publish',
+  'apr.empty': 'No pending requests',
+  'apr.requestedBy': 'Requested by',
+  'apr.openEvent': 'Open event',
+  'apr.moveHint':
+    'To relocate a request, open the event and change its hall/dates',
   'aud.title': 'Activity log',
   'aud.subtitle':
     'Logins, changes and errors across the platform. Click a row to see the detail.',
@@ -928,8 +935,6 @@ const es: Dict = {
   'role.FINANCE': 'Financiero',
   'role.OPERATIONS MANAGEMENT': 'Gestión operativa',
   'role.EVENT': 'Eventos',
-  'role.VENUE_APPROVER': 'Aprobador de salones',
-  'role.PUBLISHER': 'Publicador',
   'side.home': 'Inicio',
   'side.administration': 'Administración',
   'side.users': 'Usuarios',
@@ -998,6 +1003,16 @@ const es: Dict = {
   'ev.histRECHAZADO': 'Rechazado',
   'ev.histFrom': 'antes',
   'ev.histEmpty': 'Aún no hay historial',
+  'ev.aprWaitingVenue': 'Esperando aprobación del salón',
+  'side.approvals': 'Aprobación de salones',
+  'apr.subtitle':
+    'Revisa las solicitudes de salón y publica los eventos aprobados',
+  'apr.readyTitle': 'Salón aprobado — listo para publicar',
+  'apr.empty': 'Sin solicitudes pendientes',
+  'apr.requestedBy': 'Solicitado por',
+  'apr.openEvent': 'Abrir evento',
+  'apr.moveHint':
+    'Para reubicar una solicitud, abre el evento y cambia su salón/fechas',
   'aud.title': 'Registro de actividad',
   'aud.subtitle':
     'Ingresos, cambios y errores de toda la plataforma. Haz clic en una fila para ver el detalle.',
@@ -1676,8 +1691,6 @@ const fr: Dict = {
   'role.FINANCE': 'Finance',
   'role.OPERATIONS MANAGEMENT': 'Gestion opérationnelle',
   'role.EVENT': 'Événements',
-  'role.VENUE_APPROVER': 'Approbateur de salles',
-  'role.PUBLISHER': 'Publicateur',
   'side.home': 'Accueil',
   'side.administration': 'Administration',
   'side.users': 'Utilisateurs',
@@ -1746,6 +1759,16 @@ const fr: Dict = {
   'ev.histRECHAZADO': 'Rejeté',
   'ev.histFrom': 'avant',
   'ev.histEmpty': 'Pas encore d’historique',
+  'ev.aprWaitingVenue': 'En attente de l’approbation de la salle',
+  'side.approvals': 'Approbation des salles',
+  'apr.subtitle':
+    'Examinez les demandes de salle et publiez les événements approuvés',
+  'apr.readyTitle': 'Salle approuvée — prêt à publier',
+  'apr.empty': 'Aucune demande en attente',
+  'apr.requestedBy': 'Demandé par',
+  'apr.openEvent': 'Ouvrir l’événement',
+  'apr.moveHint':
+    'Pour déplacer une demande, ouvrez l’événement et modifiez sa salle/ses dates',
   'aud.title': "Journal d'activité",
   'aud.subtitle':
     'Connexions, modifications et erreurs de toute la plateforme. Cliquez sur une ligne pour voir le détail.',
@@ -2425,8 +2448,6 @@ const pt: Dict = {
   'role.FINANCE': 'Financeiro',
   'role.OPERATIONS MANAGEMENT': 'Gestão operacional',
   'role.EVENT': 'Eventos',
-  'role.VENUE_APPROVER': 'Aprovador de salões',
-  'role.PUBLISHER': 'Publicador',
   'side.home': 'Início',
   'side.administration': 'Administração',
   'side.users': 'Usuários',
@@ -2495,6 +2516,16 @@ const pt: Dict = {
   'ev.histRECHAZADO': 'Rejeitado',
   'ev.histFrom': 'antes',
   'ev.histEmpty': 'Ainda não há histórico',
+  'ev.aprWaitingVenue': 'Aguardando aprovação do salão',
+  'side.approvals': 'Aprovação de salões',
+  'apr.subtitle':
+    'Revise as solicitações de salão e publique os eventos aprovados',
+  'apr.readyTitle': 'Salão aprovado — pronto para publicar',
+  'apr.empty': 'Nenhuma solicitação pendente',
+  'apr.requestedBy': 'Solicitado por',
+  'apr.openEvent': 'Abrir evento',
+  'apr.moveHint':
+    'Para realocar uma solicitação, abra o evento e altere o salão/as datas',
   'aud.title': 'Registro de atividade',
   'aud.subtitle':
     'Acessos, alterações e erros de toda a plataforma. Clique em uma linha para ver o detalhe.',
