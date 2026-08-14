@@ -57,7 +57,7 @@ class GenerarCertDto {
 @ApiTags('eventos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.EVENT, ROL.VENUE_APPROVER, ROL.PUBLISHER)
+@Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.EVENT, ROL.VENUE_APPROVER, ROL.PUBLISHER, ROL.OPERATIONS_MANAGEMENT)
 @Controller('eventos')
 export class EventosController {
   constructor(private readonly eventos: EventosService) {}
@@ -345,7 +345,7 @@ export class EventosController {
   // OJO: @Roles en el handler REEMPLAZA al de la clase (getAllAndOverride).
 
   @Post(':id/aprobar-salon')
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.VENUE_APPROVER)
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.VENUE_APPROVER)
   @ApiOperation({ summary: 'Paso 1: aprueba el salón/espacio del evento (revalida disponibilidad)' })
   aprobarSalon(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.eventos.aprobarSalon(user, id);
@@ -359,7 +359,7 @@ export class EventosController {
   }
 
   @Post(':id/rechazar')
-  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.VENUE_APPROVER, ROL.PUBLISHER)
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION, ROL.OPERATIONS_MANAGEMENT, ROL.VENUE_APPROVER, ROL.PUBLISHER)
   @ApiOperation({ summary: 'Rechaza un evento pendiente (con motivo); vuelve al creador' })
   rechazar(
     @CurrentUser() user: JwtUser,
@@ -367,5 +367,11 @@ export class EventosController {
     @Body() dto: RechazarEventoDto,
   ) {
     return this.eventos.rechazar(user, id, dto.motivo);
+  }
+
+  @Get(':id/historial-espacio')
+  @ApiOperation({ summary: 'Trazabilidad del espacio: solicitado, movido, aprobado, publicado' })
+  historialEspacio(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.eventos.historialEspacio(user, id);
   }
 }

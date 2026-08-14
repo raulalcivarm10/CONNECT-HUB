@@ -446,6 +446,21 @@ export class EventosService {
       if (noPublicarEfectivo === 'N') {
         void this.push.notificarNuevoEvento(idEvento);
       }
+      // Auditoría: deja constancia de QUÉ salón/salas y QUÉ días se
+      // SOLICITARON originalmente (base del historial de movidas).
+      if (requiereAprobacion) {
+        void this.espacioSnapshot({
+          idLocal: dto.idLocal,
+          idSalon: dto.idSalon ?? null,
+          idSubsalon: dto.idSubsalon ?? null,
+          idConfiguracion: dto.idConfiguracion ?? null,
+          dias: ordenados,
+        }).then((snap) =>
+          this.registrarHistorial(idEvento, 'SOLICITADO', actor.sub, {
+            solicitado: snap,
+          }),
+        );
+      }
       return { idEvento, subsalonesReservados: subsalones, estadoAprobacion };
     });
   }
@@ -648,6 +663,48 @@ export class EventosService {
     const tarifaTotal =
       tarifaDia != null ? tarifaDia * diasEfectivos.length : null;
 
+    // ¿MOVIDA por un aprobador (Gestión Operativa / SYSTEM / ADMINISTRATION)?
+    // Si un evento pendiente cambia de espacio o fechas a manos de un rol que
+    // NO es el creador raso → se audita {de → a} y pasa a estado REUBICADO
+    // (equivale a salón resuelto; sigue la aprobación de publicación).
+    const estadoPendiente = ['BORRADOR', 'SALON_APROBADO', 'REUBICADO'].includes(
+      actual.ESTADO_APROBACION ?? '',
+    );
+    const espacioCambio =
+      (idLocal ?? null) !== (actual.ID_LOCAL ?? null) ||
+      (idSalon ?? null) !== (actual.ID_SALON ?? null) ||
+      (idSubsalon ?? null) !== (actual.ID_SUBSALON ?? null) ||
+      (idConfiguracion ?? null) !== (actual.ID_CONFIGURACION ?? null);
+    let snapshotAntes: Awaited<ReturnType<typeof this.espacioSnapshot>> | null = null;
+    if (!soloSusEventos(actor) && estadoPendiente && (espacioCambio || diasCambian)) {
+      const diasAntes = await this.oracle.query<{
+        FECHA: string;
+        HORA_INICIO: string;
+        HORA_FIN: string;
+      }>(
+        `SELECT TO_CHAR(FECHA,'YYYY-MM-DD') AS FECHA, HORA_INICIO, HORA_FIN
+           FROM EVENTO_HORAS WHERE ID_EVENTO = :id ORDER BY FECHA`,
+        { id: idEvento },
+      );
+      const antes = diasAntes.map((d) => ({
+        fecha: d.FECHA,
+        horaInicio: d.HORA_INICIO,
+        horaFin: d.HORA_FIN,
+      }));
+      // días idénticos re-enviados no cuentan como movida
+      const diasRealmenteCambian =
+        diasCambian && JSON.stringify(antes) !== JSON.stringify(diasEfectivos);
+      if (espacioCambio || diasRealmenteCambian) {
+        snapshotAntes = await this.espacioSnapshot({
+          idLocal: actual.ID_LOCAL,
+          idSalon: actual.ID_SALON,
+          idSubsalon: actual.ID_SUBSALON,
+          idConfiguracion: actual.ID_CONFIGURACION,
+          dias: antes,
+        });
+      }
+    }
+
     await this.oracle.withConnection(async (conn) => {
       await conn.execute(
         `UPDATE EVENTOS SET
@@ -763,6 +820,29 @@ export class EventosService {
       }
       await conn.commit();
     });
+
+    // Auditoría + estado de la MOVIDA (post-commit; nunca revierte la edición)
+    if (snapshotAntes) {
+      const despues = await this.espacioSnapshot({
+        idLocal,
+        idSalon: idSalon ?? null,
+        idSubsalon: idSubsalon ?? null,
+        idConfiguracion: idConfiguracion ?? null,
+        dias: diasEfectivos,
+      });
+      await this.oracle.execute(
+        `UPDATE EVENTOS SET
+           ESTADO_APROBACION = 'REUBICADO',
+           SALON_APROBADO_POR = :usr, FECHA_SALON_APROBADO = SYSDATE
+         WHERE ID_EVENTO = :id
+           AND ESTADO_APROBACION IN ('BORRADOR','SALON_APROBADO','REUBICADO')`,
+        { usr: actor.sub, id: idEvento },
+      );
+      await this.registrarHistorial(idEvento, 'MOVIDO', actor.sub, {
+        de: snapshotAntes,
+        a: despues,
+      });
+    }
     return { idEvento, subsalonesReservados: subsalones };
   }
 
@@ -1717,13 +1797,18 @@ export class EventosService {
        WHERE ID_EVENTO = :id AND ESTADO_APROBACION = 'BORRADOR'`,
       { usr: actor.sub, id: idEvento },
     );
+    await this.registrarHistorial(idEvento, 'APROBADO', actor.sub, {
+      nota: 'Venue approved as requested',
+    });
     return { ok: true, idEvento, estadoAprobacion: 'SALON_APROBADO' };
   }
 
   /** Paso 2: OK final → publica (NO_PUBLICAR='N') y notifica a los asistentes. */
   async aprobarPublicacion(actor: JwtUser, idEvento: number) {
     const ev = await this.estadoActual(actor, idEvento);
-    if (ev.ESTADO_APROBACION !== 'SALON_APROBADO') {
+    // SALON_APROBADO (aceptado tal cual) o REUBICADO (movido por Gestión
+    // Operativa) — ambos tienen el espacio resuelto y pueden publicarse.
+    if (ev.ESTADO_APROBACION !== 'SALON_APROBADO' && ev.ESTADO_APROBACION !== 'REUBICADO') {
       throw new BadRequestException('The event venue must be approved first');
     }
     const r = await this.oracle.execute(
@@ -1732,12 +1817,13 @@ export class EventosService {
          PUBLICADO_POR = :usr, FECHA_PUBLICADO = SYSDATE,
          NO_PUBLICAR = 'N',
          RECHAZADO_POR = NULL, FECHA_RECHAZO = NULL, MOTIVO_RECHAZO = NULL
-       WHERE ID_EVENTO = :id AND ESTADO_APROBACION = 'SALON_APROBADO'`,
+       WHERE ID_EVENTO = :id AND ESTADO_APROBACION IN ('SALON_APROBADO','REUBICADO')`,
       { usr: actor.sub, id: idEvento },
     );
     if (r.rowsAffected) {
       // este es el momento real de publicación → mismo push que create() directo
       void this.push.notificarNuevoEvento(idEvento);
+      await this.registrarHistorial(idEvento, 'PUBLICADO', actor.sub, {});
     }
     return { ok: true, idEvento, estadoAprobacion: 'PUBLICADO' };
   }
@@ -1745,7 +1831,8 @@ export class EventosService {
   /** Rechaza (en cualquier paso pendiente) con motivo; vuelve al creador. */
   async rechazar(actor: JwtUser, idEvento: number, motivo: string) {
     const ev = await this.estadoActual(actor, idEvento);
-    if (ev.ESTADO_APROBACION !== 'BORRADOR' && ev.ESTADO_APROBACION !== 'SALON_APROBADO') {
+    const pendientes = ['BORRADOR', 'SALON_APROBADO', 'REUBICADO'];
+    if (!pendientes.includes(ev.ESTADO_APROBACION ?? '')) {
       throw new BadRequestException('The event is not pending approval');
     }
     await this.oracle.execute(
@@ -1756,6 +1843,7 @@ export class EventosService {
        WHERE ID_EVENTO = :id`,
       { usr: actor.sub, motivo: motivo.slice(0, 2000), id: idEvento },
     );
+    await this.registrarHistorial(idEvento, 'RECHAZADO', actor.sub, { motivo });
     return { ok: true, idEvento, estadoAprobacion: 'RECHAZADO' };
   }
 
@@ -1766,5 +1854,103 @@ export class EventosService {
       { id: idEvento },
     );
     return rows.map((r) => r.ID_SUBSALON);
+  }
+
+  /* ---------- auditoría de espacio (EVENTO_ESPACIO_HISTORIAL) ---------- */
+
+  /** Foto legible del espacio + días (resuelve NOMBRES al momento de escribir). */
+  private async espacioSnapshot(opts: {
+    idLocal: number | null;
+    idSalon: number | null;
+    idSubsalon?: number | null;
+    idConfiguracion?: number | null;
+    dias: { fecha: string; horaInicio: string; horaFin: string }[];
+  }) {
+    const nombres = await this.oracle.query<{
+      LOCAL_NOMBRE: string | null;
+      SALON_NOMBRE: string | null;
+      SUBSALON_NOMBRE: string | null;
+      CONFIG_NOMBRE: string | null;
+    }>(
+      `SELECT (SELECT NOMBRE FROM LOCALES WHERE ID_LOCAL = :l) AS LOCAL_NOMBRE,
+              (SELECT NOMBRE FROM SALONES WHERE ID_SALON = :s) AS SALON_NOMBRE,
+              (SELECT NOMBRE FROM SUBSALONES WHERE ID_SUBSALON = :ss) AS SUBSALON_NOMBRE,
+              (SELECT NOMBRE FROM SUBSALON_CONFIGURACIONES WHERE ID_CONFIGURACION = :c) AS CONFIG_NOMBRE
+         FROM DUAL`,
+      {
+        l: opts.idLocal ?? null,
+        s: opts.idSalon ?? null,
+        ss: opts.idSubsalon ?? null,
+        c: opts.idConfiguracion ?? null,
+      },
+    );
+    const n = nombres[0];
+    return {
+      idLocal: opts.idLocal ?? null,
+      local: n?.LOCAL_NOMBRE ?? null,
+      idSalon: opts.idSalon ?? null,
+      salon: n?.SALON_NOMBRE ?? null,
+      idSubsalon: opts.idSubsalon ?? null,
+      subsalon: n?.SUBSALON_NOMBRE ?? null,
+      idConfiguracion: opts.idConfiguracion ?? null,
+      configuracion: n?.CONFIG_NOMBRE ?? null,
+      dias: opts.dias,
+    };
+  }
+
+  private async registrarHistorial(
+    idEvento: number,
+    tipo: 'SOLICITADO' | 'MOVIDO' | 'APROBADO' | 'PUBLICADO' | 'RECHAZADO',
+    usuario: string,
+    detalle: unknown,
+  ) {
+    try {
+      await this.oracle.execute(
+        `INSERT INTO EVENTO_ESPACIO_HISTORIAL (ID_EVENTO, TIPO, USUARIO, DETALLE)
+         VALUES (:id, :tipo, :usuario, :detalle)`,
+        {
+          id: idEvento,
+          tipo,
+          usuario: usuario.slice(0, 150),
+          detalle: JSON.stringify(detalle ?? {}),
+        },
+      );
+    } catch {
+      /* la auditoría nunca debe tumbar la operación principal */
+    }
+  }
+
+  /** Trazabilidad del espacio: qué se solicitó, cuándo se movió/aprobó/publicó. */
+  async historialEspacio(actor: JwtUser, idEvento: number) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{
+      ID_HISTORIAL: number;
+      TIPO: string;
+      USUARIO: string | null;
+      FECHA: string;
+      DETALLE: string | null;
+    }>(
+      `SELECT ID_HISTORIAL, TIPO, USUARIO,
+              TO_CHAR(FECHA, 'YYYY-MM-DD HH24:MI') AS FECHA, DETALLE
+         FROM EVENTO_ESPACIO_HISTORIAL
+        WHERE ID_EVENTO = :id
+        ORDER BY ID_HISTORIAL`,
+      { id: idEvento },
+    );
+    return rows.map((r) => {
+      let detalle: unknown = null;
+      try {
+        detalle = r.DETALLE ? JSON.parse(r.DETALLE) : null;
+      } catch {
+        detalle = null;
+      }
+      return {
+        id: r.ID_HISTORIAL,
+        tipo: r.TIPO,
+        usuario: r.USUARIO,
+        fecha: r.FECHA,
+        detalle,
+      };
+    });
   }
 }

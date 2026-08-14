@@ -14,12 +14,15 @@ import { useI18n } from '@/lib/i18n';
 import {
   esEventoRestringido,
   puedeVer,
+  ROL,
   ROLES_APROBAR_SALON,
   ROLES_PUBLICAR,
 } from '@/lib/types';
 import type {
   ConfiguracionRow,
+  EspacioHistorial,
   EventoRow,
+  HistorialEspacioRow,
   LocalRow,
   SalonRow,
   SubsalonRow,
@@ -132,37 +135,216 @@ function ventanaReal(a: {
   return `${toHora(ini)}–${toHora(fin)}`;
 }
 
+/** Estados del flujo que aún no terminan en publicación */
+const ESTADOS_PENDIENTES = ['BORRADOR', 'SALON_APROBADO', 'REUBICADO'] as const;
+
+const esPendiente = (e: EventoRow['estadoAprobacion']): boolean =>
+  e != null && (ESTADOS_PENDIENTES as readonly string[]).includes(e);
+
+/** REUBICADO equivale a salón resuelto: puede publicarse */
+const listoParaPublicar = (e: EventoRow['estadoAprobacion']): boolean =>
+  e === 'SALON_APROBADO' || e === 'REUBICADO';
+
+/** key i18n + clases de color por estado del flujo de aprobación */
+const ESTILO_APROBACION: Record<
+  string,
+  { labelKey: string; chip: string; banner: string }
+> = {
+  BORRADOR: {
+    labelKey: 'ev.aprPendingVenue',
+    chip: 'bg-amber-500/10 text-amber-500',
+    banner: 'border-amber-500/40 bg-amber-500/10 text-amber-500',
+  },
+  SALON_APROBADO: {
+    labelKey: 'ev.aprPendingPublish',
+    chip: 'bg-sky-500/10 text-sky-500',
+    banner: 'border-sky-500/40 bg-sky-500/10 text-sky-500',
+  },
+  REUBICADO: {
+    labelKey: 'ev.aprMoved',
+    chip: 'bg-violet-500/10 text-violet-500',
+    banner: 'border-violet-500/40 bg-violet-500/10 text-violet-500',
+  },
+  RECHAZADO: {
+    labelKey: 'ev.aprRejected',
+    chip: 'bg-danger/10 text-danger',
+    banner: 'border-danger/40 bg-danger/10 text-danger',
+  },
+};
+
 /** Badge del flujo de aprobación (nada si es legado o ya está publicado) */
 function BadgeAprobacion({ ev }: { ev: EventoRow }) {
   const { t } = useI18n();
   const estado = ev.estadoAprobacion;
   if (estado == null || estado === 'PUBLICADO') return null;
-  if (estado === 'BORRADOR') {
-    return (
-      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
-        {t('ev.aprPendingVenue')}
-      </span>
-    );
-  }
-  if (estado === 'SALON_APROBADO') {
-    return (
-      <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-500">
-        {t('ev.aprPendingPublish')}
-      </span>
-    );
-  }
-  // RECHAZADO: rojo, con el motivo como tooltip
+  const estilo = ESTILO_APROBACION[estado];
+  if (!estilo) return null;
   return (
     <span
       title={
-        ev.motivoRechazo
+        estado === 'RECHAZADO' && ev.motivoRechazo
           ? `${t('ev.aprReason')}: ${ev.motivoRechazo}`
           : undefined
       }
-      className="rounded-full bg-danger/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger"
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${estilo.chip}`}
     >
-      {t('ev.aprRejected')}
+      {t(estilo.labelKey)}
     </span>
+  );
+}
+
+/** texto legible de un espacio del historial: LOCAL — SALON · sala/config · días */
+function espacioTexto(e: EspacioHistorial): string {
+  const lugar = [e.local, e.salon, e.configuracion ?? e.subsalon]
+    .filter(Boolean)
+    .join(' — ');
+  const dias = (e.dias ?? [])
+    .map(
+      (d) =>
+        `${d.fecha.slice(8, 10)}/${d.fecha.slice(5, 7)} ${d.horaInicio}–${d.horaFin}`,
+    )
+    .join(', ');
+  return [lugar, dias].filter(Boolean).join(' · ') || '—';
+}
+
+/** Acordeón con la línea de tiempo de GET /eventos/:id/historial-espacio */
+function HistorialEspacio({ idEvento }: { idEvento: number }) {
+  const { t } = useI18n();
+  const [abierto, setAbierto] = useState(false);
+  const [items, setItems] = useState<HistorialEspacioRow[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!abierto || items !== null || error) return;
+    api
+      .get<HistorialEspacioRow[]>(`/eventos/${idEvento}/historial-espacio`)
+      .then(setItems)
+      .catch(() => setError(true));
+  }, [abierto, items, error, idEvento]);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="text-sm font-semibold text-text-2 underline-offset-2 hover:underline"
+      >
+        <span className="mr-1">{abierto ? '▾' : '▸'}</span>
+        {t('ev.histTitle')}
+      </button>
+      {abierto && (
+        <div className="mt-2 flex flex-col gap-1.5 border-l-2 border-border-app pl-3">
+          {error && <div className="text-sm text-danger">{t('c.error')}</div>}
+          {items && items.length === 0 && (
+            <div className="text-sm text-text-muted">{t('ev.histEmpty')}</div>
+          )}
+          {items === null && !error && (
+            <div className="text-sm text-text-muted">{t('c.loading')}</div>
+          )}
+          {items?.map((h) => {
+            const espacio = h.detalle?.solicitado ?? h.detalle?.a;
+            return (
+              <div key={h.id} className="text-sm text-text-2">
+                <span className="font-semibold text-text">
+                  {t(`ev.hist${h.tipo}`)}
+                </span>
+                {espacio && <>: {espacioTexto(espacio)}</>}
+                {h.tipo === 'MOVIDO' && h.detalle?.de && (
+                  <span className="text-text-muted">
+                    {' '}
+                    ({t('ev.histFrom')}: {espacioTexto(h.detalle.de)})
+                  </span>
+                )}
+                <span className="text-xs text-text-muted">
+                  {' '}
+                  — {h.usuario} · {h.fecha}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Banner prominente del flujo de aprobación: estado + acciones según rol,
+ * nota de reubicación para Gestión Operativa e historial del espacio.
+ */
+function BannerAprobacion({
+  evento,
+  puedeAprobarSalon,
+  puedePublicar,
+  notaMover,
+  onAprobarSalon,
+  onAprobarPublicacion,
+  onRechazar,
+}: {
+  evento: EventoRow;
+  puedeAprobarSalon: boolean;
+  puedePublicar: boolean;
+  /** el usuario es Gestión Operativa: mover = editar espacio + guardar */
+  notaMover: boolean;
+  onAprobarSalon: () => void;
+  onAprobarPublicacion: () => void;
+  onRechazar: () => void;
+}) {
+  const { t } = useI18n();
+  const estado = evento.estadoAprobacion;
+  if (estado == null || estado === 'PUBLICADO') return null;
+  const estilo = ESTILO_APROBACION[estado];
+  if (!estilo) return null;
+
+  return (
+    <div className={`mt-5 rounded-2xl border p-4 ${estilo.banner}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-widest opacity-80">
+            {t('ev.aprStatus')}
+          </div>
+          <div className="text-lg font-bold">{t(estilo.labelKey)}</div>
+          {estado === 'RECHAZADO' && evento.motivoRechazo && (
+            <div className="mt-0.5 text-sm">
+              {t('ev.aprReason')}: {evento.motivoRechazo}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {estado === 'BORRADOR' && puedeAprobarSalon && (
+            <button
+              type="button"
+              onClick={onAprobarSalon}
+              className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              {t('ev.aprApproveVenue')}
+            </button>
+          )}
+          {listoParaPublicar(estado) && puedePublicar && (
+            <button
+              type="button"
+              onClick={onAprobarPublicacion}
+              className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              {t('ev.aprApprovePublish')}
+            </button>
+          )}
+          {esPendiente(estado) && (puedeAprobarSalon || puedePublicar) && (
+            <button
+              type="button"
+              onClick={onRechazar}
+              className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              {t('ev.aprReject')}
+            </button>
+          )}
+        </div>
+      </div>
+      {notaMover && esPendiente(estado) && (
+        <p className="mt-2 text-sm text-text-2">{t('ev.aprRelocateHint')}</p>
+      )}
+      <HistorialEspacio idEvento={evento.ID_EVENTO} />
+    </div>
   );
 }
 
@@ -188,8 +370,20 @@ export default function EventosPage() {
   const [rechazar, setRechazar] = useState<EventoRow | null>(null);
 
   const cargar = useCallback(async () => {
-    setEventos(await api.get<EventoRow[]>(`/eventos${qs}`));
+    const list = await api.get<EventoRow[]>(`/eventos${qs}`);
+    setEventos(list);
+    return list;
   }, [qs]);
+
+  /** tras aprobar/rechazar, sincroniza el evento abierto en editar/ver */
+  function refrescarAbiertos(list: EventoRow[]) {
+    setEditar((prev) =>
+      prev ? (list.find((e) => e.ID_EVENTO === prev.ID_EVENTO) ?? null) : prev,
+    );
+    setVer((prev) =>
+      prev ? (list.find((e) => e.ID_EVENTO === prev.ID_EVENTO) ?? null) : prev,
+    );
+  }
 
   useEffect(() => {
     cargar().catch((e) => setError(e.message));
@@ -266,7 +460,7 @@ export default function EventosPage() {
     try {
       await api.post(`/eventos/${ev.ID_EVENTO}/aprobar-salon`);
       setOk(t('ev.aprVenueOk', { name: ev.TITULO }));
-      await cargar();
+      refrescarAbiertos(await cargar());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
     }
@@ -278,7 +472,7 @@ export default function EventosPage() {
     try {
       await api.post(`/eventos/${ev.ID_EVENTO}/aprobar-publicacion`);
       setOk(t('ev.aprPublishOk', { name: ev.TITULO }));
-      await cargar();
+      refrescarAbiertos(await cargar());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
     }
@@ -291,7 +485,7 @@ export default function EventosPage() {
       await api.post(`/eventos/${ev.ID_EVENTO}/rechazar`, { motivo });
       setOk(t('ev.aprRejectOk', { name: ev.TITULO }));
       setRechazar(null);
-      await cargar();
+      refrescarAbiertos(await cargar());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
     }
@@ -353,15 +547,38 @@ export default function EventosPage() {
       )}
 
       {ver && !editar && !showForm && (
-        <DetalleEvento
-          key={ver.ID_EVENTO}
-          evento={ver}
-          imgVersion={imgVersion}
-          onEditar={() => {
-            setEditar(ver);
-            setVer(null);
-          }}
-          onCerrar={() => setVer(null)}
+        <>
+          <BannerAprobacion
+            evento={ver}
+            puedeAprobarSalon={puedeAprobarSalon}
+            puedePublicar={puedePublicar}
+            notaMover={!!user?.roles.includes(ROL.OPERATIONS_MANAGEMENT)}
+            onAprobarSalon={() => aprobarSalon(ver)}
+            onAprobarPublicacion={() => aprobarPublicacion(ver)}
+            onRechazar={() => setRechazar(ver)}
+          />
+          <DetalleEvento
+            key={ver.ID_EVENTO}
+            evento={ver}
+            imgVersion={imgVersion}
+            onEditar={() => {
+              setEditar(ver);
+              setVer(null);
+            }}
+            onCerrar={() => setVer(null)}
+          />
+        </>
+      )}
+
+      {editar && (
+        <BannerAprobacion
+          evento={editar}
+          puedeAprobarSalon={puedeAprobarSalon}
+          puedePublicar={puedePublicar}
+          notaMover={!!user?.roles.includes(ROL.OPERATIONS_MANAGEMENT)}
+          onAprobarSalon={() => aprobarSalon(editar)}
+          onAprobarPublicacion={() => aprobarPublicacion(editar)}
+          onRechazar={() => setRechazar(editar)}
         />
       )}
 
@@ -481,7 +698,7 @@ export default function EventosPage() {
                         {t('ev.aprApproveVenue')}
                       </button>
                     )}
-                    {ev.estadoAprobacion === 'SALON_APROBADO' &&
+                    {listoParaPublicar(ev.estadoAprobacion) &&
                       puedePublicar && (
                         <button
                           onClick={() => aprobarPublicacion(ev)}
@@ -490,17 +707,15 @@ export default function EventosPage() {
                           {t('ev.aprApprovePublish')}
                         </button>
                       )}
-                    {((ev.estadoAprobacion === 'BORRADOR' &&
-                      puedeAprobarSalon) ||
-                      (ev.estadoAprobacion === 'SALON_APROBADO' &&
-                        puedePublicar)) && (
-                      <button
-                        onClick={() => setRechazar(ev)}
-                        className="rounded-lg border border-danger/40 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/10"
-                      >
-                        {t('ev.aprReject')}
-                      </button>
-                    )}
+                    {esPendiente(ev.estadoAprobacion) &&
+                      (puedeAprobarSalon || puedePublicar) && (
+                        <button
+                          onClick={() => setRechazar(ev)}
+                          className="rounded-lg border border-danger/40 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/10"
+                        >
+                          {t('ev.aprReject')}
+                        </button>
+                      )}
                     <button
                       onClick={() => {
                         setVer(ev);

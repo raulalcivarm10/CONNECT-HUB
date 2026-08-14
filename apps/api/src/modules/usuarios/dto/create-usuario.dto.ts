@@ -61,7 +61,7 @@ export class CreateUsuarioDto {
 
   @ApiPropertyOptional({
     description: 'Grupo/facultad del usuario (se hereda a los eventos que cree)',
-    example: 'School of Medicine',
+    example: 'Marketing',
   })
   @IsOptional()
   @IsString()
@@ -96,7 +96,7 @@ export class UpdateUsuarioDto {
 
   @ApiPropertyOptional({
     description: 'Grupo/facultad del usuario (vacío = quitar grupo)',
-    example: 'School of Medicine',
+    example: 'Marketing',
   })
   @IsOptional()
   @IsString()

@@ -9,17 +9,23 @@ export const ROL = {
   PUBLISHER: 'PUBLISHER',
 } as const;
 
-/** Flujo de aprobación de eventos (EVENTOS.ESTADO_APROBACION); null = evento legado (tratar como publicado) */
+/**
+ * Flujo de aprobación de eventos (EVENTOS.ESTADO_APROBACION); null = evento
+ * legado (tratar como publicado). REUBICADO = Gestión Operativa movió el
+ * evento (salón/fechas) y equivale a salón resuelto → puede publicarse.
+ */
 export type EstadoAprobacion =
   | 'BORRADOR'
   | 'SALON_APROBADO'
+  | 'REUBICADO'
   | 'PUBLICADO'
   | 'RECHAZADO';
 
-/** Roles que aprueban el salón de un evento (BORRADOR → SALON_APROBADO) */
+/** Roles que aprueban el salón de un evento (BORRADOR → SALON_APROBADO) y pueden moverlo */
 export const ROLES_APROBAR_SALON: readonly string[] = [
   ROL.SYSTEM,
   ROL.ADMINISTRATION,
+  ROL.OPERATIONS_MANAGEMENT,
   ROL.VENUE_APPROVER,
 ];
 
@@ -211,6 +217,29 @@ export interface EventoRow {
   motivoRechazo?: string | null;
 }
 
+/** Espacio (con nombres ya resueltos) dentro del historial de un evento */
+export interface EspacioHistorial {
+  local: string | null;
+  salon: string | null;
+  subsalon: string | null;
+  configuracion: string | null;
+  dias: { fecha: string; horaInicio: string; horaFin: string }[];
+}
+
+/** Fila de GET /eventos/:id/historial-espacio */
+export interface HistorialEspacioRow {
+  id: number;
+  tipo: 'SOLICITADO' | 'MOVIDO' | 'APROBADO' | 'PUBLICADO' | 'RECHAZADO';
+  usuario: string;
+  /** 'YYYY-MM-DD HH:MM' */
+  fecha: string;
+  detalle: {
+    solicitado?: EspacioHistorial;
+    de?: EspacioHistorial;
+    a?: EspacioHistorial;
+  } | null;
+}
+
 /** Módulos del panel y qué roles los ven (SYSTEM, ADMINISTRATION y superadmin ven todos) */
 export const MODULOS = [
   {
@@ -242,6 +271,7 @@ export const MODULOS = [
     roles: [
       ROL.SYSTEM,
       ROL.ADMINISTRATION,
+      ROL.OPERATIONS_MANAGEMENT,
       ROL.EVENT,
       ROL.VENUE_APPROVER,
       ROL.PUBLISHER,
