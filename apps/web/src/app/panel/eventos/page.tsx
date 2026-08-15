@@ -320,14 +320,11 @@ function BannerAprobacion({
           )}
         </div>
       </div>
-      {/* Gestión Operativa: en BORRADOR aprobar = aceptar TAL CUAL; mover = editar + guardar */}
+      {/* Gestión Operativa: editar es para organizarse, NO aprueba; solo el botón aprueba */}
       {notaMover && estado === 'BORRADOR' && (
         <p className="mt-2 text-sm text-text-2">
           {t('ev.aprApproveOrMoveHint')}
         </p>
-      )}
-      {notaMover && listoParaPublicar(estado) && (
-        <p className="mt-2 text-sm text-text-2">{t('ev.aprRelocateHint')}</p>
       )}
       <HistorialEspacio idEvento={evento.ID_EVENTO} />
     </div>
@@ -575,10 +572,9 @@ export default function EventosPage() {
           fechaInicial={fechaNueva}
           onImagenSubida={() => setImgVersion(Date.now())}
           onDone={async (msg) => {
-            // si al guardar la edición el evento pasó a REUBICADO (lo movieron),
-            // confirma explícitamente que el paso de salón quedó completado
+            // editar/mover NO aprueba: si el evento sigue en BORRADOR,
+            // recuérdale al aprobador que el salón aún está pendiente
             const idEditado = editar?.ID_EVENTO ?? null;
-            const estadoPrevio = editar?.estadoAprobacion ?? null;
             setShowForm(false);
             setEditar(null);
             const list = await cargar().catch(() => null);
@@ -587,10 +583,10 @@ export default function EventosPage() {
                 ? list?.find((e) => e.ID_EVENTO === idEditado)
                 : null;
             if (
-              actualizado?.estadoAprobacion === 'REUBICADO' &&
-              estadoPrevio !== 'REUBICADO'
+              actualizado?.estadoAprobacion === 'BORRADOR' &&
+              puedeAprobarSalon
             ) {
-              setOk(t('ev.aprRelocatedToast'));
+              setOk(t('ev.aprMovedNotApproved'));
             } else {
               setOk(msg);
             }

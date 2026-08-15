@@ -226,8 +226,6 @@ const en: Dict = {
   'ev.aprReviewNotice': 'Your event will be reviewed before publication',
   'ev.aprMoved': 'Moved — pending publication',
   'ev.aprStatus': 'Approval status',
-  'ev.aprRelocateHint':
-    'To relocate this event, change its hall/dates below and save',
   'ev.histTitle': 'History',
   'ev.histSOLICITADO': 'Requested',
   'ev.histMOVIDO': 'Moved to',
@@ -244,7 +242,7 @@ const en: Dict = {
   'apr.requestedBy': 'Requested by',
   'apr.openEvent': 'Open event',
   'apr.moveHint':
-    'To relocate a request, open the event and change its hall/dates',
+    'Open the event to edit its hall/dates if needed — approval only happens with Approve venue',
   'ev.aprPublished': 'Published',
   'ev.aprStepVenue': 'Venue',
   'ev.aprStepPublish': 'Publish',
@@ -254,8 +252,9 @@ const en: Dict = {
   'ev.aprPublishedBy': '✓ Published by {user} on {date}',
   'ev.aprWaitingPublish': 'Waiting for publication (Administration/System)',
   'ev.aprApproveOrMoveHint':
-    'Approve as requested, or change the hall/dates below and save to relocate',
-  'ev.aprRelocatedToast': 'Event relocated — venue step completed',
+    'You can edit the hall/dates freely to organize — the event is only approved when you press Approve venue',
+  'ev.aprMovedNotApproved':
+    'Changes saved — the venue is still pending approval',
   'aud.title': 'Activity log',
   'aud.subtitle':
     'Logins, changes and errors across the platform. Click a row to see the detail.',
@@ -1004,8 +1003,6 @@ const es: Dict = {
   'ev.aprReviewNotice': 'Tu evento será revisado antes de publicarse',
   'ev.aprMoved': 'Reubicado — pendiente de publicación',
   'ev.aprStatus': 'Estado de aprobación',
-  'ev.aprRelocateHint':
-    'Para reubicar este evento, cambia su salón/fechas abajo y guarda',
   'ev.histTitle': 'Historial',
   'ev.histSOLICITADO': 'Solicitado',
   'ev.histMOVIDO': 'Movido a',
@@ -1023,7 +1020,7 @@ const es: Dict = {
   'apr.requestedBy': 'Solicitado por',
   'apr.openEvent': 'Abrir evento',
   'apr.moveHint':
-    'Para reubicar una solicitud, abre el evento y cambia su salón/fechas',
+    'Abre el evento para editar su salón/fechas si hace falta — la aprobación solo ocurre con Aprobar salón',
   'ev.aprPublished': 'Publicado',
   'ev.aprStepVenue': 'Salón',
   'ev.aprStepPublish': 'Publicación',
@@ -1033,8 +1030,9 @@ const es: Dict = {
   'ev.aprPublishedBy': '✓ Publicado por {user} el {date}',
   'ev.aprWaitingPublish': 'Esperando publicación (Administración/Sistema)',
   'ev.aprApproveOrMoveHint':
-    'Aprueba tal como se pidió, o cambia el salón/fechas abajo y guarda para reubicar',
-  'ev.aprRelocatedToast': 'Evento reubicado — paso de salón completado',
+    'Puedes editar el salón/fechas libremente para organizarte — el evento solo se aprueba al pulsar Aprobar salón',
+  'ev.aprMovedNotApproved':
+    'Cambios guardados — el salón sigue pendiente de aprobación',
   'aud.title': 'Registro de actividad',
   'aud.subtitle':
     'Ingresos, cambios y errores de toda la plataforma. Haz clic en una fila para ver el detalle.',
@@ -1771,8 +1769,6 @@ const fr: Dict = {
   'ev.aprReviewNotice': 'Votre événement sera examiné avant sa publication',
   'ev.aprMoved': 'Déplacé — en attente de publication',
   'ev.aprStatus': 'Statut d’approbation',
-  'ev.aprRelocateHint':
-    'Pour déplacer cet événement, modifiez sa salle/ses dates ci-dessous et enregistrez',
   'ev.histTitle': 'Historique',
   'ev.histSOLICITADO': 'Demandé',
   'ev.histMOVIDO': 'Déplacé vers',
@@ -1790,7 +1786,7 @@ const fr: Dict = {
   'apr.requestedBy': 'Demandé par',
   'apr.openEvent': 'Ouvrir l’événement',
   'apr.moveHint':
-    'Pour déplacer une demande, ouvrez l’événement et modifiez sa salle/ses dates',
+    'Ouvrez l’événement pour modifier sa salle/ses dates si besoin — l’approbation ne se fait qu’avec Approuver la salle',
   'ev.aprPublished': 'Publié',
   'ev.aprStepVenue': 'Salle',
   'ev.aprStepPublish': 'Publication',
@@ -1800,8 +1796,9 @@ const fr: Dict = {
   'ev.aprPublishedBy': '✓ Publié par {user} le {date}',
   'ev.aprWaitingPublish': 'En attente de publication (Administration/Système)',
   'ev.aprApproveOrMoveHint':
-    'Approuvez tel que demandé, ou modifiez la salle/les dates ci-dessous et enregistrez pour déplacer',
-  'ev.aprRelocatedToast': 'Événement déplacé — étape de salle terminée',
+    'Vous pouvez modifier la salle/les dates librement pour vous organiser — l’événement n’est approuvé qu’en appuyant sur Approuver la salle',
+  'ev.aprMovedNotApproved':
+    'Modifications enregistrées — la salle reste en attente d’approbation',
   'aud.title': "Journal d'activité",
   'aud.subtitle':
     'Connexions, modifications et erreurs de toute la plateforme. Cliquez sur une ligne pour voir le détail.',
@@ -2539,8 +2536,6 @@ const pt: Dict = {
   'ev.aprReviewNotice': 'Seu evento será revisado antes da publicação',
   'ev.aprMoved': 'Realocado — pendente de publicação',
   'ev.aprStatus': 'Status de aprovação',
-  'ev.aprRelocateHint':
-    'Para realocar este evento, altere o salão/as datas abaixo e salve',
   'ev.histTitle': 'Histórico',
   'ev.histSOLICITADO': 'Solicitado',
   'ev.histMOVIDO': 'Movido para',
@@ -2558,7 +2553,7 @@ const pt: Dict = {
   'apr.requestedBy': 'Solicitado por',
   'apr.openEvent': 'Abrir evento',
   'apr.moveHint':
-    'Para realocar uma solicitação, abra o evento e altere o salão/as datas',
+    'Abra o evento para editar o salão/as datas se necessário — a aprovação só ocorre com Aprovar salão',
   'ev.aprPublished': 'Publicado',
   'ev.aprStepVenue': 'Salão',
   'ev.aprStepPublish': 'Publicação',
@@ -2568,8 +2563,9 @@ const pt: Dict = {
   'ev.aprPublishedBy': '✓ Publicado por {user} em {date}',
   'ev.aprWaitingPublish': 'Aguardando publicação (Administração/Sistema)',
   'ev.aprApproveOrMoveHint':
-    'Aprove como solicitado, ou altere o salão/as datas abaixo e salve para realocar',
-  'ev.aprRelocatedToast': 'Evento realocado — etapa do salão concluída',
+    'Você pode editar o salão/as datas livremente para se organizar — o evento só é aprovado ao pressionar Aprovar salão',
+  'ev.aprMovedNotApproved':
+    'Alterações salvas — o salão continua pendente de aprovação',
   'aud.title': 'Registro de atividade',
   'aud.subtitle':
     'Acessos, alterações e erros de toda a plataforma. Clique em uma linha para ver o detalhe.',

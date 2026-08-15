@@ -841,7 +841,10 @@ export class EventosService {
       await conn.commit();
     });
 
-    // Auditoría + estado de la MOVIDA (post-commit; nunca revierte la edición)
+    // Auditoría de la MOVIDA (post-commit; nunca revierte la edición).
+    // OJO: mover/editar NO aprueba — Gestión Operativa puede reorganizar
+    // libremente y el evento SIGUE pendiente; la aprobación es SIEMPRE el
+    // botón explícito "Aprobar salón" (aprobarSalon).
     if (snapshotAntes) {
       const despues = await this.espacioSnapshot({
         idLocal,
@@ -850,14 +853,6 @@ export class EventosService {
         idConfiguracion: idConfiguracion ?? null,
         dias: diasEfectivos,
       });
-      await this.oracle.execute(
-        `UPDATE EVENTOS SET
-           ESTADO_APROBACION = 'REUBICADO',
-           SALON_APROBADO_POR = :usr, FECHA_SALON_APROBADO = SYSDATE
-         WHERE ID_EVENTO = :id
-           AND ESTADO_APROBACION IN ('BORRADOR','SALON_APROBADO','REUBICADO')`,
-        { usr: actor.sub, id: idEvento },
-      );
       await this.registrarHistorial(idEvento, 'MOVIDO', actor.sub, {
         de: snapshotAntes,
         a: despues,
@@ -1818,7 +1813,7 @@ export class EventosService {
       { usr: actor.sub, id: idEvento },
     );
     await this.registrarHistorial(idEvento, 'APROBADO', actor.sub, {
-      nota: 'Venue approved as requested',
+      nota: 'Venue approved',
     });
     return { ok: true, idEvento, estadoAprobacion: 'SALON_APROBADO' };
   }
