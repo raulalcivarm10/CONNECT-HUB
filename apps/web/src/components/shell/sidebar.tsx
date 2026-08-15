@@ -20,6 +20,7 @@ import {
   IconChart,
   IconFinance,
   IconHome,
+  IconKey,
   IconTicket,
   IconUsers,
   IconVenue,
@@ -92,6 +93,14 @@ export function Sidebar() {
               label={t('side.audit')}
               icon={IconChart}
             />
+            {/* llaves de API para que la app propia de la institución lea QR */}
+            {puedeVer(user, [ROL.SYSTEM, ROL.ADMINISTRATION]) && (
+              <NavLink
+                href="/panel/administracion/integraciones"
+                label={t('side.integrations')}
+                icon={IconKey}
+              />
+            )}
             {user?.esSuper ? (
               <>
                 <NavLink

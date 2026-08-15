@@ -16,6 +16,7 @@ import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { PublicModule } from './modules/public/public.module';
 import { PushModule } from './modules/push/push.module';
+import { IntegracionModule } from './modules/integracion/integracion.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PushModule } from './modules/push/push.module';
     FeedbackModule,
     PublicModule,
     PushModule,
+    IntegracionModule,
   ],
 })
 export class AppModule {}

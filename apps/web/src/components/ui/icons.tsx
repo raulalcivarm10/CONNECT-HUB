@@ -38,6 +38,15 @@ export const IconBuilding = (p: IconProps) => (
   </svg>
 );
 
+export const IconKey = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="7.5" cy="15.5" r="4" />
+    <path d="M10.5 12.5 20 3" />
+    <path d="M17 6l2.5 2.5" />
+    <path d="M14.5 8.5 17 11" />
+  </svg>
+);
+
 export const IconFinance = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M3 3v18h18" />
