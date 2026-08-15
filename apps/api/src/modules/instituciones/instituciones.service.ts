@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { OracleService } from '../../database/oracle.service';
 import { generateTempPassword, hashPassword } from '../../auth/password.util';
 import { MailerService } from '../../auth/mailer.service';
@@ -61,20 +62,25 @@ export class InstitucionesService {
         'An institution with that name already exists',
       );
     }
+    // Cada institución nace con su llave de check-in (integración del lector
+    // de QR): así el equipo puede copiarla desde el panel sin pedir nada.
+    const apiKey = `chk_${randomBytes(24).toString('base64url')}`;
     const result = await this.oracle.execute(
-      `INSERT INTO INSTITUCIONES (NOMBRE, CIUDAD, PAIS, DIRECCION, ESTADO)
-       VALUES (:nombre, :ciudad, :pais, :direccion, 'PENDIENTE')
+      `INSERT INTO INSTITUCIONES
+         (NOMBRE, CIUDAD, PAIS, DIRECCION, ESTADO, API_KEY_CHECKIN, API_KEY_FECHA)
+       VALUES (:nombre, :ciudad, :pais, :direccion, 'PENDIENTE', :apiKey, SYSDATE)
        RETURNING ID_INSTITUCION INTO :out`,
       {
         nombre,
         ciudad: dto.ciudad?.trim() || null,
         pais: dto.pais?.trim() || null,
         direccion: dto.direccion?.trim() || null,
+        apiKey,
         out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER },
       },
     );
     const idInstitucion = (result.outBinds as { out: number[] }).out[0];
-    return { idInstitucion, nombre, estado: 'PENDIENTE' };
+    return { idInstitucion, nombre, estado: 'PENDIENTE', apiKeyCheckin: apiKey };
   }
 
   private async getEstado(id: number): Promise<string> {

@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
-import type { PerfilInstitucion } from '@/lib/types';
+import { LlaveInstitucion } from '@/components/integraciones/llave-institucion';
+import { puedeVer, ROL, type PerfilInstitucion } from '@/lib/types';
 
 export default function MiInstitucionPage() {
   const { user } = useAuth();
@@ -67,6 +68,13 @@ export default function MiInstitucionPage() {
         <p className="mt-4 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
           {ok}
         </p>
+      )}
+
+      {/* API key de check-in de la institución (solo quien la gestiona) */}
+      {puedeVer(user, [ROL.SYSTEM, ROL.ADMINISTRATION]) && (
+        <div className="mt-5">
+          <LlaveInstitucion compacta />
+        </div>
       )}
 
       <div className="mt-5">

@@ -8,6 +8,7 @@ import { propsValidacion } from '@/lib/validacion';
 import { useDialogo } from '@/lib/dialogo';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
+import { ValorCopiable } from '@/components/integraciones/llave-institucion';
 import type { InstitucionRow, PerfilInstitucion } from '@/lib/types';
 
 const ESTADO_STYLE: Record<string, string> = {
@@ -33,6 +34,8 @@ export default function InstitucionesPage() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [crear, setCrear] = useState(false);
+  // API key de check-in provisionada al crear la institución (se muestra una vez)
+  const [llaveNueva, setLlaveNueva] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setItems(await api.get<InstitucionRow[]>('/instituciones'));
@@ -109,9 +112,10 @@ export default function InstitucionesPage() {
       {crear && (
         <NuevaInstitucionForm
           onCancel={() => setCrear(false)}
-          onDone={async (idInstitucion, nombre) => {
+          onDone={async (idInstitucion, nombre, apiKeyCheckin) => {
             setCrear(false);
             setOk(t('in.created', { name: nombre }));
+            setLlaveNueva(apiKeyCheckin ?? null);
             const lista = await api.get<InstitucionRow[]>('/instituciones');
             setItems(lista);
             const nueva = lista.find(
@@ -150,6 +154,23 @@ export default function InstitucionesPage() {
         <p className="mt-4 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
           {ok}
         </p>
+      )}
+
+      {/* llave de check-in lista al crear: se entrega al lector de QR */}
+      {llaveNueva && (
+        <div className="mt-4 rounded-2xl border-2 border-brand/40 bg-brand/5 p-4">
+          <div className="font-semibold text-text">{t('in.apiKeyTitle')}</div>
+          <p className="mt-0.5 text-sm text-text-2">{t('in.apiKeyHint')}</p>
+          <div className="mt-2">
+            <ValorCopiable valor={llaveNueva} destacado />
+          </div>
+          <button
+            onClick={() => setLlaveNueva(null)}
+            className="mt-3 rounded-lg border border-border-app px-3 py-1 text-xs text-text-2 hover:bg-surface-2"
+          >
+            {t('in.credHide')}
+          </button>
+        </div>
       )}
 
       {editarPerfil && (
@@ -376,7 +397,11 @@ function NuevaInstitucionForm({
   onDone,
 }: {
   onCancel: () => void;
-  onDone: (idInstitucion: number, nombre: string) => void;
+  onDone: (
+    idInstitucion: number,
+    nombre: string,
+    apiKeyCheckin?: string | null,
+  ) => void;
 }) {
   const { t } = useI18n();
   const [nombre, setNombre] = useState('');
@@ -395,13 +420,16 @@ function NuevaInstitucionForm({
     setError(null);
     setSending(true);
     try {
-      const res = await api.post<{ idInstitucion: number }>('/instituciones', {
+      const res = await api.post<{
+        idInstitucion: number;
+        apiKeyCheckin?: string | null;
+      }>('/instituciones', {
         nombre: nombre.trim(),
         ciudad: ciudad.trim() || undefined,
         pais: pais.trim() || undefined,
         direccion: direccion.trim() || undefined,
       });
-      onDone(res.idInstitucion, nombre.trim());
+      onDone(res.idInstitucion, nombre.trim(), res.apiKeyCheckin);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('err.create'));
       setSending(false);

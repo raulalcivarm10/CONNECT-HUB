@@ -88,8 +88,33 @@ export class IntegracionController {
 export class ApiKeysController {
   constructor(private readonly integracion: IntegracionService) {}
 
+  @Get('institucion')
+  @ApiOperation({
+    summary: 'Llave de check-in propia de la institución (existe para todas)',
+  })
+  llaveInstitucion(
+    @CurrentUser() user: JwtUser,
+    @Query('idInstitucion') idInstitucion?: string,
+  ) {
+    return this.integracion.llaveInstitucion(
+      user,
+      idInstitucion ? Number(idInstitucion) : undefined,
+    );
+  }
+
+  @Post('institucion/regenerar')
+  @ApiOperation({
+    summary: 'Regenera la llave propia (la anterior deja de funcionar)',
+  })
+  regenerar(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: { idInstitucion?: number },
+  ) {
+    return this.integracion.regenerarLlaveInstitucion(user, dto?.idInstitucion);
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Llaves de integración de la institución' })
+  @ApiOperation({ summary: 'Llaves de integración adicionales de la institución' })
   listar(
     @CurrentUser() user: JwtUser,
     @Query('idInstitucion') idInstitucion?: string,

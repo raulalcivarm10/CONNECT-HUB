@@ -178,6 +178,47 @@ export class IntegracionService {
     return actor.idInstitucion;
   }
 
+  /**
+   * Llave PROPIA de la institución (INSTITUCIONES.API_KEY_CHECKIN): existe
+   * para todas, se puede consultar cuando haga falta y regenerar. Es la que se
+   * entrega al proveedor del lector de QR.
+   */
+  async llaveInstitucion(actor: JwtUser, idInstitucion?: number) {
+    const inst = this.institucionDe(actor, idInstitucion);
+    const rows = await this.oracle.query<{
+      NOMBRE: string;
+      API_KEY_CHECKIN: string | null;
+      API_KEY_FECHA: string | null;
+    }>(
+      `SELECT NOMBRE, API_KEY_CHECKIN,
+              TO_CHAR(API_KEY_FECHA, 'YYYY-MM-DD HH24:MI') AS API_KEY_FECHA
+         FROM INSTITUCIONES WHERE ID_INSTITUCION = :i`,
+      { i: inst },
+    );
+    const r = rows[0];
+    // si por algún motivo no tuviera, se provisiona al vuelo
+    if (r && !r.API_KEY_CHECKIN) return this.regenerarLlaveInstitucion(actor, idInstitucion);
+    return {
+      idInstitucion: inst,
+      institucion: r?.NOMBRE ?? null,
+      apiKey: r?.API_KEY_CHECKIN ?? null,
+      desde: r?.API_KEY_FECHA ?? null,
+    };
+  }
+
+  /** Regenera la llave propia (la anterior deja de funcionar al instante). */
+  async regenerarLlaveInstitucion(actor: JwtUser, idInstitucion?: number) {
+    const inst = this.institucionDe(actor, idInstitucion);
+    const clave = `chk_${randomBytes(24).toString('base64url')}`;
+    await this.oracle.execute(
+      `UPDATE INSTITUCIONES SET API_KEY_CHECKIN = :k, API_KEY_FECHA = SYSDATE
+        WHERE ID_INSTITUCION = :i`,
+      { k: clave, i: inst },
+    );
+    this.logger.log(`API key de check-in regenerada (institución ${inst}) por ${actor.sub}`);
+    return { idInstitucion: inst, apiKey: clave, desde: null, regenerada: true };
+  }
+
   async listarKeys(actor: JwtUser, idInstitucion?: number) {
     const inst = this.institucionDe(actor, idInstitucion);
     return this.oracle.query(

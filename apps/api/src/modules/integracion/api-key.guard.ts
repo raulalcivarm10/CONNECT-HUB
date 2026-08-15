@@ -40,28 +40,39 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('Missing API key (header X-API-Key)');
     }
     const hash = createHash('sha256').update(clave).digest('hex');
+    // Dos orígenes de llave, ambos válidos:
+    //  1) INSTITUCIONES.API_KEY_CHECKIN → la llave propia de CADA institución
+    //     (se provisiona sola, visible y regenerable desde el panel);
+    //  2) INSTITUCION_API_KEYS → llaves adicionales/rotables (guardadas como hash).
     const rows = await this.oracle.query<{
       ID_API_KEY: number;
       ID_INSTITUCION: number;
       NOMBRE: string;
     }>(
-      `SELECT ID_API_KEY, ID_INSTITUCION, NOMBRE
+      `SELECT 0 AS ID_API_KEY, ID_INSTITUCION, NOMBRE
+         FROM INSTITUCIONES
+        WHERE API_KEY_CHECKIN = :clave AND ESTADO = 'APROBADA'
+       UNION ALL
+       SELECT ID_API_KEY, ID_INSTITUCION, NOMBRE
          FROM INSTITUCION_API_KEYS
         WHERE CLAVE_HASH = :h AND ACTIVO = 'S'`,
-      { h: hash },
+      { clave, h: hash },
     );
     const k = rows[0];
     if (!k) throw new UnauthorizedException('Invalid or revoked API key');
 
-    // marca de uso (best-effort: nunca bloquea la operación)
-    void this.oracle
-      .execute(
-        `UPDATE INSTITUCION_API_KEYS
-            SET ULTIMO_USO = SYSDATE, USOS = USOS + 1
-          WHERE ID_API_KEY = :id`,
-        { id: k.ID_API_KEY },
-      )
-      .catch(() => undefined);
+    // marca de uso (best-effort: nunca bloquea la operación).
+    // ID_API_KEY = 0 → es la llave propia de la institución (no hay fila que marcar).
+    if (k.ID_API_KEY > 0) {
+      void this.oracle
+        .execute(
+          `UPDATE INSTITUCION_API_KEYS
+              SET ULTIMO_USO = SYSDATE, USOS = USOS + 1
+            WHERE ID_API_KEY = :id`,
+          { id: k.ID_API_KEY },
+        )
+        .catch(() => undefined);
+    }
 
     req.apiKey = {
       idApiKey: k.ID_API_KEY,

@@ -254,6 +254,23 @@ const en: Dict = {
   'int.noAccess':
     'Only the SYSTEM user or Administration can manage integration keys.',
   'int.keys': 'API keys',
+  'int.instTitle': 'Institution API key',
+  'int.instHint':
+    'This is the key you hand to the team or provider running the QR reader.',
+  'int.instSince': 'Active since {date}',
+  'int.instSinceUnknown': 'Provisioned with the institution',
+  'int.instManage': 'Manage',
+  'int.instRegen': 'Regenerate',
+  'int.instRegenTitle': 'Regenerate the institution API key?',
+  'int.instRegenMsg':
+    'The current key stops working immediately; you will have to give the new one to every team using it.',
+  'int.instRegenOk': 'Institution API key regenerated',
+  'int.extraKeys': 'Additional keys',
+  'int.extraKeysHint':
+    'Optional keys for other systems. Their value is shown only once when created.',
+  'in.apiKeyTitle': 'Check-in API key ready',
+  'in.apiKeyHint':
+    'The institution already has its key: hand it to the QR reader team. You can view or regenerate it later in Integrations.',
   'int.generate': 'Generate key',
   'int.newTitle': 'New API key',
   'int.keyName': 'Key name',
@@ -1160,6 +1177,23 @@ const es: Dict = {
   'int.noAccess':
     'Solo el usuario SYSTEM o Administración pueden gestionar las llaves de integración.',
   'int.keys': 'Llaves de API',
+  'int.instTitle': 'Llave de API de la institución',
+  'int.instHint':
+    'Esta es la llave que entregas al equipo o proveedor que opera el lector de QR.',
+  'int.instSince': 'Activa desde {date}',
+  'int.instSinceUnknown': 'Provisionada junto con la institución',
+  'int.instManage': 'Gestionar',
+  'int.instRegen': 'Regenerar',
+  'int.instRegenTitle': '¿Regenerar la llave de API de la institución?',
+  'int.instRegenMsg':
+    'La llave actual dejará de funcionar de inmediato; deberás entregar la nueva a todos los equipos que la usan.',
+  'int.instRegenOk': 'Llave de API de la institución regenerada',
+  'int.extraKeys': 'Llaves adicionales',
+  'int.extraKeysHint':
+    'Llaves opcionales para otros sistemas. Su valor solo se muestra una vez, al crearlas.',
+  'in.apiKeyTitle': 'Llave de API de check-in lista',
+  'in.apiKeyHint':
+    'La institución ya tiene su llave: entrégala al equipo del lector de QR. Luego puedes verla o regenerarla en Integraciones.',
   'int.generate': 'Generar llave',
   'int.newTitle': 'Nueva llave de API',
   'int.keyName': 'Nombre de la llave',
@@ -2055,6 +2089,23 @@ const fr: Dict = {
   'int.noAccess':
     'Seuls l’utilisateur SYSTEM ou l’Administration peuvent gérer les clés d’intégration.',
   'int.keys': 'Clés d’API',
+  'int.instTitle': 'Clé d’API de l’institution',
+  'int.instHint':
+    'C’est la clé que vous remettez à l’équipe ou au prestataire qui exploite le lecteur QR.',
+  'int.instSince': 'Active depuis le {date}',
+  'int.instSinceUnknown': 'Provisionnée avec l’institution',
+  'int.instManage': 'Gérer',
+  'int.instRegen': 'Régénérer',
+  'int.instRegenTitle': 'Régénérer la clé d’API de l’institution ?',
+  'int.instRegenMsg':
+    'La clé actuelle cesse de fonctionner immédiatement ; vous devrez remettre la nouvelle à toutes les équipes qui l’utilisent.',
+  'int.instRegenOk': 'Clé d’API de l’institution régénérée',
+  'int.extraKeys': 'Clés supplémentaires',
+  'int.extraKeysHint':
+    'Clés facultatives pour d’autres systèmes. Leur valeur n’est affichée qu’une seule fois, à la création.',
+  'in.apiKeyTitle': 'Clé d’API de check-in prête',
+  'in.apiKeyHint':
+    'L’institution a déjà sa clé : remettez-la à l’équipe du lecteur QR. Vous pourrez la consulter ou la régénérer ensuite dans Intégrations.',
   'int.generate': 'Générer une clé',
   'int.newTitle': 'Nouvelle clé d’API',
   'int.keyName': 'Nom de la clé',
@@ -2952,6 +3003,23 @@ const pt: Dict = {
   'int.noAccess':
     'Apenas o usuário SYSTEM ou a Administração podem gerenciar as chaves de integração.',
   'int.keys': 'Chaves de API',
+  'int.instTitle': 'Chave de API da instituição',
+  'int.instHint':
+    'Esta é a chave que você entrega à equipe ou ao fornecedor que opera o leitor de QR.',
+  'int.instSince': 'Ativa desde {date}',
+  'int.instSinceUnknown': 'Provisionada junto com a instituição',
+  'int.instManage': 'Gerenciar',
+  'int.instRegen': 'Regenerar',
+  'int.instRegenTitle': 'Regenerar a chave de API da instituição?',
+  'int.instRegenMsg':
+    'A chave atual para de funcionar imediatamente; você terá de entregar a nova a todas as equipes que a usam.',
+  'int.instRegenOk': 'Chave de API da instituição regenerada',
+  'int.extraKeys': 'Chaves adicionais',
+  'int.extraKeysHint':
+    'Chaves opcionais para outros sistemas. O valor delas é exibido apenas uma vez, ao criá-las.',
+  'in.apiKeyTitle': 'Chave de API de check-in pronta',
+  'in.apiKeyHint':
+    'A instituição já tem sua chave: entregue-a à equipe do leitor de QR. Depois você pode vê-la ou regenerá-la em Integrações.',
   'int.generate': 'Gerar chave',
   'int.newTitle': 'Nova chave de API',
   'int.keyName': 'Nome da chave',

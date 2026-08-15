@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>ConnectHub+ — Product Documentation</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: #1f2430; font-size: 10.5pt; line-height: 1.55; margin: 0; }
+  .portada { height: 247mm; display: flex; flex-direction: column;
+             justify-content: center; page-break-after: always; }
+  .marca { color: #6d28d9; font-weight: 800; letter-spacing: .18em;
+           text-transform: uppercase; font-size: 11pt; }
+  .portada h1 { font-size: 34pt; line-height: 1.1; margin: 8mm 0 4mm;
+                color: #17103a; letter-spacing: -.5pt; }
+  .portada .sub { font-size: 13pt; color: #52586b; max-width: 130mm; }
+  .portada .meta { margin-top: 16mm; font-size: 10pt; color: #6b7280;
+                   border-top: 2px solid #ede9fe; padding-top: 5mm; }
+  .barra { height: 6px; width: 60mm; background: linear-gradient(90deg,#6d28d9,#a78bfa);
+           border-radius: 3px; margin-bottom: 6mm; }
+  .toc { page-break-after: always; }
+  .toc h2 { color: #17103a; font-size: 18pt; margin-bottom: 6mm; }
+  .toc ol { list-style: none; padding: 0; }
+  .toc li { padding: 3.5mm 0; border-bottom: 1px solid #eef0f4; font-size: 12pt; }
+  .tocn { display: inline-block; width: 9mm; height: 9mm; line-height: 9mm;
+          text-align: center; background: #f5f3ff; color: #6d28d9;
+          border-radius: 50%; font-weight: 700; font-size: 10pt; margin-right: 4mm; }
+  .seccion { page-break-before: always; }
+  .sec-num { color: #8b5cf6; font-weight: 700; font-size: 9pt;
+             letter-spacing: .14em; text-transform: uppercase; }
+  h1 { font-size: 23pt; color: #17103a; margin: 2mm 0 6mm; letter-spacing: -.3pt;
+       border-bottom: 3px solid #ede9fe; padding-bottom: 3mm; }
+  h2 { font-size: 15pt; color: #4c1d95; margin: 9mm 0 3mm; page-break-after: avoid; }
+  h3 { font-size: 12pt; color: #312e81; margin: 6mm 0 2mm; page-break-after: avoid; }
+  h4 { font-size: 11pt; color: #3f3f56; margin: 5mm 0 2mm; }
+  p { margin: 0 0 3mm; text-align: justify; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1.6mm; }
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 5mm;
+          font-size: 9.5pt; page-break-inside: avoid; }
+  th { background: #f5f3ff; color: #4c1d95; text-align: left; font-weight: 700;
+       padding: 2.4mm 3mm; border-bottom: 2px solid #ddd6fe; }
+  td { padding: 2.2mm 3mm; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+  tr:nth-child(even) td { background: #fbfaff; }
+  code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 9pt;
+         background: #f4f4f7; padding: .4mm 1.2mm; border-radius: 3px; color: #5b21b6; }
+  pre.code { background: #17103a; color: #e9e6ff; padding: 4mm; border-radius: 4px;
+             overflow: hidden; page-break-inside: avoid; margin: 3mm 0 5mm; }
+  pre.code code { background: none; color: inherit; font-size: 8.6pt;
+                  white-space: pre-wrap; word-break: break-word; }
+  blockquote { border-left: 3px solid #a78bfa; background: #faf9ff; margin: 3mm 0;
+               padding: 2.5mm 4mm; color: #4b5563; font-size: 10pt; }
+  hr { border: none; border-top: 1px solid #eef0f4; margin: 6mm 0; }
+  a { color: #6d28d9; text-decoration: none; }
+</style></head><body>
+
+<div class="portada">
+  <div class="barra"></div>
+  <div class="marca">ConnectHub+</div>
+  <h1>Product Documentation</h1>
+  <div class="sub">Event management platform — administration panel, attendee mobile
+  apps, roles &amp; approval workflow, and QR check-in integration.</div>
+  <div class="meta">
+    <strong>Audience:</strong> partners and integration teams<br/>
+    <strong>Version:</strong> 1.0 &nbsp;·&nbsp; <strong>Date:</strong> 2026-08-15<br/>
+    <strong>Platform:</strong> Web panel · iOS · Android
+  </div>
+</div>
+
+<div class="toc">
+  <h2>Contents</h2>
+  <ol><li><span class="tocn">1</span> Administration Panel</li><li><span class="tocn">2</span> Roles, Permissions &amp; Event Approval Workflow</li><li><span class="tocn">3</span> Mobile App (Attendees)</li><li><span class="tocn">4</span> Integrations &amp; QR Check-in API</li></ol>
+</div>
+
+<section class="seccion">
+  <div class="sec-num">Section 1</div>
+  <h1>Administration Panel</h1>
+  <p>The Administration Panel is the web back office of the platform. It is where an organizing institution builds and runs everything that its audience later sees in the mobile app: the venues and halls where events take place, the event catalogue itself, ticket pricing and discounts, speakers, certificates, badges, and the reports that show how each event performed.</p>
+<p>The panel is multi-tenant. Each institution works only with its own data, while the platform operator (superadmin) can supervise every institution from a single sign-in and switch between them with a selector in the top bar. What each person can see and do is driven by the roles assigned to their account, so the navigation menu only ever shows the modules that person is entitled to use.</p>
+<p>The interface is available in <strong>English, Spanish, French and Portuguese</strong>, with a light and a dark theme. The chosen language applies to the whole panel — including dates, currency formatting and the column headings of every <strong>Excel export</strong>.</p>
+<hr/>
+<h2 id="access-sign-in-and-roles">Access, sign-in and roles</h2>
+<p>Users sign in with their email address and password. Accounts created by an administrator receive a temporary password and are asked to set a new one the first time they sign in. Signing out is available from the avatar menu in the top-right corner, together with the language selector and the light/dark theme switch.</p>
+<p>Permissions are granted through roles. A user can hold several roles at once, and the panel combines them.</p>
+<table><thead><tr><th>Role</th><th>What it is for</th><th>Modules it unlocks</th></tr></thead><tbody><tr><td><strong>Platform superadmin</strong></td><td>Operator of the platform; supervises all institutions</td><td>Everything, plus the Institutions module and the institution selector</td></tr><tr><td><strong>System</strong></td><td>The institution's master account</td><td>All modules of its institution, including Users, Activity log and Integrations</td></tr><tr><td><strong>Administration</strong></td><td>Day-to-day management of events and operations</td><td>Operations, Events (including publishing), Reports, Integrations</td></tr><tr><td><strong>Finance</strong></td><td>Financial follow-up</td><td>Finance / Payments</td></tr><tr><td><strong>Operations management</strong></td><td>Manages the physical spaces</td><td>Operations, Events, and approval/relocation of halls</td></tr><tr><td><strong>Events</strong></td><td>Creates event proposals</td><td>Events list and calendar only; every event created goes through the approval workflow</td></tr></tbody></table>
+<p>Two rules are worth remembering: the <em>System</em> role can only be granted by the platform superadmin, and a user holding only the <em>Events</em> role can never publish an event on their own — their proposals must be approved by someone else.</p>
+<hr/>
+<h2 id="conventions-used-throughout-the-panel">Conventions used throughout the panel</h2>
+<ul>
+<li><strong>Institution selector</strong> (platform superadmin only): a drop-down in the top bar filters every screen — users, events, finance, reports — to one institution, or to all of them at once.</li>
+<li><strong>Inline editors</strong>: lists open their create/edit forms directly on the page instead of navigating away, so the list stays visible while editing.</li>
+<li><strong>Confirmation dialogs</strong>: destructive actions always ask for confirmation, and irreversible ones say so explicitly.</li>
+<li><strong>Images</strong>: logos, floor plans, hall photographs, event covers and speaker portraits are uploaded from the same control (PNG, JPG or WebP). Thumbnails can be clicked to open a full-size viewer, and an uploaded image can be replaced or removed at any time.</li>
+<li><strong>Excel export</strong>: every reporting screen has a "Download Excel" button. The generated workbook is split into meaningful sheets and the file is named with the export date.</li>
+</ul>
+<hr/>
+<h2 id="home">Home</h2>
+<p>The landing screen greets the signed-in user, states whether they hold full platform access or which roles they have, and shows a card for each module available to them. It works as a shortcut board: one click takes the user into Administration, Finance, Operations or Events. Users who only have a narrow role simply see fewer cards.</p>
+<hr/>
+<h2 id="administration">Administration</h2>
+<h3 id="users">Users</h3>
+<p><strong>Purpose.</strong> Manage the staff accounts of the institution — the people who work inside the panel. Attendees who register through the mobile app are not managed here.</p>
+<p><strong>What you see.</strong> A table with the login account, full name (with the optional group or department shown as a tag), assigned roles, status (active/inactive) and, for the platform superadmin, the institution the account belongs to.</p>
+<p><strong>Actions.</strong> Create a user (login email, first and last name, optional group, roles and — for the superadmin — the institution). The system generates a temporary password and emails it; if the email cannot be sent, the password is displayed once on screen so it can be handed over manually. Existing users can be edited (name, contact email, group, roles, password reset), deactivated to block access without losing history, reactivated, or deleted outright.</p>
+<p><strong>Who can use it.</strong> The institution's <em>System</em> account and the platform superadmin.</p>
+<h3 id="activity-log">Activity log</h3>
+<p><strong>Purpose.</strong> An audit trail of what happened in the panel: sign-ins and failed sign-in attempts, records created, updated or deleted, approvals, publications, rejections, suspensions, role changes and errors.</p>
+<p><strong>What you see.</strong> A chronological table with date, user, action, a plain-language description of what was done (for example "approved the venue for event #262" or "changed the roles of a user"), the resulting status and the originating IP address. Clicking a row expands the technical detail of the operation.</p>
+<p><strong>Actions.</strong> Filter by action type, by user, by date range and — for the platform superadmin — by institution. Three quick filters isolate approvals, sign-ins or errors. Results are paginated, and the current view can be exported to Excel.</p>
+<p><strong>Who can use it.</strong> The institution's <em>System</em> account sees its own institution's activity; the platform superadmin sees every institution.</p>
+<h3 id="integrations">Integrations</h3>
+<p><strong>Purpose.</strong> Issue API keys so the institution's own application — typically a door-scanning app — can validate the QR ticket of an attendee at the entrance.</p>
+<p><strong>What you see.</strong> The list of issued keys with their name, visible prefix, status (active/revoked), who created them, creation date, last use and total number of uses. The full key is displayed only once, at the moment it is generated.</p>
+<p><strong>Actions.</strong> Generate a new key (giving it a descriptive name such as "QR reader — main entrance"), copy it, and revoke any key that is no longer trusted. A built-in, expandable documentation panel shows the endpoint to call, the authentication header, a ready-to-copy example request, and the three possible answers: access allowed (with the participant's and event's details), ticket already used, and access denied. A second endpoint is documented for checking a ticket without registering the entry.</p>
+<p><strong>Who can use it.</strong> The <em>System</em> account and <em>Administration</em>.</p>
+<h3 id="my-institution">My institution</h3>
+<p><strong>Purpose.</strong> Maintain the institution's own profile and its payment configuration.</p>
+<p><strong>What you see.</strong> The institution logo, its name, address, city and country, plus a read-only <strong>connection code</strong> — the code attendees enter in the mobile app to link themselves to this institution. Below that, the payment configuration: payment provider, environment (test or production) and the provider's credentials.</p>
+<p><strong>Actions.</strong> Edit the profile and upload or replace the logo. Choose the payment provider (Nuvei, PayPal, PayPhone, Stripe, Square or Authorize.Net); the form then asks exactly for the fields that provider requires. Credentials are write-only: existing values are never displayed back, each field simply indicates whether it is already configured, and typing a new value replaces it.</p>
+<blockquote>Payments themselves are captured in the mobile app through the configured provider. The panel stores the configuration and reports on the results; it does not process card data.</blockquote>
+<p><strong>Who can use it.</strong> The <em>System</em> account of the institution.</p>
+<h3 id="institutions-platform-superadmin">Institutions (platform superadmin)</h3>
+<p><strong>Purpose.</strong> Onboard and supervise the institutions that use the platform.</p>
+<p><strong>What you see.</strong> Every institution with its logo, name, city and country, number of users and status: pending, approved, rejected or suspended.</p>
+<p><strong>Actions.</strong> Register a new institution; approve a pending one — which asks for the email of its future <em>System</em> user and then creates that account and shows its temporary credentials once; reject, suspend or reactivate an institution; open and edit any institution's profile (including its payment configuration); and delete an institution. Right after approval, the panel opens the new institution's profile so its payment credentials can be completed immediately.</p>
+<p><strong>Who can use it.</strong> The platform superadmin only. Other users see "My institution" in this place.</p>
+<hr/>
+<h2 id="finance-payments">Finance — Payments</h2>
+<p><strong>Purpose.</strong> Follow the money collected by the institution's events.</p>
+<p><strong>What you see.</strong> Three headline figures — total collected, number of payments and number of free registrations — followed by a bar chart of revenue per event, a table of revenue and payment count by event, the same broken down by month, and a list of the most recent payments showing event, amount, payment method with the last four digits of the card, and date.</p>
+<p><strong>Actions.</strong> Filter by event, month and year (filters combine, and can be cleared in one click), and export the complete view to Excel as a four-sheet workbook: summary, by event, by month, and payments.</p>
+<p><strong>Who can use it.</strong> The <em>System</em> account and users holding the <em>Finance</em> role.</p>
+<hr/>
+<h2 id="operations-venues-halls-sub-halls-and-layouts">Operations — Venues, halls, sub-halls and layouts</h2>
+<p><strong>Purpose.</strong> Describe the physical infrastructure that events are booked into, and set the rental price of each space.</p>
+<h3 id="venues">Venues</h3>
+<p><strong>What you see.</strong> The list of venues with their floor-plan thumbnail, name, location, owning institution (for the superadmin) and number of halls.</p>
+<p><strong>Actions.</strong> Create, edit and delete venues; upload a floor plan or site map; open a venue to manage its halls.</p>
+<h3 id="halls">Halls</h3>
+<p>Inside a venue, each hall is shown as a card with its photograph or diagram, name, maximum capacity, rental price per day, a "subdividable" marker, and counters of its sub-halls and layouts.</p>
+<p><strong>Actions.</strong> Create and edit halls (name, maximum capacity, price per day, subdividable flag), upload an image, delete a hall, or open its management panel — which has two tabs.</p>
+<h3 id="sub-halls">Sub-halls</h3>
+<p>For subdividable halls, each partition is defined with its own name, capacity, price and image. Sub-halls can be edited inline and removed.</p>
+<h3 id="layouts">Layouts</h3>
+<p>A layout is a named combination of sub-halls — for example "Auditorium A+B" — used when a hall is opened up or split for a particular event. Each layout has its own name, its selection of sub-halls, an optional diagram, and an active/inactive switch so seasonal configurations can be retired without deleting them.</p>
+<p><strong>Who can use it.</strong> <em>System</em>, <em>Administration</em> and <em>Operations management</em>.</p>
+<hr/>
+<h2 id="events">Events</h2>
+<p>The Events area covers the full life of an event: proposal, space assignment, approval, publication, content, and the material handed to attendees.</p>
+<h3 id="approval-workflow">Approval workflow</h3>
+<p>Every event moves through two steps before it becomes visible in the mobile app:</p>
+<ol>
+<li><strong>Venue approval</strong> — whoever manages the halls (<em>Operations management</em> or <em>System</em>) confirms the requested space, or relocates the event to a different hall or set of dates. A relocation counts as a resolved venue.</li>
+<li><strong>Publication</strong> — <em>Administration</em> or <em>System</em> publishes the approved event, making it available to attendees.</li>
+</ol>
+<p>At any pending step the event can be <strong>rejected</strong> with a mandatory reason. A published event can be <strong>suspended</strong> — withdrawn from the app with an optional reason, while keeping its registrations and payments intact — and later <strong>republished</strong>. Each event carries a coloured status badge, a progress indicator of the two steps, and the name and timestamp of whoever approved, published, rejected or suspended it. An expandable history shows every space request, relocation, approval, publication, rejection and suspension with its author and date.</p>
+<h3 id="event-list">Event list</h3>
+<p><strong>What you see.</strong> A table of events with cover thumbnail, title, badges (workshop, approval status), the parent event when the entry is a workshop, the rejection or suspension reason when applicable, the event days and times (including preparation and cleanup allowances), the assigned space, price or "free", the number of registrations, and whether the event is featured.</p>
+<p><strong>Actions.</strong> Create an event; open the read-only detail view; edit; delete; toggle "featured"; and — depending on role — approve the venue, approve publication, reject, suspend or republish directly from the row. A shortcut leads to the calendar view.</p>
+<p><strong>Who can use it.</strong> All roles with access to Events; the available buttons differ by role.</p>
+<h3 id="calendar">Calendar</h3>
+<p><strong>Purpose.</strong> See the whole programme at a glance and spot free days.</p>
+<p><strong>What you see.</strong> A month grid where each event appears on every day it actually runs, colour-coded by hall, with a per-day counter. A side panel details the selected day: each event's schedule, the real occupancy window once preparation and cleanup are included, venue and hall, layout or sub-halls used, number of registrations and price.</p>
+<p><strong>Actions.</strong> Move between months, jump to today, click an event card to open it for editing, or create a new event on the selected day with the date pre-filled.</p>
+<h3 id="reservations">Reservations</h3>
+<p><strong>Purpose.</strong> Book a hall for internal use without publishing anything to the audience.</p>
+<p><strong>What you see.</strong> A monthly occupancy calendar filtered by venue and hall, where each day lists what is already booked and distinguishes public events from private bookings. Selecting a day shows the existing bookings — or confirms the day is free.</p>
+<p><strong>Actions.</strong> Create a private booking with a title and a start and end time; or switch to full event creation if the booking should become a real, published event.</p>
+<p><strong>Who can use it.</strong> All Events roles except the restricted <em>Events</em> role, which is limited to the list and the calendar.</p>
+<h3 id="hall-approvals">Hall approvals</h3>
+<p><strong>Purpose.</strong> A single queue for everything waiting on a decision.</p>
+<p><strong>What you see.</strong> Two sections — requests pending venue approval, and events whose venue is resolved and are ready to publish. Each row shows the event title, the requested space in full (venue, hall, layout or sub-halls), the days and times, who requested it, their group, and the institution.</p>
+<p><strong>Actions.</strong> Approve the venue, reject with a reason, approve publication, or open the event to adjust its hall and dates before deciding.</p>
+<p><strong>Who can use it.</strong> <em>System</em>, <em>Administration</em> and <em>Operations management</em>, each seeing the actions their role allows.</p>
+<h3 id="event-editor">Event editor</h3>
+<p>The editor gathers the whole event definition on one page, with the heavier content areas collapsed until they are needed.</p>
+<p><strong>Basics.</strong> Title, description, an optional parent event (which turns the entry into a workshop of a larger event), and an item code for accounting cross-reference.</p>
+<p><strong>Days and schedule.</strong> An event is defined as a list of days, each with its own start and end time — so a programme that runs on non-consecutive dates is described exactly as it happens. Days can be added and removed freely.</p>
+<p><strong>Space.</strong> Choose the venue and then the hall — or the whole venue. When a hall is chosen, the space can be reserved as the complete hall, as a specific layout, or as an individual sub-hall. Reference images of the venue, hall, layout and sub-hall are displayed next to the selection, and the editor shows an occupancy agenda for the selected days: which other events already sit in that space, at what times, and what window they truly occupy once preparation and cleanup are counted.</p>
+<p><strong>Commercial and capacity settings.</strong> Ticket price, an optional VAT-included flag with its percentage, preparation and cleanup minutes, expected audience, a "featured" flag with an ordering number for the app's highlights, and a "private" flag for events that must not be published. Users restricted to the <em>Events</em> role see a notice that their event will go to review instead of the private switch.</p>
+<p><strong>Cover image.</strong> Upload, replace or remove the image shown in the mobile app.</p>
+<p><strong>Discount coupons.</strong> Create coupons with a code and either a fixed amount or a percentage discount, optionally limited to a maximum number of uses. The list shows how many times each coupon has been used against its limit, and coupons can be deleted.</p>
+<p><strong>Extended detail.</strong> The richer content the app displays on the event page: short and long description, "what you will learn", topics and prerequisites as editable bullet lists, level (beginner, intermediate, advanced), modality (in person, online, hybrid), duration with its unit (hours, weeks, sessions, days), and the certificate policy — whether certificates are issued, of which kind (attendance, participation, completion) and how they are delivered (download, email, in-app).</p>
+<p><strong>Speakers.</strong> Add each speaker with full name, job title, organization, role in the event (speaker, co-speaker, moderator or keynote), biography, portrait photo and a "featured" flag. The list shows avatars and role badges, and entries can be edited or removed.</p>
+<p><strong>Certificates.</strong> A visual designer for the event's certificate: upload a template image, switch on the fields to print over it — participant name, event name, date, certificate type, time, institution and verification code — and drag each one into place on a live preview. Font size, colour and bold can be adjusted per field. Once the template is saved, the attendee list is shown with who attended and who already has a certificate, and certificates can be generated for a selected group or for everyone who attended in a single batch.</p>
+<p><strong>Badges.</strong> From the same area, a printable badge sheet opens for the event. It lists every participant with their name, the event name and their check-in QR code. Attendees can be searched by name, ID number or email, and selected individually or all at once. Three print templates are available — <strong>Classic</strong> (horizontal badge with QR), <strong>ID Card</strong> (vertical credential with the institution band, initials, QR and the event's validity dates) and <strong>Compact</strong> (minimal horizontal label) — each with a preview. Printing outputs only the selected badges, sized for cutting, with the panel's own interface excluded from the page.</p>
+<hr/>
+<h2 id="reports">Reports</h2>
+<h3 id="attendance">Attendance</h3>
+<p><strong>Purpose.</strong> Measure participation across events.</p>
+<p><strong>What you see.</strong> Headline figures for number of events, registrations, attendees, no-shows, pending check-ins and the resulting attendance rate; a stacked bar chart comparing attendance, no-shows and pending per event; and a table with, for each event, its date, expected audience, registrations, attendance, no-shows and attendance rate.</p>
+<p><strong>Actions.</strong> Filter by year, by any combination of months, and by a single event. Drill into an event to list its registrants with name, email, phone and attendance status. Both the report and the drill-down list export to Excel — the report as a summary sheet plus a per-event sheet, the drill-down as an attendee sheet that also carries the registration and entry timestamps.</p>
+<p><strong>Who can use it.</strong> <em>System</em> and <em>Administration</em>.</p>
+<h3 id="hall-usage-and-revenue">Hall usage and revenue</h3>
+<p><strong>Purpose.</strong> Show how intensively the physical spaces are used and what they earn.</p>
+<p><strong>What you see.</strong> Headline figures for rental revenue, ticket revenue, number of bookings, days booked, halls used out of the total, and occupancy rate; a ranking chart of the busiest halls; a per-hall table with bookings, days booked, occupancy rate, rental revenue and ticket revenue; and a day-by-day table of halls used, bookings and rental revenue.</p>
+<p><strong>Actions.</strong> Filter by year, by months and by venue, and export to Excel as a three-sheet workbook: summary, by hall, and by day.</p>
+<p><strong>Who can use it.</strong> <em>System</em> and <em>Administration</em>.</p>
+<hr/>
+<h2 id="feedback">Feedback</h2>
+<p><strong>Purpose.</strong> A direct channel between the institutions using the panel and the team that maintains the platform.</p>
+<p><strong>What you see.</strong> Institution users see the form for submitting a suggestion, a problem report or a general comment, followed by their submissions with the status assigned to each and any written reply. The platform team sees every submission with its author, institution, type, date and status.</p>
+<p><strong>Actions.</strong> Institution users submit messages and read the replies. The platform team filters by status, moves items through <em>New → Reviewed → Planned → Done</em>, writes a reply that becomes visible to the person who reported it, and exports the whole list to Excel.</p>
+<p><strong>Who can use it.</strong> Every signed-in user can submit and read their own thread; the platform team performs the triage.</p>
+<hr/>
+<h2 id="languages-and-exports-at-a-glance">Languages and exports at a glance</h2>
+<ul>
+<li><strong>Interface languages:</strong> English, Spanish, French and Portuguese, switchable at any moment from the avatar menu without losing the current screen. Dates, month names and currency amounts follow the selected language.</li>
+<li><strong>Themes:</strong> light and dark.</li>
+<li><strong>Excel exports available in:</strong> Activity log, Finance (summary, by event, by month, payments), Attendance report (summary, by event) and its attendee drill-down, Hall usage report (summary, by hall, by day) and Feedback. Every workbook is generated in the language currently active in the panel.</li>
+</ul>
+</section>
+<section class="seccion">
+  <div class="sec-num">Section 2</div>
+  <h1>Roles, Permissions &amp; Event Approval Workflow</h1>
+  <p>This section explains <strong>who can do what</strong> inside the platform and <strong>how an event travels from an internal request to a published listing in the mobile app</strong>. It is written for an institution that is evaluating or adopting the product: no technical setup is required to understand it.</p>
+<hr/>
+<h2 id="roles-permissions">Roles &amp; Permissions</h2>
+<h3 id="1-the-model-in-one-paragraph">1. The model in one paragraph</h3>
+<p>Every administrative user belongs to <strong>one institution</strong> (the tenant) and carries <strong>one or more roles</strong>. Roles are additive: a user with two roles gets the union of both sets of permissions. Above the institutions there is a single platform-level <strong>superadministrator</strong> used by the platform operator, not by customers. Inside an institution, an optional <strong>group</strong> label lets a large organization split its event teams (faculties, departments, business units) without creating separate accounts or separate tenants.</p>
+<p>Attendees who use the mobile app are a completely separate audience: they never receive an administrative role and never access the web panel.</p>
+<h3 id="2-the-five-roles">2. The five roles</h3>
+<h4 id="system">SYSTEM</h4>
+<p>The institution's owner-level role. It is the only role that can administer <strong>users and access</strong>: create accounts, edit them, activate or deactivate them, and assign roles. It also has visibility over every other module of its institution — venues, events, approvals, finance, reports and integrations — and it is the only institution role that can open the <strong>activity log (audit trail)</strong>, restricted to its own institution.</p>
+<ul>
+<li>Sees: everything belonging to its institution.</li>
+<li>Typical holder: the platform administrator inside the customer organization.</li>
+<li>Notes: the SYSTEM role itself can only be granted by the platform superadministrator, so an institution cannot silently escalate itself.</li>
+</ul>
+<h4 id="administration">ADMINISTRATION</h4>
+<p>The institutional manager. Full visibility of every event in the institution (not limited to the events it created), access to the venue/space catalogue, the approvals queue, event publication, reports and API integrations. It does <strong>not</strong> manage users and does <strong>not</strong> see the financial module unless the FINANCE role is added on top.</p>
+<ul>
+<li>Sees: all events, all venues, reports, approvals.</li>
+<li>Decides: the <strong>final publication</strong> of an event (and its suspension / re-publication).</li>
+</ul>
+<h4 id="finance">FINANCE</h4>
+<p>A narrow, read-oriented role for the finance team. It opens the financial module — revenue collected per event and per period for its institution — and nothing else. It does not create events, does not touch venues and does not approve anything.</p>
+<h4 id="operations-management">OPERATIONS MANAGEMENT</h4>
+<p>The owner of the <strong>physical space</strong>. It administers venues, halls, sub-halls, subdivision layouts, floor plans and reference images, and it is the role that decides <strong>which space and which dates an event actually gets</strong>. In the approval workflow it approves the requested venue as it stands, or relocates the event to a different space/date and then approves it. It does not publish events to the mobile app.</p>
+<h4 id="event">EVENT</h4>
+<p>The event creator — deliberately the most restricted role. A user with only this role can create an event, describe it (agenda, speakers, images, price, coupons, capacity) and <strong>request</strong> a space and dates, but:</p>
+<ul>
+<li>it only sees <strong>its own events</strong>: those it created plus those of its <strong>group</strong>;</li>
+<li>it cannot mark an event as public by hand — publication is never in its hands;</li>
+<li>every edit it makes sends the event back to the beginning of the approval cycle;</li>
+<li>it reads the venue catalogue and the availability calendar (to pick a space) but cannot modify it;</li>
+<li>it does not see finance, user management, the audit trail or private-booking screens.</li>
+</ul>
+<h3 id="3-the-platform-superadministrator">3. The platform superadministrator</h3>
+<p>The superadministrator is a <strong>platform-operator capability</strong>, not an institution role. It exists to onboard and supervise customers:</p>
+<ul>
+<li>it works across <strong>all institutions</strong> and can filter any screen by institution;</li>
+<li>it registers, approves, rejects, suspends and reactivates institutions;</li>
+<li>it is the only actor that can grant the SYSTEM role;</li>
+<li>it sees the <strong>complete audit trail</strong> across every institution;</li>
+<li>when it writes data it must explicitly state which institution the record belongs to, so cross-tenant writes are always deliberate.</li>
+</ul>
+<h3 id="4-groups-separating-teams-and-areas-inside-one-institution">4. Groups: separating teams and areas inside one institution</h3>
+<p>A single institution frequently has several independent event teams — a university with faculties, a chamber of commerce with committees, a company with business units. The <strong>group</strong> is a free-text label attached to a user (for example <code>Engineering School</code>, <code>Marketing</code>, <code>Continuing Education</code>) that solves this without multiplying tenants:</p>
+<table><thead><tr><th>Behaviour</th><th>Effect</th></tr></thead><tbody><tr><td>Inheritance</td><td>Every event created by a user inherits that user's group automatically.</td></tr><tr><td>Visibility</td><td>A user with only the EVENT role sees the events it created <strong>plus</strong> every event of its own group — and nothing else.</td></tr><tr><td>Collaboration</td><td>Colleagues in the same group can pick up and continue each other's events (edit, images, speakers, coupons) without an administrator intervening.</td></tr><tr><td>Approvals</td><td>The group is displayed next to the requester in the approvals queue, so the approver immediately knows which area is asking for the room.</td></tr><tr><td>Boundaries</td><td>The group <strong>narrows</strong> visibility, it never widens it. It never crosses institutions, and it never hides anything from SYSTEM, ADMINISTRATION or OPERATIONS MANAGEMENT, who always see the whole institution.</td></tr><tr><td>Optional</td><td>Leaving the group empty is perfectly valid: the user then simply sees only the events it created.</td></tr></tbody></table>
+<h3 id="5-access-summary-by-module">5. Access summary by module</h3>
+<p>Legend: <strong>✔</strong> full access · <strong>◐</strong> partial / read-only or scoped · <strong>—</strong> no access.</p>
+<table><thead><tr><th>Module</th><th>SYSTEM</th><th>ADMINISTRATION</th><th>FINANCE</th><th>OPERATIONS MGMT</th><th>EVENT</th><th>Superadmin</th></tr></thead><tbody><tr><td>Users &amp; role assignment</td><td>✔</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Institution profile</td><td>✔</td><td>◐</td><td>—</td><td>—</td><td>—</td><td>✔ (all institutions)</td></tr><tr><td>Institution registry (approve / suspend customers)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Activity log / audit trail</td><td>◐ (own institution)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✔ (all)</td></tr><tr><td>API keys &amp; integrations</td><td>✔</td><td>✔</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Finance — revenue &amp; payments</td><td>✔</td><td>—</td><td>✔</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Venues, halls, sub-halls, layouts, maps</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>◐ (read-only, to pick a space)</td><td>✔</td></tr><tr><td>Availability calendar</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>◐ (own scope)</td><td>✔</td></tr><tr><td>Private bookings / reservations</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>—</td><td>✔</td></tr><tr><td>Events — list &amp; calendar</td><td>✔ (all)</td><td>✔ (all)</td><td>—</td><td>✔ (all)</td><td>◐ (own + group)</td><td>✔ (all)</td></tr><tr><td>Create / edit an event</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>◐ (own + group, goes to approval)</td><td>✔</td></tr><tr><td>Approvals queue</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>—</td><td>✔</td></tr><tr><td>Approve the venue (step 1)</td><td>✔</td><td>—</td><td>—</td><td>✔</td><td>—</td><td>✔</td></tr><tr><td>Approve publication (step 2)</td><td>✔</td><td>✔</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Reject with reason</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>—</td><td>✔</td></tr><tr><td>Suspend / re-publish a live event</td><td>✔</td><td>✔</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Feature an event in the app</td><td>✔</td><td>✔</td><td>—</td><td>✔</td><td>◐</td><td>✔</td></tr><tr><td>Attendees, badges, QR check-in, certificates</td><td>✔</td><td>✔</td><td>—</td><td>◐</td><td>◐ (own events)</td><td>✔</td></tr><tr><td>Reports — attendance &amp; venue usage</td><td>✔</td><td>✔</td><td>—</td><td>—</td><td>—</td><td>✔</td></tr><tr><td>Feedback / suggestions</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td></tr></tbody></table>
+<h3 id="6-how-the-rules-are-enforced">6. How the rules are enforced</h3>
+<p>Permissions are not a cosmetic filter on the interface. The web panel hides what a user may not use, and <strong>the API independently re-checks the same rules on every request</strong>: the session identifies the user, their institution, their roles and their group; each endpoint declares which roles may reach it; and every record touched is verified to belong to the caller's institution before it is read or written. A link copied from another user, or a request crafted by hand, is rejected the same way.</p>
+<hr/>
+<h2 id="event-approval-workflow">Event Approval Workflow</h2>
+<h3 id="1-why-the-workflow-exists">1. Why the workflow exists</h3>
+<p>An event consumes two scarce things: a <strong>physical space on a specific date</strong> and the <strong>attention of every attendee</strong> (a published event triggers a push notification). The workflow separates those two decisions and gives each one to the team that owns it:</p>
+<ol>
+<li><strong>Whoever manages the rooms decides the room</strong> — Operations Management.</li>
+<li><strong>Whoever represents the institution decides what goes public</strong> — Administration.</li>
+</ol>
+<p>Nothing reaches the mobile app until both have said yes.</p>
+<h3 id="2-who-does-what">2. Who does what</h3>
+<table><thead><tr><th>Step</th><th>Action</th><th>Who can perform it</th></tr></thead><tbody><tr><td>1</td><td>Create the event and request space + dates</td><td>EVENT (and any higher role)</td></tr><tr><td>2</td><td>Approve the venue as requested, <strong>or</strong> relocate it and then approve</td><td>OPERATIONS MANAGEMENT · SYSTEM</td></tr><tr><td>3</td><td>Approve publication (goes live + push)</td><td>ADMINISTRATION · SYSTEM</td></tr><tr><td>Any pending step</td><td>Reject with a mandatory reason</td><td>OPERATIONS MANAGEMENT · ADMINISTRATION · SYSTEM</td></tr><tr><td>After publication</td><td>Suspend / re-publish</td><td>ADMINISTRATION · SYSTEM</td></tr></tbody></table>
+<p>An event created directly by ADMINISTRATION or SYSTEM does not need the workflow — those roles already hold the publication authority, so their events are published on creation (unless they explicitly mark the event as private).</p>
+<h3 id="3-step-by-step">3. Step by step</h3>
+<h4 id="step-1-request-event-user">Step 1 — Request (EVENT user)</h4>
+<p>The organizer creates the event and requests a space: an entire venue, a full hall, one of the hall's predefined subdivision layouts, or a specific sub-hall — plus the day-by-day schedule, including optional setup and teardown buffers. The system checks the requested slot against the live calendar and refuses an overlapping request immediately.</p>
+<p>The event is saved as a <strong>draft</strong>:</p>
+<ul>
+<li>it is <strong>not visible in the mobile app</strong>;</li>
+<li><strong>no push notification is sent</strong>;</li>
+<li>the organizer can keep working on it (description, speakers, images, price, coupons, capacity);</li>
+<li>the organizer <strong>cannot</strong> make it public by hand, and any edit keeps it in draft, waiting for review;</li>
+<li>the request is recorded in the event's history: exactly which venue, hall, sub-hall, layout and days were originally asked for.</li>
+</ul>
+<p>The request appears immediately in the <strong>Approvals</strong> screen of the reviewers, showing the requester, their group, the requested space and the requested days.</p>
+<h4 id="step-2-venue-decision-operations-management">Step 2 — Venue decision (Operations Management)</h4>
+<p>Operations Management opens the queue and has three options:</p>
+<ul>
+<li><strong>Approve as requested.</strong> One explicit <em>Approve venue</em> button. Availability is re-validated at that exact moment, because the calendar may have changed since the draft was created; if another booking has since taken the slot, the approval is refused and the conflict is reported.</li>
+<li><strong>Relocate.</strong> Open the event and change the hall, the sub-hall, the layout or the dates — the natural way to consolidate the calendar. The move is recorded as a <em>before → after</em> entry in the event's history, and the event carries a <strong>Relocated</strong> badge so everyone downstream can see it did not get the room it asked for.</li>
+<li><strong>Reject</strong> with a reason (see below).</li>
+</ul>
+<blockquote><strong>Important rule: editing is not approving.</strong> Relocating an event never approves it by itself. Operations Management can rearrange the calendar as many times as needed and the event stays pending until someone presses the explicit approval button. This keeps "I moved it while reorganizing" and "I authorize this room" as two different, individually traceable decisions.</blockquote>
+<p>After this step the event is <strong>venue-approved</strong> (or <strong>relocated</strong>) — still hidden from the mobile app. The panel shows a confirmation line stating who approved or relocated it and when.</p>
+<h4 id="step-3-publication-administration-system">Step 3 — Publication (Administration / SYSTEM)</h4>
+<p>The event moves to the <em>Ready to publish</em> list. Administration reviews the public-facing content and presses <strong>Approve publication</strong>. Only at this moment:</p>
+<ul>
+<li>the event becomes <strong>visible in the mobile app</strong> for the attendees linked to that institution;</li>
+<li>the <strong>push notification</strong> announcing the new event is sent;</li>
+<li>registration and ticketing open;</li>
+<li>the panel records who published it and when.</li>
+</ul>
+<p>This is the only moment a push is emitted for a workflow event, so a draft that bounced between reviewers several times never spams attendees.</p>
+<h4 id="rejection-any-pending-step">Rejection (any pending step)</h4>
+<p>Operations Management, Administration and SYSTEM can reject a pending event at any point. <strong>A reason is mandatory</strong> and is typed into a dedicated dialog. The event:</p>
+<ul>
+<li>is marked <strong>Rejected</strong> and stays hidden from the app;</li>
+<li>returns to its creator, who sees the reason attached to the event;</li>
+<li>can be corrected and resubmitted — editing it as the organizer sends it back to draft and the cycle restarts from step 2.</li>
+</ul>
+<h4 id="suspend-and-re-publish-after-publication">Suspend and re-publish (after publication)</h4>
+<p>A live event sometimes has to disappear from the app — a cancelled speaker, a venue incident, a pricing mistake. Deleting is not the answer: an event that already has registrations, issued tickets or recorded payments <strong>cannot be deleted at all</strong>, by design. Instead, Administration or SYSTEM <strong>suspends</strong> it:</p>
+<ul>
+<li>it is withdrawn from the mobile app immediately;</li>
+<li>registrations, tickets, payments, certificates and the full history are preserved untouched;</li>
+<li>an optional reason can be recorded;</li>
+<li><strong>Re-publish</strong> puts it back online without repeating the approval cycle.</li>
+</ul>
+<h3 id="4-flow-diagram">4. Flow diagram</h3>
+<pre class="code"><code>        ┌──────────────────────────────────────────────────────────────┐
+        │  EVENT user                                                  │
+        │  1. Creates the event · requests venue + dates               │
+        │     Availability checked against the live calendar           │
+        └──────────────────────────────┬───────────────────────────────┘
+                                       ▼
+                        ╔══════════════════════════════╗
+                        ║  DRAFT                       ║
+                        ║  hidden in the app · no push ║◀────────────┐
+                        ╚══════════════┬═══════════════╝             │
+                                       │                             │
+        ┌──────────────────────────────┼───────────────────────┐     │ organizer
+        │                              │                       │     │ edits and
+        ▼                              ▼                       ▼     │ resubmits
+ ┌───────────────────┐   ┌──────────────────────────┐   ┌────────────┴─────┐
+ │ OPERATIONS MGMT   │   │ OPERATIONS MGMT          │   │ REJECTED         │
+ │ / SYSTEM          │   │ / SYSTEM                 │   │ reason required  │
+ │ "Approve venue"   │   │ Relocate (hall / dates)  │   │ back to creator  │
+ │ (explicit button) │   │ → history: before→after  │   │ hidden in app    │
+ │ availability      │   │ ⚠ editing does NOT       │   └──────────────────┘
+ │ re-validated      │   │   approve — still pending│            ▲
+ └─────────┬─────────┘   └────────────┬─────────────┘            │
+           │                          │ then explicit approval   │ reject
+           ▼                          ▼                          │ (any
+        ╔═══════════════════════════════════════════╗            │ pending
+        ║  VENUE APPROVED  /  RELOCATED             ║────────────┘ step)
+        ║  space resolved · still hidden in the app ║
+        ╚══════════════════════┬════════════════════╝
+                               ▼
+                ┌────────────────────────────────┐
+                │ ADMINISTRATION / SYSTEM        │
+                │ "Approve publication"          │
+                └───────────────┬────────────────┘
+                                ▼
+        ╔═══════════════════════════════════════════════════╗
+        ║  PUBLISHED                                        ║
+        ║  • visible in the iOS / Android app               ║
+        ║  • push notification sent to the institution      ║
+        ║  • registration &amp; ticketing open                  ║
+        ╚═══════════════════════╦═══════════════════════════╝
+                                │  suspend (optional reason)
+                                ▼        ▲
+                    ╔═══════════════════════════════╗
+                    ║  SUSPENDED                    ║
+                    ║  removed from the app,        ║
+                    ║  NOT deleted — registrations, ║
+                    ║  tickets, payments and        ║
+                    ║  history preserved            ║
+                    ╚═══════════════════════════════╝
+                       └── re-publish ──┘  (no new approval cycle)</code></pre>
+<h3 id="5-status-reference">5. Status reference</h3>
+<table><thead><tr><th>Status</th><th>Visible in the app?</th><th>What it means</th><th>Who moves it forward</th></tr></thead><tbody><tr><td><strong>Draft</strong></td><td>No</td><td>Created by an organizer; venue and dates requested, awaiting review</td><td>Operations Management / SYSTEM</td></tr><tr><td><strong>Venue approved</strong></td><td>No</td><td>The requested space was granted as asked</td><td>Administration / SYSTEM</td></tr><tr><td><strong>Relocated</strong></td><td>No</td><td>Operations Management moved the space or the dates and approved the new slot</td><td>Administration / SYSTEM</td></tr><tr><td><strong>Published</strong></td><td><strong>Yes</strong></td><td>Live in the app; push sent; registration open</td><td>—</td></tr><tr><td><strong>Rejected</strong></td><td>No</td><td>Turned down with a documented reason; back with the organizer</td><td>Organizer (correct and resubmit)</td></tr><tr><td><strong>Suspended</strong></td><td>No</td><td>Temporarily withdrawn from the app; all data preserved</td><td>Administration / SYSTEM (re-publish)</td></tr></tbody></table>
+<p>Events created before the workflow was introduced keep behaving exactly as they always did: they are treated as published unless explicitly marked private, and they can still be suspended.</p>
+<h3 id="6-traceability">6. Traceability</h3>
+<p>Two complementary records answer "who did this, and when".</p>
+<p><strong>a) Event history — one timeline per event.</strong> Every event carries its own chronological log of the space decisions: <em>requested</em>, <em>moved</em>, <em>approved</em>, <em>published</em>, <em>rejected</em>, <em>suspended</em>, <em>re-published</em>. Each entry stores the acting user, the timestamp and a readable detail. For requests and relocations, the detail contains a full snapshot — venue, hall, sub-hall, layout and the day-by-day schedule — resolved to names at the time it was written, so the record still reads correctly years later even if a room is renamed. A relocation stores both the <strong>before</strong> and the <strong>after</strong>, which makes "why is my event in a different room?" a one-click question to answer. Rejections and suspensions store the reason.</p>
+<p><strong>b) Activity log — one register per institution.</strong> Independently of the events module, the platform records every login (successful and failed) and every change made through the panel: the user, the date and time, the action, the affected area, the outcome and the originating network address. Approval actions are recorded under their own names — <em>approve venue</em>, <em>publish</em>, <em>reject event</em>, <em>suspend event</em>, <em>re-publish</em>, alongside <em>role change</em>, <em>user status change</em> and so on — so an auditor does not have to reverse-engineer generic "update" entries. Values that must never be stored (passwords, tokens, keys) are automatically redacted before anything is written, and the log is append-only from the users' point of view: nobody can edit or erase an entry from the interface.</p>
+<p>The activity log is <strong>scoped per institution</strong>: an institution's SYSTEM user sees the movements of their own institution and only those. The platform superadministrator sees every institution, with filters by action, user and date range.</p>
+<hr/>
+<h2 id="architecture-at-a-glance">Architecture at a Glance</h2>
+<p>ConnectHub is delivered as a hosted, multi-tenant platform with three surfaces over one shared core: a <strong>web administration panel</strong> used by the organizing institutions, a <strong>REST API</strong> that holds all business logic, and <strong>native mobile apps for iOS and Android</strong> used by attendees. All persistent information — institutions, users and roles, venues and halls, events and schedules, registrations, tickets, payments, certificates and audit records — lives in an <strong>Oracle database</strong>, with images and documents kept in a dedicated file service. <strong>Multi-tenancy</strong> means every institution operates as an isolated workspace: its users, venues, events, attendees and reports never mix with another institution's, and attendees join an institution by entering a connection code in the app. On the security side, panel sessions and attendee sessions are two separate systems signed with separate keys; access is granted through short-lived <strong>JWT</strong> tokens with silent renewal, so revoking or changing a user's roles takes effect on the next renewal rather than at the next login; <strong>role-based authorization</strong> is declared per endpoint and re-verified server-side on every request, never only in the browser; <strong>institution isolation</strong> is enforced by resolving the owning institution of every record before reading or writing it; passwords are stored salted and hashed, with forced rotation for temporary credentials; and a global <strong>audit layer</strong> records logins and changes, redacting sensitive values, giving each institution a verifiable account of who did what and when.</p>
+</section>
+<section class="seccion">
+  <div class="sec-num">Section 3</div>
+  <h1>Mobile App (Attendees)</h1>
+  <p>The ConnectHub mobile app is the attendee-facing product of the platform. It is a native application for <strong>iOS and Android</strong>, published on the <strong>App Store</strong> and on <strong>Google Play</strong> (store name: <em>ConnectHub+</em>). Everything an attendee needs happens here: joining an institution, discovering its events, registering or buying a ticket, entering the venue with a QR code, following a personal agenda, collecting digital certificates, and connecting with other attendees.</p>
+<p>The app talks to the same event catalog that institution staff manage from the web panel, so anything published by an organizer becomes visible to attendees immediately.</p>
+<hr/>
+<h2 id="1-at-a-glance">1. At a glance</h2>
+<table><thead><tr><th>Area</th><th>What the attendee gets</th></tr></thead><tbody><tr><td><strong>Discover</strong></td><td>Featured carousel, full event program, quick filters, event detail with day-by-day agenda, speakers, workshops and venue</td></tr><tr><td><strong>My Agenda</strong></td><td>Personal calendar of the events the attendee holds a ticket for, as a list or a month grid</td></tr><tr><td><strong>Tickets</strong></td><td>All tickets with a scannable QR code for entry, plus access to certificates</td></tr><tr><td><strong>Community</strong></td><td>Per-event community walls, attendee directory, connection requests and private 1-to-1 chats</td></tr><tr><td><strong>Profile</strong></td><td>Account, networking profile and privacy, language, theme, institutions, account deletion</td></tr></tbody></table>
+<p><strong>Interface languages:</strong> English (default), Spanish, French and Portuguese. The language can be switched at any time and applies instantly across the whole app, including dates and month names.</p>
+<p><strong>Appearance:</strong> Light, Dark or "follow the system" theme.</p>
+<hr/>
+<h2 id="2-getting-started">2. Getting started</h2>
+<h3 id="2-1-institution-connection-code">2.1 Institution connection code</h3>
+<p>ConnectHub is a multi-tenant product: attendees do not browse a global catalog, they join the institution that invited them. On first use the app asks for a <strong>connection code</strong>, which the institution distributes in its invitation, ticket email, landing page or printed material.</p>
+<ul>
+<li>The code is entered once, and the app links the attendee's account to that institution.</li>
+<li>An invalid or unknown code produces a clear message ("we couldn't find that code") without leaving the screen.</li>
+<li>After the code is accepted, the attendee lands directly on the Discover tab with that institution's program already loaded.</li>
+</ul>
+<h3 id="2-2-creating-an-account-and-signing-in">2.2 Creating an account and signing in</h3>
+<p>The app opens on the sign-in form; creating an account is one tap away from the same screen.</p>
+<table><thead><tr><th>Method</th><th>Notes</th></tr></thead><tbody><tr><td><strong>Email + password</strong></td><td>First name and last name are requested at sign-up because they are printed on certificates. Passwords must be at least 8 characters and can be revealed with the eye icon while typing.</td></tr><tr><td><strong>Continue with Google</strong></td><td>Available on Android. One tap, no password to remember.</td></tr><tr><td><strong>Sign in with Apple</strong></td><td>Available on iOS devices that support it, using the official Apple button. Apple's private-relay email addresses are fully supported.</td></tr></tbody></table>
+<p>Errors are explained in plain language: wrong email or password, email already registered, or password too short.</p>
+<p><strong>Email verification.</strong> Accounts created with email and password must confirm their address before using the app. A verification link is sent by email, and the app shows a blocking screen with three actions: <em>I already verified</em> (re-checks the account), <em>Resend email</em> and <em>Sign out</em>. Accounts created with Google or Apple are already verified and skip this step.</p>
+<h3 id="2-3-password-recovery">2.3 Password recovery</h3>
+<p>From the sign-in screen, <em>Forgot password?</em> sends a reset link to the address typed in the email field. For privacy the confirmation message is always the same ("if an account exists for that email, we've sent a link"), so the app never reveals whether an address is registered. The new password is set on a secure web page opened from that email.</p>
+<h3 id="2-4-belonging-to-more-than-one-institution">2.4 Belonging to more than one institution</h3>
+<p>An attendee can hold codes from several institutions at the same time (for example a university and a professional association).</p>
+<ul>
+<li><strong>My institutions</strong> lists all of them with logo, city and country, and marks the active one.</li>
+<li>A scope selector switches between <strong>one institution</strong> and <strong>All my events</strong>, an aggregated feed that mixes the programs of every institution the attendee belongs to.</li>
+<li><strong>Add a code</strong> at any time to join another institution without losing the existing ones.</li>
+</ul>
+<hr/>
+<h2 id="3-discovering-events">3. Discovering events</h2>
+<h3 id="3-1-the-discover-home">3.1 The Discover home</h3>
+<p>The home screen is built for browsing a live program:</p>
+<ul>
+<li>A <strong>top bar</strong> showing the active institution (logo, name, city) that opens the institution switcher, plus a quick language toggle.</li>
+<li><strong>Institution chips</strong> when the attendee belongs to more than one, to filter the feed instantly.</li>
+<li>A <strong>featured carousel</strong> of highlighted events with cover image, dates, price or "Free", and venue, with page indicators.</li>
+<li>Four <strong>quick access tiles</strong>: <em>Program</em> (everything), <em>Featured</em>, <em>Free</em> and <em>Tickets</em>.</li>
+<li>An <strong>infinite list</strong> of upcoming events with cover, institution name, title, room, dates and price, loading more as the attendee scrolls.</li>
+<li>Pull-to-refresh, loading placeholders, a retry action if the network fails, and a friendly empty state when an institution has not published anything yet.</li>
+</ul>
+<h3 id="3-2-filters-and-search">3.2 Filters and search</h3>
+<ul>
+<li><strong>Program / Featured / Free</strong> narrow the list without leaving the screen.</li>
+<li><strong>Institution scope</strong> (one institution vs. all of them) applies on top of that.</li>
+<li>The event catalog also supports <strong>search by event name</strong> (case-insensitive, partial matches), used to narrow long multi-day programs.</li>
+</ul>
+<h3 id="3-3-event-detail">3.3 Event detail</h3>
+<p>Tapping any event opens a full page with a large cover image (tap to view it full screen) and, depending on what the organizer published:</p>
+<ul>
+<li><strong>Dates and price</strong> chips, event title, organizing institution, <strong>venue</strong> (site and room) and start/end times.</li>
+<li><strong>About</strong> — the long description of the event.</li>
+<li><strong>What you'll learn</strong> — a checklist of outcomes.</li>
+<li><strong>Topics</strong> — tag chips.</li>
+<li><strong>Agenda by day</strong> — one row per day of the event, with weekday, day number and the schedule for that day. Multi-day congresses are shown day by day.</li>
+<li><strong>Speakers</strong> — a horizontal gallery. Keynote speakers are badged. Tapping a speaker opens a detail sheet with photo (zoomable), role and organization, tagline, full biography, website and social links.</li>
+<li><strong>Workshops</strong> — sessions attached to the main event, each with its dates, start time and price, navigable to their own detail page.</li>
+<li><strong>Save</strong> — a bookmark button to keep an event handy.</li>
+<li>A <strong>fixed action bar</strong> at the bottom that always shows the price and the right call to action: <em>Register — free</em>, <em>Register</em> (paid) or <em>View ticket</em> if the attendee is already registered.</li>
+</ul>
+<hr/>
+<h2 id="4-registering-and-buying-tickets">4. Registering and buying tickets</h2>
+<h3 id="4-1-free-events">4.1 Free events</h3>
+<p>One tap on <em>Register — free</em> registers the attendee and takes them straight to their QR ticket. If the profile is missing a first or last name (both are printed on certificates), the app offers to complete the profile first and returns to the flow afterwards.</p>
+<h3 id="4-2-paid-events-checkout">4.2 Paid events — checkout</h3>
+<p>Paid events open a dedicated checkout screen:</p>
+<ol>
+<li><strong>Order summary</strong> — event cover and title, subtotal, tax and total.</li>
+<li><strong>Discount code (optional)</strong> — the attendee types a coupon and taps <em>Validate</em>. The app answers immediately with the outcome: applied (showing the discount and the new total), invalid, or usage limit reached. A validated code is locked in and can be removed with one tap.</li>
+<li><strong>Billing details</strong> — before the payment window opens, the app confirms first and last name (these go on the certificate), identification document (<strong>ID card / Passport / Tax ID</strong> plus number, required by the payment gateway) and a <strong>billing email</strong>, which can differ from the account email and is where the payment receipt is sent. The fields are pre-filled from the profile and saved for the next purchase.</li>
+<li><strong>Secure card payment</strong> — the gateway's hosted checkout opens inside the app for credit or debit card payment. The whole screen is locked while the transaction is being confirmed, and on the web version the browser warns against reloading, so a purchase can never be duplicated by accident.</li>
+<li><strong>Outcome</strong> — on success the registration is confirmed, a confirmation email is sent and the attendee is taken to <em>My Tickets</em>. Pending and rejected payments are explained with their own message, and nothing is charged twice if the attendee retries.</li>
+</ol>
+<p><strong>Workshops attached to a paid main event</strong> cannot be purchased on their own: the checkout shows which main event must be bought first and offers a shortcut to it.</p>
+<p>Card data is handled entirely by the payment gateway; the app never stores full card numbers.</p>
+<h3 id="4-3-my-tickets-and-qr-check-in">4.3 My Tickets and QR check-in</h3>
+<p>The <strong>Tickets</strong> tab lists every ticket the attendee holds, with the event cover, title and dates, a <em>Workshop</em> badge when applicable, and a <em>Checked in</em> badge once the attendee has been scanned at the door.</p>
+<p>Opening a ticket shows a <strong>large, high-contrast QR code</strong> on a white card — designed to be scanned reliably from a phone screen at the entrance — together with the event title and the ticket code in text as a fallback. This is the credential the attendee presents at check-in.</p>
+<h3 id="4-4-personal-agenda">4.4 Personal agenda</h3>
+<p>The <strong>My Agenda</strong> tab turns the attendee's tickets into a personal schedule, in two interchangeable views:</p>
+<ul>
+<li><strong>List</strong> — grouped by day, ordered by start time within each day; upcoming days first, past days below and dimmed with a <em>Past</em> label.</li>
+<li><strong>Calendar</strong> — a month grid (weeks starting on Monday) with a dot on every day that has activity, month navigation, and the sessions of the selected day underneath.</li>
+</ul>
+<p>From either view the attendee can jump to the event page or open the QR ticket directly. Events can also be bookmarked from the catalog to keep track of ones they have not registered for yet.</p>
+<hr/>
+<h2 id="5-digital-certificates">5. Digital certificates</h2>
+<p>When an institution confirms attendance, a <strong>digital certificate</strong> becomes available on the corresponding ticket.</p>
+<ul>
+<li>The certificate is rendered as a <strong>designed image</strong> using the template the institution configured for that event, personalized with the attendee's name.</li>
+<li>Every certificate carries a unique <strong>verification code</strong> and a public verification page, so it can be validated by a third party.</li>
+<li><strong>Add to LinkedIn</strong> opens LinkedIn with the certification pre-filled (name, issuing organization, issue date, credential ID and verification URL), the same way industry credential platforms work.</li>
+<li><strong>Download image</strong> saves or shares the certificate file.</li>
+<li>Because the attendee's name is printed on the certificate, first and last name become locked once a certificate has been issued; changes from that point must be requested from the institution.</li>
+</ul>
+<p>If an event has no certificate template configured, the app still displays a branded certificate card with the same information and verification code.</p>
+<hr/>
+<h2 id="6-community-and-networking">6. Community and networking</h2>
+<p>Community is organized <strong>per event</strong>: attendees get access to the conversation of the events they hold a ticket for.</p>
+<h3 id="6-1-community-hub">6.1 Community hub</h3>
+<p>The <strong>Community</strong> tab brings everything together in one place:</p>
+<ul>
+<li><strong>Messages</strong> — private 1-to-1 conversations, with avatar, last message, time and an unread counter.</li>
+<li><strong>Event communities</strong> — one entry per event the attendee has joined, with cover image, last message and number of participants.</li>
+</ul>
+<h3 id="6-2-event-community-wall">6.2 Event community wall</h3>
+<p>Each event has its own wall: a chat-style feed where attendees, speakers and organizers post messages. It includes a message composer, chronological bubbles distinguishing the attendee's own posts, author avatars, and automatic scrolling that never interrupts someone reading history.</p>
+<ul>
+<li><strong>Attendees</strong> — the header opens the directory of participants with a public profile; tapping any of them opens their profile.</li>
+<li><strong>Leave / rejoin</strong> — attendees can leave a community (they stop seeing and posting messages) and rejoin later at any time.</li>
+</ul>
+<h3 id="6-3-profiles-and-connections">6.3 Profiles and connections</h3>
+<ul>
+<li><strong>Public profile</strong> — photo, name, profession, company, biography and LinkedIn link.</li>
+<li><strong>Privacy control</strong> — each attendee chooses between a <strong>public profile</strong> (anyone at their events can see them and message them) and a <strong>private profile</strong> (others must send a connection request first). Private profiles appear locked to strangers and are excluded from the public attendee directory.</li>
+<li><strong>Connection requests</strong> — <em>Connect</em> sends a request; the <em>Connections</em> screen lists incoming requests (accept or decline) and the list of accepted connections.</li>
+<li><strong>Private chats</strong> — <em>Send message</em> opens a 1-to-1 conversation. If the other person's profile is private and there is no connection yet, the app explains that a connection request is needed first.</li>
+</ul>
+<hr/>
+<h2 id="7-push-notifications">7. Push notifications</h2>
+<p>The app registers the device for push notifications after the attendee signs in, asking for the system permission the first time.</p>
+<ul>
+<li>The main notification is the <strong>announcement of a new event</strong> published by any institution the attendee belongs to.</li>
+<li>Notifications are shown even when the app is open in the foreground.</li>
+<li>Notifications are optional: if permission is denied, or later revoked from the phone's settings, the app keeps working normally without them.</li>
+</ul>
+<hr/>
+<h2 id="8-profile-and-settings">8. Profile and settings</h2>
+<p>The <strong>Profile</strong> tab is the attendee's control panel:</p>
+<ul>
+<li><strong>Account card</strong> — avatar, name, email, email-verification status and <em>Sign out</em>.</li>
+<li><strong>Theme</strong> — System, Light or Dark.</li>
+<li><strong>Language</strong> — English, Spanish, French, Portuguese.</li>
+<li><strong>My profile</strong> — a read-only view of the networking profile with a visibility badge, an "incomplete profile" hint, and a <em>See how others see you</em> preview.</li>
+<li><strong>Edit profile</strong> — profile photo (taken from the device gallery, with permission handling), first and last name, identification document, billing email, profession, company, biography, LinkedIn URL and the public/private visibility switch.</li>
+<li><strong>Connections</strong> — pending requests and existing connections.</li>
+<li><strong>My institutions</strong> — switch the active institution or add a new connection code.</li>
+<li><strong>Privacy policy</strong> — direct link to the published policy.</li>
+<li><strong>Delete account</strong> — see below.</li>
+</ul>
+<hr/>
+<h2 id="9-account-deletion">9. Account deletion</h2>
+<p>The app includes self-service account deletion, as required by both app stores:</p>
+<ol>
+<li><em>Profile → Delete account</em> opens a destructive confirmation dialog stating exactly what happens.</li>
+<li>On confirmation, the attendee's <strong>profile, connections, conversations and saved payment methods are permanently removed</strong>.</li>
+<li><strong>Payment and ticket records are retained in anonymized form</strong>, because institutions need them for their own accounting and attendance records. They can no longer be linked back to the person.</li>
+<li>The action is irreversible, and the attendee is returned to the sign-in screen.</li>
+</ol>
+<p>The same deletion request can also be started from a public web page, for people who no longer have the app installed.</p>
+<hr/>
+<h2 id="10-practical-notes">10. Practical notes</h2>
+<ul>
+<li><strong>Session handling</strong> — the attendee stays signed in between uses; credentials are stored in the device's secure keychain. If a session expires, the app returns to the sign-in screen without losing any data.</li>
+<li><strong>Always fresh</strong> — every list refreshes when it comes back into view and supports pull-to-refresh, so changes made by organizers in the web panel (a new speaker, a rescheduled day, a new workshop) appear without reinstalling or signing out.</li>
+<li><strong>Resilient by design</strong> — loading placeholders, explicit error states with a retry action, and helpful empty states are used throughout instead of blank screens.</li>
+<li><strong>Demo access</strong> — a demo connection code can be provided to reviewers or prospective clients so they can explore the full attendee experience with sample content.</li>
+</ul>
+</section>
+<section class="seccion">
+  <div class="sec-num">Section 4</div>
+  <h1>Integrations &amp; QR Check-in API</h1>
+  <p>ConnectHub+ exposes a small, purpose-built HTTP API so that a client organization can perform attendee check-in from <strong>its own software</strong> — typically an in-house QR scanning app, a turnstile controller, a kiosk, or an access-control system already deployed at the venue.</p>
+<p>The integration is deliberately narrow: the external system reads a QR code and sends its content to ConnectHub+; ConnectHub+ answers with a screen-ready verdict (<strong>access allowed / already checked in / denied</strong>), together with the attendee's name and the event. On the ConnectHub+ side, attendance is recorded and the attendance certificate is issued automatically — the external system does not need to know anything about certificates, registrations, or payments.</p>
+<hr/>
+<h2 id="1-where-the-qr-code-comes-from">1. Where the QR code comes from</h2>
+<p>Every registration to an event produces a single, unique ticket token. The same token is what gets scanned, no matter how the attendee presents it:</p>
+<ul>
+<li><strong>Attendee mobile app</strong> — under <em>My Tickets</em>, each ticket renders its QR code on screen. This is the normal path for attendees who registered through the app.</li>
+<li><strong>Printed badges</strong> — the panel can generate and print badge sheets for an event (name, event title and the check-in QR). This covers walk-in desks, lanyard badges and attendees who prefer paper.</li>
+</ul>
+<p>Both surfaces encode <strong>the same token</strong>, so a badge and a phone screen are interchangeable at the door. The token format is:</p>
+<pre class="code"><code>TCK-XXXX-XXXX</code></pre>
+<p>It uses a restricted alphabet that omits visually ambiguous characters (no <code>0</code>/<code>O</code>, no <code>1</code>/<code>I</code>), which makes it safe to read aloud or type in by hand when a camera fails.</p>
+<blockquote>The token is a secret credential for that ticket. It should be treated like a boarding pass: fine to display to its owner, never to be published or logged in shared systems.</blockquote>
+<hr/>
+<h2 id="2-base-url-and-content-type">2. Base URL and content type</h2>
+<table><thead><tr><th>Item</th><th>Value</th></tr></thead><tbody><tr><td>Base URL</td><td><code>https://connecthub.fourstacklabs.com/api</code></td></tr><tr><td>Format</td><td>JSON (<code>Content-Type: application/json</code>)</td></tr><tr><td>Transport</td><td>HTTPS only</td></tr><tr><td>Authentication</td><td><code>X-API-Key</code> header</td></tr></tbody></table>
+<p>Two endpoints are available to integrators:</p>
+<table><thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead><tbody><tr><td><code>POST</code></td><td><code>/integracion/checkin</code></td><td>Confirm access — records attendance and issues the certificate</td></tr><tr><td><code>POST</code></td><td><code>/integracion/verificar</code></td><td>Look up a ticket <strong>without</strong> recording anything</td></tr></tbody></table>
+<hr/>
+<h2 id="3-authentication-per-institution-api-keys">3. Authentication: per-institution API keys</h2>
+<h3 id="3-1-the-model">3.1 The model</h3>
+<p>Access is authenticated with an <strong>API key</strong>, sent on every request in the <code>X-API-Key</code> header:</p>
+<pre class="code"><code>X-API-Key: chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
+<p>An <code>Authorization</code> header is also accepted, for clients whose HTTP stack makes custom headers awkward:</p>
+<pre class="code"><code>Authorization: ApiKey chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
+<p>Every key belongs to <strong>exactly one institution</strong>. When a request arrives, ConnectHub+ resolves the key to its owning institution and scopes the whole operation to that institution's events. This is the isolation boundary of the integration (see 3.4).</p>
+<p>Keys are prefixed <code>chk_</code> followed by a high-entropy random value, so they are easy to recognize in configuration files and easy to spot if they ever leak into a log.</p>
+<h3 id="3-2-obtaining-a-key-from-the-panel">3.2 Obtaining a key from the panel</h3>
+<p>Keys are created by an administrator, from the web panel:</p>
+<ol>
+<li>Sign in to the ConnectHub+ panel with an account holding the <strong>System</strong> or <strong>Administration</strong> role.</li>
+<li>Go to <strong>Administration → Integrations</strong>.</li>
+<li>Click <strong>Generate key</strong>.</li>
+<li>Give the key a descriptive name — the name is how you will recognize it later in the list (for example, <code>Main gate scanner</code>, <code>Registration desk – Hall B</code>, <code>Turnstile controller</code>).</li>
+<li>The key value is displayed. <strong>Copy it now.</strong></li>
+</ol>
+<blockquote><strong>The full key value is shown exactly once.</strong> ConnectHub+ stores only a cryptographic hash of the key, plus a short non-secret prefix used to identify it in the interface. Nobody — including ConnectHub+ support — can retrieve the value afterwards. If it is lost, the key must be revoked and a new one generated.</blockquote>
+<p>The Integrations screen also embeds a short "How to integrate" panel with the endpoint, the header and copy-ready request/response examples, so the developer receiving the key gets the technical details in the same place.</p>
+<h3 id="3-3-managing-revoking-and-regenerating-keys">3.3 Managing, revoking and regenerating keys</h3>
+<p>The Integrations screen lists every key issued for the institution, with:</p>
+<table><thead><tr><th>Column</th><th>Meaning</th></tr></thead><tbody><tr><td>Name</td><td>The label given at creation</td></tr><tr><td>Prefix</td><td>First characters of the key (non-secret), to identify which key is which</td></tr><tr><td>State</td><td><strong>Active</strong> or <strong>Revoked</strong></td></tr><tr><td>Created by</td><td>The administrator account that generated it</td></tr><tr><td>Created</td><td>Creation date and time</td></tr><tr><td>Last use</td><td>Timestamp of the most recent authenticated call — blank if never used</td></tr><tr><td>Uses</td><td>Total number of authenticated calls made with the key</td></tr></tbody></table>
+<p><strong>Revoking.</strong> Click <strong>Revoke</strong> on the row and confirm. Revocation is immediate and permanent: the very next request presenting that key is rejected with <code>401</code>. A revoked key cannot be reactivated.</p>
+<p><strong>Regenerating / rotating.</strong> There is no in-place "regenerate" that reuses a key's identity — rotation is done by creating a new key and retiring the old one. The recommended zero-downtime sequence is:</p>
+<ol>
+<li>Generate a new key (give it a name that makes the rotation obvious, e.g. <code>Main gate scanner – 2026</code>).</li>
+<li>Deploy the new key to the scanner application.</li>
+<li>Confirm on the panel that the <strong>Last use</strong> and <strong>Uses</strong> counters of the new key are advancing.</li>
+<li>Revoke the old key.</li>
+</ol>
+<p>Because both keys are valid simultaneously during steps 2–3, scanners can be updated one at a time.</p>
+<p>The <em>Last use</em> and <em>Uses</em> columns double as a lightweight audit trail: an unexpected jump in usage, or usage outside event hours, is a signal that a key may have been copied.</p>
+<p><strong>Note on scope of the key.</strong> The integration key authenticates <em>check-in operations only</em>. It cannot read the event catalogue, modify events, list attendees, or create or revoke other keys. Key administration is available only from the panel, under an authenticated administrator session — an integration key can never manage keys, including its own.</p>
+<h3 id="3-4-isolation-between-institutions">3.4 Isolation between institutions</h3>
+<p>Each key resolves to a single owning institution, and ConnectHub+ verifies that the scanned ticket belongs to an event of <strong>that same institution</strong> before doing anything else.</p>
+<p>This means:</p>
+<ul>
+<li>A key issued to Institution A can never check in an attendee of Institution B's event, even if a valid Institution B ticket is presented to it. The response is a plain <code>DENEGADO</code> with the reason <code>The ticket belongs to another institution</code>.</li>
+<li>The response never leaks details (attendee name, event title) about tickets outside the key's institution.</li>
+<li>A compromised key is contained: its blast radius is limited to marking attendance for that one institution's events. It cannot read data, cannot delete anything, and cannot reach any other tenant.</li>
+</ul>
+<h3 id="3-5-authentication-errors">3.5 Authentication errors</h3>
+<table><thead><tr><th>HTTP</th><th>Body message</th><th>Cause</th></tr></thead><tbody><tr><td><code>401</code></td><td><code>Missing API key (header X-API-Key)</code></td><td>No <code>X-API-Key</code> (and no <code>Authorization: ApiKey …</code>) header was sent</td></tr><tr><td><code>401</code></td><td><code>Invalid or revoked API key</code></td><td>The key is wrong, malformed, or has been revoked</td></tr><tr><td><code>400</code></td><td>Validation error</td><td><code>qrToken</code> missing, not a string, or longer than 200 characters; <code>idEvento</code> not an integer</td></tr></tbody></table>
+<p><strong>Important:</strong> authentication and validation failures use HTTP error codes, but <em>business outcomes do not</em>. A denied ticket is a successful call — see below.</p>
+<hr/>
+<h2 id="4-check-in-endpoint">4. Check-in endpoint</h2>
+<pre class="code"><code>POST /integracion/checkin</code></pre>
+<p>This is the endpoint the scanner calls when staff intends to let the person in. It records attendance and triggers certificate issuance.</p>
+<h3 id="4-1-request">4.1 Request</h3>
+<pre class="code" data-lang="http"><code>POST /integracion/checkin HTTP/1.1
+Host: connecthub.fourstacklabs.com
+X-API-Key: chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Content-Type: application/json
+
+{
+  "qrToken": "TCK-UZFW-U47J",
+  "idEvento": 262
+}</code></pre>
+<table><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody><tr><td><code>qrToken</code></td><td>string (≤ 200 chars)</td><td>Yes</td><td>The content read from the QR code</td></tr><tr><td><code>idEvento</code></td><td>integer</td><td>No</td><td>Door gating: restrict this scanner to one specific event</td></tr></tbody></table>
+<p><strong>About <code>qrToken</code>.</strong> Send the QR content exactly as your scanner produced it. ConnectHub+ normalizes it for you:</p>
+<ul>
+<li>A bare token (<code>TCK-UZFW-U47J</code>) works.</li>
+<li>A token embedded in a URL or in surrounding text works too — the token pattern is extracted automatically. This matters because many off-the-shelf scanning SDKs return a full URL rather than the raw payload.</li>
+<li>Case is irrelevant; leading and trailing whitespace is trimmed.</li>
+</ul>
+<p><strong>About <code>idEvento</code>.</strong> Omit it and the scanner accepts any valid ticket belonging to the institution — appropriate for a single-event venue or a general entrance. Supply it and the scanner becomes a door for that event only: a valid ticket for a <em>different</em> event of the same institution is rejected with a clear reason instead of being silently checked in at the wrong door. This is the recommended configuration when several events run in parallel in the same building.</p>
+<h3 id="4-2-response-the-three-outcomes">4.2 Response — the three outcomes</h3>
+<p>All three outcomes return <strong>HTTP 200</strong>. The verdict lives in the <code>acceso</code> field, which is one of <code>PERMITIDO</code>, <code>YA_REGISTRADO</code> or <code>DENEGADO</code>. Client applications should branch on <code>acceso</code>, not on the status code.</p>
+<h4 id="a-permitido-access-allowed-first-scan">A. <code>PERMITIDO</code> — access allowed (first scan)</h4>
+<p>Attendance has just been recorded and the certificate issued.</p>
+<pre class="code" data-lang="json"><code>{
+  "acceso": "PERMITIDO",
+  "participante": {
+    "nombre": "Francisco Andrade",
+    "email": "f@example.com",
+    "documento": "C0912345678"
+  },
+  "evento": {
+    "id": 262,
+    "titulo": "TECH INNOVATION SUMMIT 2026",
+    "fecha": "2026-09-30"
+  },
+  "fechaIngreso": null,
+  "certificado": "CERT-A1B2C3D4E5F6"
+}</code></pre>
+<table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody><tr><td><code>participante.nombre</code></td><td>Attendee's full name; falls back to the email address if no name is on file</td></tr><tr><td><code>participante.email</code></td><td>Attendee's email</td></tr><tr><td><code>participante.documento</code></td><td>Identity document (type + number), or <code>null</code> if not recorded</td></tr><tr><td><code>evento.id</code> / <code>titulo</code> / <code>fecha</code></td><td>Event identifier, title and date (<code>YYYY-MM-DD</code>)</td></tr><tr><td><code>fechaIngreso</code></td><td><code>null</code> on this outcome — the entry is being recorded right now; the timestamp is stored server-side and returned on any subsequent scan</td></tr><tr><td><code>certificado</code></td><td>Code of the attendance certificate issued for this attendee, e.g. <code>CERT-A1B2C3D4E5F6</code></td></tr></tbody></table>
+<h4 id="b-ya-registrado-already-checked-in-repeat-scan">B. <code>YA_REGISTRADO</code> — already checked in (repeat scan)</h4>
+<p>The ticket is valid, but this attendee has already entered. This is <strong>informational, not a rejection</strong> — ConnectHub+ deliberately does not decide whether to let the person through, because a second scan is legitimate in many situations (re-entry after stepping out, staff double-checking, a scanner retrying after a network glitch). Your staff makes the call; the API just tells them what it knows.</p>
+<pre class="code" data-lang="json"><code>{
+  "acceso": "YA_REGISTRADO",
+  "participante": {
+    "nombre": "Francisco Andrade",
+    "email": "f@example.com",
+    "documento": "C0912345678"
+  },
+  "evento": {
+    "id": 262,
+    "titulo": "TECH INNOVATION SUMMIT 2026",
+    "fecha": "2026-09-30"
+  },
+  "fechaIngreso": "2026-09-30 09:12"
+}</code></pre>
+<p><code>fechaIngreso</code> carries the timestamp of the <strong>original</strong> entry (<code>YYYY-MM-DD HH:MM</code>), which is what staff needs on screen to judge the situation. No <code>certificado</code> field is returned, because the certificate was already issued on the first scan.</p>
+<h4 id="c-denegado-denied">C. <code>DENEGADO</code> — denied</h4>
+<pre class="code" data-lang="json"><code>{
+  "acceso": "DENEGADO",
+  "motivo": "Ticket not found"
+}</code></pre>
+<p><code>motivo</code> explains the rejection. The possible values are:</p>
+<table><thead><tr><th><code>motivo</code></th><th>Meaning</th></tr></thead><tbody><tr><td><code>Ticket not found</code></td><td>The token does not correspond to any registration — an invalid, mistyped, damaged or fabricated QR</td></tr><tr><td><code>The ticket belongs to another institution</code></td><td>A real ticket, but for an event owned by a different institution than the API key</td></tr><tr><td><code>The ticket is for a different event</code></td><td>Only when <code>idEvento</code> was sent: a valid ticket of your institution, but for a different event</td></tr></tbody></table>
+<p>For the third case only, the response also includes <code>participante</code> and <code>evento</code>, so the scanner can show staff <em>which</em> event the person actually holds a ticket for and redirect them to the correct door:</p>
+<pre class="code" data-lang="json"><code>{
+  "acceso": "DENEGADO",
+  "motivo": "The ticket is for a different event",
+  "participante": {
+    "nombre": "Francisco Andrade",
+    "email": "f@example.com",
+    "documento": "C0912345678"
+  },
+  "evento": {
+    "id": 271,
+    "titulo": "AI WORKSHOP – TRACK B",
+    "fecha": "2026-09-30"
+  }
+}</code></pre>
+<h3 id="4-3-suggested-on-screen-treatment">4.3 Suggested on-screen treatment</h3>
+<table><thead><tr><th><code>acceso</code></th><th>Display</th></tr></thead><tbody><tr><td><code>PERMITIDO</code></td><td>Green — "Access confirmed" + attendee name and event title</td></tr><tr><td><code>YA_REGISTRADO</code></td><td>Amber — "Already checked in at {fechaIngreso}" + attendee name</td></tr><tr><td><code>DENEGADO</code></td><td>Red — the <code>motivo</code>, plus the event title when present</td></tr></tbody></table>
+<p>Use colour <strong>and</strong> text (and ideally a distinct sound per outcome). Door staff work fast, in poor light, often glancing rather than reading — the verdict should be unmistakable at arm's length.</p>
+<hr/>
+<h2 id="5-verification-endpoint-look-up-without-recording">5. Verification endpoint (look up without recording)</h2>
+<pre class="code"><code>POST /integracion/verificar</code></pre>
+<p>Same authentication, same request body (<code>idEvento</code> is ignored here). This endpoint answers "is this ticket good?" <strong>without</strong> marking attendance and <strong>without</strong> issuing a certificate — it has no side effects at all.</p>
+<p>Use it for pre-validation queues, information desks, informational displays, or any point where you want to inspect a ticket without consuming it.</p>
+<p><strong>Request</strong></p>
+<pre class="code" data-lang="http"><code>POST /integracion/verificar HTTP/1.1
+X-API-Key: chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Content-Type: application/json
+
+{ "qrToken": "TCK-UZFW-U47J" }</code></pre>
+<p><strong>Response — valid ticket</strong></p>
+<pre class="code" data-lang="json"><code>{
+  "valido": true,
+  "yaRegistrado": false,
+  "fechaIngreso": null,
+  "participante": {
+    "nombre": "Francisco Andrade",
+    "email": "f@example.com",
+    "documento": "C0912345678"
+  },
+  "evento": {
+    "id": 262,
+    "titulo": "TECH INNOVATION SUMMIT 2026",
+    "fecha": "2026-09-30"
+  }
+}</code></pre>
+<p><code>yaRegistrado</code> tells you whether this ticket has already been checked in, and <code>fechaIngreso</code> carries the entry timestamp when it has.</p>
+<p><strong>Response — invalid ticket</strong></p>
+<pre class="code" data-lang="json"><code>{
+  "valido": false,
+  "motivo": "Ticket not found"
+}</code></pre>
+<p>The <code>motivo</code> values are the same as for check-in (excluding the event-mismatch reason, which only applies when gating by <code>idEvento</code> on check-in).</p>
+<blockquote>Verification is a read; check-in is the write. If your workflow verifies first and then checks in, remember that the check-in call is still the one that counts — never treat a successful <code>verificar</code> as attendance.</blockquote>
+<hr/>
+<h2 id="6-curl-examples">6. curl examples</h2>
+<p><strong>Check-in</strong></p>
+<pre class="code" data-lang="bash"><code>curl -X POST https://connecthub.fourstacklabs.com/api/integracion/checkin \
+  -H "X-API-Key: chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"qrToken":"TCK-UZFW-U47J"}'</code></pre>
+<p><strong>Check-in gated to one event</strong></p>
+<pre class="code" data-lang="bash"><code>curl -X POST https://connecthub.fourstacklabs.com/api/integracion/checkin \
+  -H "X-API-Key: chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"qrToken":"TCK-UZFW-U47J","idEvento":262}'</code></pre>
+<p><strong>Verify without recording</strong></p>
+<pre class="code" data-lang="bash"><code>curl -X POST https://connecthub.fourstacklabs.com/api/integracion/verificar \
+  -H "X-API-Key: chk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"qrToken":"TCK-UZFW-U47J"}'</code></pre>
+<hr/>
+<h2 id="7-idempotent-behaviour">7. Idempotent behaviour</h2>
+<p><strong>Sending the same <code>qrToken</code> to <code>/integracion/checkin</code> more than once is safe.</strong> The first successful call marks attendance and stamps the entry time; every subsequent call detects that the ticket is already checked in and returns <code>YA_REGISTRADO</code> with the <em>original</em> timestamp. Specifically, repeat calls:</p>
+<ul>
+<li>do <strong>not</strong> create a duplicate attendance record;</li>
+<li>do <strong>not</strong> overwrite or advance the recorded entry time;</li>
+<li>do <strong>not</strong> issue a second certificate;</li>
+<li>do <strong>not</strong> return an error.</li>
+</ul>
+<p>This property is what makes the API safe for unreliable venue networks. If a request times out, or the connection drops before the response arrives, your application cannot know whether the check-in landed — and it does not need to. Simply retry the same token. Either it was never recorded (you get <code>PERMITIDO</code>) or it was (you get <code>YA_REGISTRADO</code> with the true entry time). Both are correct answers, and neither corrupts anything.</p>
+<p>The same guarantee lets you build an <strong>offline queue</strong>: if the venue network fails, keep scanning, store the tokens locally, and replay them when connectivity returns. Replaying a token that was already flushed is harmless.</p>
+<p>Certificate issuance is idempotent on the same basis — one attendance certificate per attendee per event, no matter how many times the ticket is scanned.</p>
+<hr/>
+<h2 id="8-automatic-certificate-issuance">8. Automatic certificate issuance</h2>
+<p>Check-in is the trigger for attendance certification. On the first successful check-in of a ticket, ConnectHub+:</p>
+<ol>
+<li>Marks the attendee as present and records the entry timestamp.</li>
+<li>Issues an attendance certificate for that attendee and event.</li>
+<li>Returns the certificate code in the <code>certificado</code> field of the response (format <code>CERT-</code> followed by a hexadecimal identifier, e.g. <code>CERT-A1B2C3D4E5F6</code>).</li>
+</ol>
+<p>From that moment the certificate is available to the attendee inside the ConnectHub+ app, and the code can be used for public verification of the certificate's authenticity. The external scanner does not have to do anything with the code — it is returned mainly for receipt-printing, logging and support purposes. Displaying it on screen is optional.</p>
+<p>The certificate carries the attendee's name, the event title and the issuing institution, rendered on the certificate template configured for that event in the panel.</p>
+<blockquote>Because certificates are driven by check-in, the completeness of your check-in operation directly determines who gets certified. Attendees who are waved through without a scan will not receive a certificate.</blockquote>
+<hr/>
+<h2 id="9-best-practices">9. Best practices</h2>
+<h3 id="9-1-handling-the-network">9.1 Handling the network</h3>
+<ul>
+<li><strong>Always retry on failure.</strong> Timeouts, 5xx responses and dropped connections should be retried with the <em>same</em> <code>qrToken</code>. The endpoint's idempotency makes this safe by design.</li>
+<li><strong>Use exponential backoff</strong> (e.g. 1s, 2s, 4s, 8s, capped) rather than tight retry loops, so a brief backend hiccup does not turn into a stampede from every scanner at once.</li>
+<li><strong>Set a short client timeout</strong> (2–5 seconds is usually right for a door) and show staff a clear "retrying" state instead of freezing the UI.</li>
+<li><strong>Queue offline scans.</strong> Persist unsent tokens to local storage, flush them when connectivity returns, and surface the queue depth to staff so they know the device has pending work.</li>
+<li><strong>Never invent a local verdict.</strong> If your app has not received a response, do not display <code>PERMITIDO</code>. Show a pending state and let staff decide; the door policy during an outage is an operational decision, not something the scanner should fake.</li>
+<li><strong>Deduplicate rapid re-reads.</strong> Cameras commonly read the same code several times per second. Debounce locally (e.g. ignore the same token for 3–5 seconds) to avoid needless traffic — correctness is already guaranteed, but the noise pollutes your own logs and the usage counters.</li>
+</ul>
+<h3 id="9-2-protecting-the-key">9.2 Protecting the key</h3>
+<ul>
+<li><strong>Treat the key as a production credential.</strong> Store it in a secrets manager, a secure keystore, or the platform's encrypted credential store — never in source control, never in a plain-text config committed to a repository, never in a screenshot or support ticket.</li>
+<li><strong>Avoid shipping the key inside a widely distributed mobile app.</strong> Application binaries can be decompiled. If your scanner is a public app store download, route check-in calls through your own backend, which holds the key server-side. If the app is distributed privately to staff devices only, provision the key at first login rather than baking it into the build.</li>
+<li><strong>Issue one key per deployment</strong>, not one key for everything: a key per scanner fleet, per venue, or per vendor. Granular keys mean a single compromise or a departing contractor costs you one revocation, not a full re-deployment.</li>
+<li><strong>Name keys meaningfully.</strong> The name is the only thing distinguishing them in the panel once the value is hidden. <code>Registration desk – Hall B</code> beats <code>key2</code>.</li>
+<li><strong>Never send the key in a URL.</strong> It belongs in the header only. Query strings end up in proxy logs, browser history and analytics.</li>
+<li><strong>Do not log the key</strong>, and scrub it from crash reports and HTTP debug traces. If you must correlate, log the <code>chk_</code> prefix only.</li>
+<li><strong>Send only over HTTPS.</strong> Do not disable certificate validation, even on a venue network with a captive portal.</li>
+<li><strong>Rotate periodically</strong> — a sensible default is once per event season, and immediately upon any staff change with key access.</li>
+<li><strong>Revoke immediately</strong> if a device is lost or stolen, a contractor's engagement ends, or the key may have been exposed. Revocation takes effect on the next request; then issue a replacement.</li>
+<li><strong>Watch the usage counters.</strong> Review <em>Last use</em> and <em>Uses</em> on the Integrations screen after each event. Usage from a key that should be idle, or activity outside event hours, warrants investigation.</li>
+</ul>
+<h3 id="9-3-operational-tips">9.3 Operational tips</h3>
+<ul>
+<li><strong>Gate scanners with <code>idEvento</code></strong> whenever multiple events run concurrently at the same site. It converts a confusing "wrong room" situation into an explicit, actionable message.</li>
+<li><strong>Show the attendee's name on screen</strong> on every outcome that carries one. It is the fastest way for staff to catch a mismatch between the badge and the person holding it.</li>
+<li><strong>Provide a manual token entry fallback.</strong> The token alphabet excludes ambiguous characters precisely so that a damaged badge can be typed in by hand when the camera cannot read it.</li>
+<li><strong>Test against a real ticket before the event.</strong> Generate a registration, open its QR in the attendee app, scan it with <code>verificar</code> (which records nothing), and confirm the response renders correctly in your UI. Reserve <code>checkin</code> for the live rehearsal.</li>
+</ul>
+</section>
+</body></html>

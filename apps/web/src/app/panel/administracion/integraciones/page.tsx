@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useDialogo } from '@/lib/dialogo';
 import { useI18n } from '@/lib/i18n';
 import { propsValidacion } from '@/lib/validacion';
+import { LlaveInstitucion } from '@/components/integraciones/llave-institucion';
 import { puedeVer, ROL } from '@/lib/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -289,8 +290,16 @@ export default function IntegracionesPage() {
         </p>
       )}
 
-      <h2 className="mt-6 text-lg font-semibold text-text">{t('int.keys')}</h2>
-      <div className="mt-2 overflow-x-auto rounded-2xl border border-border-app bg-surface">
+      {/* Llave propia de la institución: la que se entrega al lector de QR */}
+      <div className="mt-5">
+        <LlaveInstitucion onRegenerada={(msg) => setOk(msg)} />
+      </div>
+
+      <h2 className="mt-6 text-lg font-semibold text-text">
+        {t('int.extraKeys')}
+      </h2>
+      <p className="text-sm text-text-2">{t('int.extraKeysHint')}</p>
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-border-app bg-surface">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
