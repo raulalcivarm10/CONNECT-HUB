@@ -85,17 +85,19 @@ export function Sidebar() {
               label={t('side.users')}
               icon={IconUsers}
             />
+            {/* Auditoría: el superadmin ve todas las instituciones; el SYSTEM
+                de una institución ve SOLO la suya (el API lo fuerza). */}
+            <NavLink
+              href="/panel/administracion/auditoria"
+              label={t('side.audit')}
+              icon={IconChart}
+            />
             {user?.esSuper ? (
               <>
                 <NavLink
                   href="/panel/administracion/instituciones"
                   label={t('side.institutions')}
                   icon={IconBuilding}
-                />
-                <NavLink
-                  href="/panel/administracion/auditoria"
-                  label={t('side.audit')}
-                  icon={IconChart}
                 />
               </>
             ) : (
