@@ -8,7 +8,13 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Lang, LOCALES, translations } from './translations';
+import {
+  estaCargado,
+  getDict,
+  loadDict,
+  translateWith,
+} from './dictionaries';
+import { esIdiomaValido, LOCALES, type Dict, type Lang } from './types';
 
 interface I18nState {
   lang: Lang;
@@ -25,29 +31,42 @@ const STORAGE_KEY = 'ch_lang';
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   // inglés nativo por defecto; el guardado se aplica tras hidratar
   const [lang, setLangState] = useState<Lang>('en');
+  // diccionario en uso; arranca en inglés (import estático) para que la
+  // primera pintura nunca muestre claves crudas
+  const [dict, setDict] = useState<Dict>(() => getDict('en'));
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as Lang | null;
-    if (saved && translations[saved]) setLangState(saved);
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (esIdiomaValido(saved)) setLangState(saved);
   }, []);
+
+  // trae el diccionario del idioma activo; mientras llega seguimos en inglés
+  useEffect(() => {
+    if (estaCargado(lang)) {
+      setDict(getDict(lang));
+      return;
+    }
+    let vigente = true;
+    void loadDict(lang).then((d) => {
+      if (vigente) setDict(d);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [lang]);
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     localStorage.setItem(STORAGE_KEY, l);
     document.documentElement.lang = l;
+    // adelanta la descarga para que el cambio se sienta inmediato
+    void loadDict(l);
   }, []);
 
   const t = useCallback(
-    (key: string, vars?: Record<string, string | number>) => {
-      let texto = translations[lang][key] ?? translations.en[key] ?? key;
-      if (vars) {
-        for (const [k, v] of Object.entries(vars)) {
-          texto = texto.replaceAll(`{${k}}`, String(v));
-        }
-      }
-      return texto;
-    },
-    [lang],
+    (key: string, vars?: Record<string, string | number>) =>
+      translateWith(dict, key, vars),
+    [dict],
   );
 
   const value = useMemo<I18nState>(

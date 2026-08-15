@@ -1,20 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
+
+// recharts (~300-400 KB) fuera del first-load: el gráfico está bajo el fold.
+const AsistenciaBarChart = dynamic(
+  () => import('@/components/charts/asistencia-bar-chart'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-80 animate-pulse rounded-xl bg-surface-2" />
+    ),
+  },
+);
 
 interface EventoRep {
   ID_EVENTO: number;
@@ -62,17 +64,24 @@ function Card({
   label,
   value,
   accent,
+  cargando,
 }: {
   label: string;
   value: string | number;
   accent?: string;
+  cargando?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-border-app bg-surface p-5">
       <div className="text-sm text-text-muted">{label}</div>
-      <div className={`mt-1 text-2xl font-bold ${accent ?? 'text-text'}`}>
-        {value}
-      </div>
+      {cargando ? (
+        // sin datos aún: barra en vez de un "0" que después salta al valor real
+        <div className="mt-1 h-8 w-24 animate-pulse rounded bg-surface-2" />
+      ) : (
+        <div className={`mt-1 text-2xl font-bold ${accent ?? 'text-text'}`}>
+          {value}
+        </div>
+      )}
     </div>
   );
 }
@@ -81,6 +90,7 @@ export default function ReportesPage() {
   const { t } = useI18n();
   const { idInstitucion, nombreFiltro } = useInstitucionFiltro();
   const [datos, setDatos] = useState<Resumen | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [anio, setAnio] = useState<string>('');
   const [meses, setMeses] = useState<number[]>([]);
   const [idEvento, setIdEvento] = useState<string>('');
@@ -90,38 +100,95 @@ export default function ReportesPage() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
+  // La red solo depende de institución + año: el backend devuelve una fila por
+  // evento, así que meses e idEvento se resuelven en cliente (ver `porEvento`).
+  // Antes cada mes marcado disparaba una recarga completa.
+  const cargar = useCallback(() => {
     const params = new URLSearchParams();
     if (idInstitucion != null) params.set('idInstitucion', String(idInstitucion));
     if (anio) params.set('anio', anio);
-    if (meses.length) params.set('meses', meses.join(','));
-    if (idEvento) params.set('idEvento', idEvento);
     const q = params.toString();
-    setDatos(
-      await api.get<Resumen>(`/reportes/asistencia${q ? `?${q}` : ''}`),
-    );
-  }, [idInstitucion, anio, meses, idEvento]);
+    return api.get<Resumen>(`/reportes/asistencia${q ? `?${q}` : ''}`);
+  }, [idInstitucion, anio]);
 
-  // cargar ya depende de idInstitucion (el filtro global), así que este único
-  // efecto cubre también el cambio de institución — antes había un segundo
-  // useEffect por [qs] que duplicaba cada fetch.
   useEffect(() => {
-    cargar().catch((e) => setError(e.message));
+    let vivo = true;
+    setCargando(true);
+    cargar()
+      .then((r) => {
+        if (!vivo) return;
+        setDatos(r);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (vivo) setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (vivo) setCargando(false);
+      });
+    return () => {
+      vivo = false;
+    };
   }, [cargar]);
+
+  /** Filas visibles: filtros de mes/evento aplicados en cliente, sin red. */
+  const porEvento = useMemo(() => {
+    const filas = datos?.porEvento ?? [];
+    if (!meses.length && !idEvento) return filas;
+    return filas.filter((e) => {
+      if (idEvento && String(e.ID_EVENTO) !== idEvento) return false;
+      if (meses.length) {
+        // FECHA llega como 'YYYY-MM-DD'; sin fecha el evento queda fuera
+        // (igual que el EXTRACT(MONTH ...) del backend con NULL).
+        const mes = Number(String(e.FECHA ?? '').slice(5, 7));
+        if (!mes || !meses.includes(mes)) return false;
+      }
+      return true;
+    });
+  }, [datos, meses, idEvento]);
+
+  /** Mismos totales que calcula el backend, recompuestos sobre lo filtrado. */
+  const totales = useMemo(() => {
+    const acc = porEvento.reduce(
+      (a, e) => ({
+        inscritos: a.inscritos + Number(e.INSCRITOS ?? 0),
+        asistieron: a.asistieron + Number(e.ASISTIERON ?? 0),
+        noAsistieron: a.noAsistieron + Number(e.NO_ASISTIERON ?? 0),
+        cancelados: a.cancelados + Number(e.CANCELADOS ?? 0),
+        pendientes: a.pendientes + Number(e.PENDIENTES ?? 0),
+      }),
+      {
+        inscritos: 0,
+        asistieron: 0,
+        noAsistieron: 0,
+        cancelados: 0,
+        pendientes: 0,
+      },
+    );
+    const base = acc.asistieron + acc.noAsistieron;
+    return {
+      ...acc,
+      eventos: porEvento.length,
+      // tasa sobre quienes tienen check-in registrado (asistió + no asistió)
+      tasaAsistencia: base > 0 ? Math.round((acc.asistieron / base) * 100) : 0,
+    };
+  }, [porEvento]);
 
   /** Exporta el reporte visible: hoja de resumen + hoja por evento. */
   function exportarExcel() {
     if (!datos) return;
-    const tot = datos.totales;
     const resumen = [
-      { [t('x.metric')]: t('rep.events'), [t('x.value')]: tot.eventos },
-      { [t('x.metric')]: t('rep.registered'), [t('x.value')]: tot.inscritos },
-      { [t('x.metric')]: t('rep.attended'), [t('x.value')]: tot.asistieron },
-      { [t('x.metric')]: t('rep.noShow'), [t('x.value')]: tot.noAsistieron },
-      { [t('x.metric')]: t('rep.pending'), [t('x.value')]: tot.pendientes },
-      { [t('x.metric')]: t('rep.rate'), [t('x.value')]: `${tot.tasaAsistencia}%` },
+      { [t('x.metric')]: t('rep.events'), [t('x.value')]: totales.eventos },
+      { [t('x.metric')]: t('rep.registered'), [t('x.value')]: totales.inscritos },
+      { [t('x.metric')]: t('rep.attended'), [t('x.value')]: totales.asistieron },
+      { [t('x.metric')]: t('rep.noShow'), [t('x.value')]: totales.noAsistieron },
+      { [t('x.metric')]: t('rep.pending'), [t('x.value')]: totales.pendientes },
+      {
+        [t('x.metric')]: t('rep.rate'),
+        [t('x.value')]: `${totales.tasaAsistencia}%`,
+      },
     ];
-    const porEvento = datos.porEvento.map((e) => {
+    const filas = porEvento.map((e) => {
       const base = e.ASISTIERON + e.NO_ASISTIERON;
       return {
         [t('rep.event')]: e.TITULO,
@@ -136,7 +203,7 @@ export default function ReportesPage() {
     });
     void descargarExcel('attendance-report', [
       { nombre: t('x.summary'), filas: resumen },
-      { nombre: t('x.byEvent'), filas: porEvento },
+      { nombre: t('x.byEvent'), filas },
     ]);
   }
 
@@ -172,17 +239,19 @@ export default function ReportesPage() {
     );
   }
 
-  const grafico =
-    datos?.porEvento
-      .slice()
-      .reverse()
-      .map((e) => ({
-        nombre:
-          e.TITULO.length > 18 ? `${e.TITULO.slice(0, 18)}…` : e.TITULO,
-        [t('rep.attended')]: e.ASISTIERON,
-        [t('rep.noShow')]: e.NO_ASISTIERON,
-        [t('rep.pending')]: e.PENDIENTES,
-      })) ?? [];
+  const grafico = useMemo(
+    () =>
+      porEvento
+        .slice()
+        .reverse()
+        .map((e) => ({
+          nombre: e.TITULO.length > 18 ? `${e.TITULO.slice(0, 18)}…` : e.TITULO,
+          [t('rep.attended')]: e.ASISTIERON,
+          [t('rep.noShow')]: e.NO_ASISTIERON,
+          [t('rep.pending')]: e.PENDIENTES,
+        })),
+    [porEvento, t],
+  );
 
   const nf = (n: number) => new Intl.NumberFormat().format(n);
 
@@ -199,7 +268,7 @@ export default function ReportesPage() {
         </div>
         <button
           onClick={exportarExcel}
-          disabled={!datos || datos.porEvento.length === 0}
+          disabled={cargando || porEvento.length === 0}
           className="rounded-lg bg-success/15 px-4 py-2 text-sm font-semibold text-success hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
         >
           ⬇️ {t('c.excel')}
@@ -249,6 +318,9 @@ export default function ReportesPage() {
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
             {t('rep.event')}
           </label>
+          {/* opciones desde la respuesta SIN filtrar: antes, al elegir un evento
+              la respuesta solo traía ese evento y el desplegable se quedaba con
+              una única opción. */}
           <select
             value={idEvento}
             onChange={(e) => setIdEvento(e.target.value)}
@@ -272,59 +344,50 @@ export default function ReportesPage() {
 
       {/* KPIs */}
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card label={t('rep.events')} value={nf(datos?.totales.eventos ?? 0)} />
+        <Card label={t('rep.events')} value={nf(totales.eventos)} cargando={cargando} />
         <Card
           label={t('rep.registered')}
-          value={nf(datos?.totales.inscritos ?? 0)}
+          value={nf(totales.inscritos)}
+          cargando={cargando}
         />
         <Card
           label={t('rep.attended')}
-          value={nf(datos?.totales.asistieron ?? 0)}
+          value={nf(totales.asistieron)}
           accent="text-success"
+          cargando={cargando}
         />
         <Card
           label={t('rep.noShow')}
-          value={nf(datos?.totales.noAsistieron ?? 0)}
+          value={nf(totales.noAsistieron)}
           accent="text-danger"
+          cargando={cargando}
         />
         <Card
           label={t('rep.pending')}
-          value={nf(datos?.totales.pendientes ?? 0)}
+          value={nf(totales.pendientes)}
           accent="text-brand"
+          cargando={cargando}
         />
         <Card
           label={t('rep.rate')}
-          value={`${datos?.totales.tasaAsistencia ?? 0}%`}
+          value={`${totales.tasaAsistencia}%`}
           accent="text-success"
+          cargando={cargando}
         />
       </div>
 
       {/* gráfico */}
       <div className="mt-6 rounded-2xl border border-border-app bg-surface p-5">
         <h2 className="mb-4 font-semibold text-text">{t('rep.byEvent')}</h2>
-        {grafico.length ? (
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={grafico}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis
-                dataKey="nombre"
-                tick={{ fill: 'var(--text-2)', fontSize: 12 }}
-              />
-              <YAxis tick={{ fill: 'var(--text-2)', fontSize: 12 }} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  color: 'var(--text)',
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey={t('rep.attended')} stackId="a" fill="var(--success)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey={t('rep.noShow')} stackId="a" fill="var(--danger)" />
-              <Bar dataKey={t('rep.pending')} stackId="a" fill="var(--brand)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        {cargando ? (
+          <div className="h-80 animate-pulse rounded-xl bg-surface-2" />
+        ) : grafico.length ? (
+          <AsistenciaBarChart
+            data={grafico}
+            keyAsistieron={t('rep.attended')}
+            keyNoAsistieron={t('rep.noShow')}
+            keyPendientes={t('rep.pending')}
+          />
         ) : (
           <p className="py-10 text-center text-text-muted">{t('rep.empty')}</p>
         )}
@@ -346,38 +409,47 @@ export default function ReportesPage() {
             </tr>
           </thead>
           <tbody>
-            {datos?.porEvento.map((e) => {
-              const base = e.ASISTIERON + e.NO_ASISTIERON;
-              const tasa = base > 0 ? Math.round((e.ASISTIERON / base) * 100) : 0;
-              return (
-                <tr key={e.ID_EVENTO} className="border-b border-border-app/60">
-                  <td className="px-4 py-3 font-medium text-text">{e.TITULO}</td>
-                  <td className="px-4 py-3 text-text-2">{e.FECHA}</td>
-                  <td className="px-4 py-3 text-right text-text-2">
-                    {e.PUBLICO_ESPERADO ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text">{e.INSCRITOS}</td>
-                  <td className="px-4 py-3 text-right text-success">
-                    {e.ASISTIERON}
-                  </td>
-                  <td className="px-4 py-3 text-right text-danger">
-                    {e.NO_ASISTIERON}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-text">
-                    {tasa}%
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => verDetalle(e)}
-                      className="rounded-lg bg-brand/10 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand/20"
-                    >
-                      {t('rep.detail')}
-                    </button>
+            {cargando &&
+              Array.from({ length: 4 }, (_, i) => (
+                <tr key={`sk${i}`} className="border-b border-border-app/60">
+                  <td colSpan={8} className="px-4 py-3">
+                    <div className="h-4 animate-pulse rounded bg-surface-2" />
                   </td>
                 </tr>
-              );
-            })}
-            {(!datos || datos.porEvento.length === 0) && (
+              ))}
+            {!cargando &&
+              porEvento.map((e) => {
+                const base = e.ASISTIERON + e.NO_ASISTIERON;
+                const tasa = base > 0 ? Math.round((e.ASISTIERON / base) * 100) : 0;
+                return (
+                  <tr key={e.ID_EVENTO} className="border-b border-border-app/60">
+                    <td className="px-4 py-3 font-medium text-text">{e.TITULO}</td>
+                    <td className="px-4 py-3 text-text-2">{e.FECHA}</td>
+                    <td className="px-4 py-3 text-right text-text-2">
+                      {e.PUBLICO_ESPERADO ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-text">{e.INSCRITOS}</td>
+                    <td className="px-4 py-3 text-right text-success">
+                      {e.ASISTIERON}
+                    </td>
+                    <td className="px-4 py-3 text-right text-danger">
+                      {e.NO_ASISTIERON}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-text">
+                      {tasa}%
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => verDetalle(e)}
+                        className="rounded-lg bg-brand/10 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand/20"
+                      >
+                        {t('rep.detail')}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            {!cargando && porEvento.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-text-muted">
                   {t('rep.empty')}

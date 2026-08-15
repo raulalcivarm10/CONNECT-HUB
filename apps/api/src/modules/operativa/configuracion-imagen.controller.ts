@@ -29,7 +29,9 @@ export class ConfiguracionImagenController {
     return res
       .header('Content-Type', mime)
       .header('ETag', etag)
-      .header('Cache-Control', 'public, max-age=300')
+      // `stale-while-revalidate`: pinta al instante desde caché y revalida por
+      // detrás contra el ETag, sin bloquear el render en un 304.
+      .header('Cache-Control', 'private, max-age=300, stale-while-revalidate=3600')
       .header('Content-Disposition', `inline; filename="${filename}"`)
       .send(buffer);
   }

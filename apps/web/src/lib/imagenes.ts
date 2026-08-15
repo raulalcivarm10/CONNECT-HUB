@@ -1,4 +1,4 @@
-import { translations, type Lang } from './i18n/translations';
+import { translateSync } from './i18n/translations';
 
 /** Reglas de imágenes (mantener en sincronía con la API: multipart.util.ts) */
 export const MAX_IMAGEN_MB = 25;
@@ -6,22 +6,13 @@ export const MAX_IMAGEN_MB = 25;
 const MIMES_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const EXTENSIONES = ['.png', '.jpg', '.jpeg', '.webp'];
 
-/** idioma activo (utilidad fuera de React; los hooks usan useI18n) */
-function idioma(): Lang {
-  if (typeof window === 'undefined') return 'en';
-  const l = localStorage.getItem('ch_lang') as Lang | null;
-  return l && translations[l] ? l : 'en';
-}
-
+/**
+ * Traducción fuera de React (los hooks usan useI18n). Resuelve el idioma
+ * activo desde localStorage y usa el diccionario ya cargado; si todavía no
+ * llegó, cae a inglés.
+ */
 function tt(key: string, vars?: Record<string, string | number>): string {
-  const lang = idioma();
-  let texto = translations[lang][key] ?? translations.en[key] ?? key;
-  if (vars) {
-    for (const [k, v] of Object.entries(vars)) {
-      texto = texto.replaceAll(`{${k}}`, String(v));
-    }
-  }
-  return texto;
+  return translateSync(key, vars);
 }
 
 /** leyenda de formatos permitidos, en el idioma activo */

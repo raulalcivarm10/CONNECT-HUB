@@ -44,10 +44,15 @@ export class OracleService implements OnModuleInit, OnModuleDestroy {
       user: this.config.getOrThrow<string>('ORACLE_USER'),
       password: this.config.getOrThrow<string>('ORACLE_PASSWORD'),
       connectString: this.config.getOrThrow<string>('ORACLE_CONNECT_STRING'),
-      poolMin: Number(this.config.get('ORACLE_POOL_MIN') ?? 2),
+      poolMin: Number(this.config.get('ORACLE_POOL_MIN') ?? 4),
       poolMax: Number(this.config.get('ORACLE_POOL_MAX') ?? 10),
-      poolIncrement: 1,
-      poolTimeout: 60,
+      // Los reportes lanzan 5-6 consultas en paralelo y cada una toma su propia
+      // conexión. Con incremento de 1 el pool las creaba de una en una, en
+      // serie, pagando un handshake por cada una. Crecer en bloque y mantener
+      // un piso más alto evita esa espera SIN pedirle más sesiones a la BD
+      // (poolMax no sube: la base es compartida con el servicio del equipo).
+      poolIncrement: 4,
+      poolTimeout: 300,
     });
     this.logger.log('Pool Oracle creado (modo thin)');
     return this.pool;

@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { api } from '@/lib/api/client';
 import { CertificadosEvento } from './certificados-evento';
 import {
@@ -368,6 +375,55 @@ function BannerAprobacion({
   );
 }
 
+/**
+ * Filas fantasma mientras llega la primera respuesta de GET /eventos (la
+ * request más pesada del sistema): la tabla vacía se leía como «se colgó».
+ * Puro esqueleto visual, sin texto (nada que traducir).
+ */
+function FilasEsqueleto({ filas = 5 }: { filas?: number }) {
+  const barra = 'animate-pulse rounded bg-surface-2';
+  return (
+    <>
+      {Array.from({ length: filas }, (_, i) => (
+        <tr key={i} className="border-b border-border-app/60" aria-hidden="true">
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-14 shrink-0 ${barra}`} />
+              <div className="min-w-0 flex-1">
+                <div className={`h-3.5 w-40 max-w-full ${barra}`} />
+                <div className={`mt-2 h-2.5 w-24 max-w-full ${barra}`} />
+              </div>
+            </div>
+          </td>
+          <td className="px-4 py-3">
+            <div className={`h-3.5 w-24 ${barra}`} />
+            <div className={`mt-2 h-2.5 w-16 ${barra}`} />
+          </td>
+          <td className="px-4 py-3">
+            <div className={`h-3.5 w-36 ${barra}`} />
+          </td>
+          <td className="px-4 py-3">
+            <div className={`h-3.5 w-12 ${barra}`} />
+          </td>
+          <td className="px-4 py-3">
+            <div className={`h-3.5 w-8 ${barra}`} />
+          </td>
+          <td className="px-4 py-3">
+            <div className={`h-3.5 w-10 ${barra}`} />
+          </td>
+          <td className="px-4 py-3">
+            <div className="flex justify-end gap-2">
+              <div className={`h-6 w-14 ${barra}`} />
+              <div className={`h-6 w-14 ${barra}`} />
+              <div className={`h-6 w-14 ${barra}`} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 export default function EventosPage() {
   const { qs, nombreFiltro } = useInstitucionFiltro();
   const { t, locale } = useI18n();
@@ -375,14 +431,20 @@ export default function EventosPage() {
   const lightbox = useLightbox();
   const dialogo = useDialogo();
   const [eventos, setEventos] = useState<EventoRow[]>([]);
+  // primera carga de la lista (la más pesada del sistema): pinta esqueleto
+  const [cargando, setCargando] = useState(true);
   const [editar, setEditar] = useState<EventoRow | null>(null);
   const [ver, setVer] = useState<EventoRow | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  // sube al guardar una portada: remonta las miniaturas del listado
-  // (rompe la caché y reintenta las que estaban ocultas por error)
-  const [imgVersion, setImgVersion] = useState(0);
+  // versión de portada POR EVENTO: al subir una imagen solo se remonta esa
+  // miniatura (rompe su caché y la reintenta si estaba oculta por error),
+  // en vez de re-descargar las N miniaturas del listado
+  const [imgVersion, setImgVersion] = useState<Record<number, number>>({});
+  const marcarImagen = useCallback((id: number) => {
+    setImgVersion((v) => ({ ...v, [id]: Date.now() }));
+  }, []);
   // flujo de aprobación: permisos según roles del JWT (superadmin ve todo)
   const puedeAprobarSalon = puedeVer(user, ROLES_APROBAR_SALON);
   const puedePublicar = puedeVer(user, ROLES_PUBLICAR);
@@ -391,9 +453,13 @@ export default function EventosPage() {
   const [suspender, setSuspender] = useState<EventoRow | null>(null);
 
   const cargar = useCallback(async () => {
-    const list = await api.get<EventoRow[]>(`/eventos${qs}`);
-    setEventos(list);
-    return list;
+    try {
+      const list = await api.get<EventoRow[]>(`/eventos${qs}`);
+      setEventos(list);
+      return list;
+    } finally {
+      setCargando(false);
+    }
   }, [qs]);
 
   /** tras aprobar/rechazar, sincroniza el evento abierto en editar/ver */
@@ -407,6 +473,9 @@ export default function EventosPage() {
   }
 
   useEffect(() => {
+    // solo la carga inicial / cambio de filtro muestra esqueleto; los refrescos
+    // tras guardar o aprobar reemplazan la tabla ya pintada sin parpadeo
+    setCargando(true);
     cargar().catch((e) => setError(e.message));
   }, [cargar]);
 
@@ -612,7 +681,7 @@ export default function EventosPage() {
           <DetalleEvento
             key={ver.ID_EVENTO}
             evento={ver}
-            imgVersion={imgVersion}
+            imgVersion={imgVersion[ver.ID_EVENTO]}
             onEditar={() => {
               setEditar(ver);
               setVer(null);
@@ -640,8 +709,13 @@ export default function EventosPage() {
         <EventoForm
           key={editar ? `edit-${editar.ID_EVENTO}` : 'nuevo'}
           evento={editar}
+          // la lista ya cargada alimenta el selector de evento padre
+          // (evita repetir la request más pesada del sistema)
+          eventos={eventos}
           fechaInicial={fechaNueva}
-          onImagenSubida={() => setImgVersion(Date.now())}
+          onImagenSubida={() => {
+            if (editar) marcarImagen(editar.ID_EVENTO);
+          }}
           onDone={async (msg) => {
             // editar/mover NO aprueba: si el evento sigue en BORRADOR,
             // recuérdale al aprobador que el salón aún está pendiente
@@ -683,18 +757,29 @@ export default function EventosPage() {
             </tr>
           </thead>
           <tbody>
-            {eventos.map((ev) => (
+            {cargando && <FilasEsqueleto />}
+            {!cargando && eventos.map((ev) => (
               <tr key={ev.ID_EVENTO} className="border-b border-border-app/60">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      key={`${ev.ID_EVENTO}-${imgVersion}`}
-                      src={nasImagenUrl('EVENTO', ev.ID_EVENTO, 'PORTADA', imgVersion)}
+                      key={`${ev.ID_EVENTO}-${imgVersion[ev.ID_EVENTO] ?? 0}`}
+                      src={nasImagenUrl(
+                        'EVENTO',
+                        ev.ID_EVENTO,
+                        'PORTADA',
+                        imgVersion[ev.ID_EVENTO],
+                      )}
                       alt=""
                       onClick={() =>
                         lightbox.open(
-                          nasImagenUrl('EVENTO', ev.ID_EVENTO, 'PORTADA', imgVersion),
+                          nasImagenUrl(
+                            'EVENTO',
+                            ev.ID_EVENTO,
+                            'PORTADA',
+                            imgVersion[ev.ID_EVENTO],
+                          ),
                         )
                       }
                       className="h-10 w-14 shrink-0 cursor-zoom-in rounded-lg border border-border-app object-cover"
@@ -838,7 +923,7 @@ export default function EventosPage() {
                 </td>
               </tr>
             ))}
-            {eventos.length === 0 && (
+            {!cargando && eventos.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-text-muted">
                   {t('ev.empty')}
@@ -879,7 +964,8 @@ function DetalleEvento({
   onCerrar,
 }: {
   evento: EventoRow;
-  imgVersion: number;
+  /** versión de la portada de ESTE evento (undefined = sin subida en la sesión) */
+  imgVersion?: number;
   onEditar: () => void;
   onCerrar: () => void;
 }) {
@@ -1040,12 +1126,15 @@ function RefEspacio({
 
 function EventoForm({
   evento,
+  eventos,
   fechaInicial,
   onDone,
   onCancel,
   onImagenSubida,
 }: {
   evento: EventoRow | null;
+  /** lista ya cargada por la página: candidatos a evento padre (sin refetch) */
+  eventos: EventoRow[];
   /** fecha prellenada al crear (viene del calendario) */
   fechaInicial?: string;
   onDone: (msg: string) => void;
@@ -1072,12 +1161,26 @@ function EventoForm({
         ]
       : [{ fecha: fechaInicial ?? '', horaInicio: '09:00', horaFin: '13:00' }],
   );
+  // al editar, `dias` arranca con un día placeholder (el de la fila del listado)
+  // que GET /eventos/:id/dias reemplaza enseguida. Hasta que llegue no se pide
+  // la agenda: si no, se lanzaba una tanda de N requests por el placeholder y
+  // otra por los días reales. Al crear no hay nada que esperar.
+  const [diasListos, setDiasListos] = useState(!evento);
   // Evento padre (si se elige, este evento es un workshop / hijo)
   const [idEventoPadre, setIdEventoPadre] = useState(
     evento?.ID_EVENTO_PADRE ? String(evento.ID_EVENTO_PADRE) : '',
   );
-  // Candidatos a padre: eventos PRINCIPALES (sin padre), excluyendo el actual
-  const [eventosPrincipales, setEventosPrincipales] = useState<EventoRow[]>([]);
+  // Candidatos a padre: eventos PRINCIPALES (sin padre), excluyendo el actual.
+  // Se derivan de la lista que la página ya tiene (misma query, mismo filtro
+  // de institución): pedirla otra vez duplicaba la request más cara del sistema.
+  const idActual = evento?.ID_EVENTO;
+  const eventosPrincipales = useMemo(
+    () =>
+      eventos.filter(
+        (e) => e.ID_EVENTO_PADRE == null && e.ID_EVENTO !== idActual,
+      ),
+    [eventos, idActual],
+  );
   const [precio, setPrecio] = useState(String(evento?.PRECIO ?? '0'));
   const [incluyeIva, setIncluyeIva] = useState(evento?.INCLUYE_IVA === 'S');
   const [montoIva, setMontoIva] = useState(
@@ -1176,36 +1279,28 @@ function EventoForm({
   // al editar, cargar los días reales del evento (tabla EVENTO_HORAS)
   useEffect(() => {
     if (!evento) return;
+    let vivo = true;
     api
       .get<DiaRow[]>(`/eventos/${evento.ID_EVENTO}/dias`)
       .then((ds) => {
-        if (ds.length > 0) {
-          setDias(
-            ds.map((d) => ({
-              fecha: d.FECHA,
-              horaInicio: d.HORA_INICIO,
-              horaFin: d.HORA_FIN,
-            })),
-          );
-        }
+        if (!vivo || ds.length === 0) return;
+        setDias(
+          ds.map((d) => ({
+            fecha: d.FECHA,
+            horaInicio: d.HORA_INICIO,
+            horaFin: d.HORA_FIN,
+          })),
+        );
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        // aunque falle, se desbloquea la agenda con las fechas que haya
+        if (vivo) setDiasListos(true);
+      });
+    return () => {
+      vivo = false;
+    };
   }, [evento]);
-
-  // candidatos a evento padre: eventos principales (sin padre), sin el actual
-  useEffect(() => {
-    const q = idInstitucion != null ? `?idInstitucion=${idInstitucion}` : '';
-    api
-      .get<EventoRow[]>(`/eventos${q}`)
-      .then((list) =>
-        setEventosPrincipales(
-          list.filter(
-            (e) => e.ID_EVENTO_PADRE == null && e.ID_EVENTO !== evento?.ID_EVENTO,
-          ),
-        ),
-      )
-      .catch(() => undefined);
-  }, [idInstitucion, evento]);
 
   // cascada local -> salones
   useEffect(() => {
@@ -1234,6 +1329,8 @@ function EventoForm({
 
   // agenda por cada día elegido (horarios ya ocupados): por salón o por local
   useEffect(() => {
+    // espera a los días reales: evita la tanda de requests del placeholder
+    if (!diasListos) return;
     setAgendaPorDia([]);
     if (!idSalon && !idLocal) return;
     const fechas = [...new Set(fechasKey.split(',').filter(Boolean))];
@@ -1253,7 +1350,7 @@ function EventoForm({
     return () => {
       cancelado = true;
     };
-  }, [idSalon, idLocal, fechasKey]);
+  }, [idSalon, idLocal, fechasKey, diasListos]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

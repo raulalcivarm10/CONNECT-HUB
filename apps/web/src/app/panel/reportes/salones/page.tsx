@@ -6,22 +6,24 @@
  * congelado de la tarifa del espacio (EVENTOS.PRECIO_ESPACIO_*); ingreso de
  * entradas = pagos APPROVED. Filtros: año, meses, local. Export a Excel.
  */
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import type { LocalRow } from '@/lib/types';
+
+// recharts (~300-400 KB) fuera del first-load: el ranking está bajo el fold.
+const SalonesBarChart = dynamic(
+  () => import('@/components/charts/salones-bar-chart'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-80 animate-pulse rounded-xl bg-surface-2" />
+    ),
+  },
+);
 
 interface SalonRep {
   idSalon: number;
@@ -74,13 +76,26 @@ function Card({
   );
 }
 
+/** Placeholder de KPI mientras llega la primera respuesta (nunca un "0"). */
+function CardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border-app bg-surface p-5">
+      <div className="h-4 w-24 animate-pulse rounded bg-surface-2" />
+      <div className="mt-2 h-8 w-28 animate-pulse rounded bg-surface-2" />
+    </div>
+  );
+}
+
 export default function ReporteSalonesPage() {
   const { t } = useI18n();
   const { idInstitucion, nombreFiltro } = useInstitucionFiltro();
   const [datos, setDatos] = useState<Datos | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [locales, setLocales] = useState<LocalRow[]>([]);
   const [anio, setAnio] = useState<string>('');
   const [meses, setMeses] = useState<number[]>([]);
+  // valor con debounce que realmente viaja a la API (ver efecto de abajo)
+  const [mesesQ, setMesesQ] = useState<string>('');
   const [idLocal, setIdLocal] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
@@ -91,18 +106,45 @@ export default function ReporteSalonesPage() {
       .catch(() => setLocales([]));
   }, [idInstitucion]);
 
-  const cargar = useCallback(async () => {
+  // El backend agrega por salón sobre TODO el período (y la tasa de ocupación
+  // usa como denominador los días de los meses elegidos), así que el cliente no
+  // puede recomponer el filtro de meses: se manda a la API pero con 400 ms de
+  // debounce, para que marcar 6 meses seguidos sea UNA petición y no seis.
+  useEffect(() => {
+    const s = meses.join(',');
+    if (s === mesesQ) return;
+    const id = setTimeout(() => setMesesQ(s), 400);
+    return () => clearTimeout(id);
+  }, [meses, mesesQ]);
+
+  const cargar = useCallback(() => {
     const params = new URLSearchParams();
     if (idInstitucion != null) params.set('idInstitucion', String(idInstitucion));
     if (anio) params.set('anio', anio);
-    if (meses.length) params.set('meses', meses.join(','));
+    if (mesesQ) params.set('meses', mesesQ);
     if (idLocal) params.set('idLocal', idLocal);
     const q = params.toString();
-    setDatos(await api.get<Datos>(`/reportes/salones${q ? `?${q}` : ''}`));
-  }, [idInstitucion, anio, meses, idLocal]);
+    return api.get<Datos>(`/reportes/salones${q ? `?${q}` : ''}`);
+  }, [idInstitucion, anio, mesesQ, idLocal]);
 
   useEffect(() => {
-    cargar().catch((e) => setError(e.message));
+    let vivo = true;
+    setCargando(true);
+    cargar()
+      .then((r) => {
+        if (!vivo) return;
+        setDatos(r);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (vivo) setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (vivo) setCargando(false);
+      });
+    return () => {
+      vivo = false;
+    };
   }, [cargar]);
 
   function toggleMes(m: number) {
@@ -157,12 +199,15 @@ export default function ReporteSalonesPage() {
     ]);
   }
 
-  const grafico =
-    datos?.porSalon.map((s) => ({
-      nombre: s.salon.length > 18 ? `${s.salon.slice(0, 18)}…` : s.salon,
-      [t('rsl.daysBooked')]: s.diasOcupados,
-      [t('rsl.reservations')]: s.reservas,
-    })) ?? [];
+  const grafico = useMemo(
+    () =>
+      datos?.porSalon.map((s) => ({
+        nombre: s.salon.length > 18 ? `${s.salon.slice(0, 18)}…` : s.salon,
+        [t('rsl.daysBooked')]: s.diasOcupados,
+        [t('rsl.reservations')]: s.reservas,
+      })) ?? [],
+    [datos, t],
+  );
 
   return (
     <div>
@@ -248,8 +293,23 @@ export default function ReporteSalonesPage() {
         </p>
       )}
 
-      {datos && (
+      {/* primera carga: esqueleto en vez de pantalla vacía */}
+      {!datos && cargando && (
         <>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {Array.from({ length: 6 }, (_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+          <div className="mt-4 rounded-2xl border border-border-app bg-surface p-4">
+            <div className="h-80 animate-pulse rounded-xl bg-surface-2" />
+          </div>
+        </>
+      )}
+
+      {datos && (
+        // durante una recarga se conservan los datos anteriores, atenuados
+        <div className={`transition-opacity ${cargando ? 'opacity-60' : ''}`}>
           {/* KPIs */}
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <Card
@@ -281,17 +341,11 @@ export default function ReporteSalonesPage() {
               <h2 className="mb-3 text-sm font-semibold text-text">
                 {t('rsl.ranking')}
               </h2>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={grafico}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey={t('rsl.daysBooked')} fill="var(--brand)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey={t('rsl.reservations')} fill="var(--success)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <SalonesBarChart
+                data={grafico}
+                keyDias={t('rsl.daysBooked')}
+                keyReservas={t('rsl.reservations')}
+              />
             </div>
           )}
 
@@ -379,7 +433,7 @@ export default function ReporteSalonesPage() {
               </table>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

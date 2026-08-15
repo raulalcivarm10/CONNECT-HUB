@@ -23,6 +23,14 @@ const ENTIDADES: TipoEntidad[] = [
 ];
 const TIPOS_ARCHIVO = ['PORTADA', 'BANNER', 'GALERIA', 'LOGO', 'CROQUIS', 'FOTO', 'PERFIL'];
 const CACHE_TTL = 600; // 10 min
+
+// Las tablas montan una imagen por fila, así que el caché del navegador es lo
+// que evita re-descargarlas al navegar. Se mantiene el máximo corto A PROPÓSITO:
+// el `?v=` de la URL lo pone el panel en memoria y se reinicia al recargar, así
+// que un máximo largo dejaría al admin viendo su portada anterior mucho rato.
+// `stale-while-revalidate` da lo mejor de ambos: pinta al instante desde caché
+// y revalida por detrás, de modo que la imagen nueva entra en la carga siguiente.
+const CACHE_HEADER = 'private, max-age=300, stale-while-revalidate=3600';
 const NAS_TIMEOUT_MS = 10_000;
 
 /**
@@ -69,7 +77,7 @@ export class ArchivosProxyController {
     if (cached) {
       return res
         .header('Content-Type', mimeCached ?? 'image/jpeg')
-        .header('Cache-Control', 'public, max-age=300')
+        .header('Cache-Control', CACHE_HEADER)
         .send(cached);
     }
 
@@ -99,7 +107,7 @@ export class ArchivosProxyController {
     ]);
     return res
       .header('Content-Type', mime)
-      .header('Cache-Control', 'public, max-age=300')
+      .header('Cache-Control', CACHE_HEADER)
       .send(buffer);
   }
 }

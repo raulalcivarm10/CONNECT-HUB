@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import { InstitucionFilterProvider } from '@/lib/institucion-context';
 import { LightboxProvider } from '@/lib/lightbox';
 import { DialogoProvider } from '@/lib/dialogo';
+import { QueryProvider } from '@/lib/query-provider';
 import { Sidebar } from '@/components/shell/sidebar';
 import { Topbar } from '@/components/shell/topbar';
 
@@ -34,18 +35,23 @@ export default function PanelLayout({
   }
 
   return (
-    <InstitucionFilterProvider>
-      <LightboxProvider>
-        <DialogoProvider>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex min-w-0 flex-1 flex-col">
-              <Topbar />
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    // QueryProvider envuelve al resto: los catálogos (instituciones, roles…)
+    // se cachean mientras dure la sesión del panel en vez de re-pedirse en
+    // cada navegación.
+    <QueryProvider>
+      <InstitucionFilterProvider>
+        <LightboxProvider>
+          <DialogoProvider>
+            <div className="flex min-h-screen">
+              <Sidebar />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <Topbar />
+                <main className="flex-1 overflow-y-auto p-6">{children}</main>
+              </div>
             </div>
-          </div>
-        </DialogoProvider>
-      </LightboxProvider>
-    </InstitucionFilterProvider>
+          </DialogoProvider>
+        </LightboxProvider>
+      </InstitucionFilterProvider>
+    </QueryProvider>
   );
 }

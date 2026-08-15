@@ -2,13 +2,14 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from 'react';
-import { api } from './api/client';
 import { useAuth } from './auth/auth-context';
+import { useInstitucionesCatalogo } from './catalogos';
 import type { InstitucionRow } from './types';
 
 /**
@@ -39,27 +40,26 @@ export function InstitucionFilterProvider({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const esSuper = !!user?.esSuper;
   const [idInstitucion, setId] = useState<number | null>(null);
-  const [instituciones, setInstituciones] = useState<InstitucionRow[]>([]);
 
   useEffect(() => {
-    if (!user?.esSuper) return;
+    if (!esSuper) return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) setId(Number(saved) || null);
-    api
-      .get<InstitucionRow[]>('/instituciones')
-      .then(setInstituciones)
-      .catch(() => undefined);
-  }, [user?.esSuper]);
+  }, [esSuper]);
 
-  const setIdInstitucion = (id: number | null) => {
+  // catálogo cacheado: se pide una vez y lo comparten todas las páginas
+  const { instituciones } = useInstitucionesCatalogo(esSuper);
+
+  const setIdInstitucion = useCallback((id: number | null) => {
     setId(id);
     if (id == null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, String(id));
-  };
+  }, []);
 
   const value = useMemo<InstitucionFilterState>(() => {
-    const efectivo = user?.esSuper ? idInstitucion : null;
+    const efectivo = esSuper ? idInstitucion : null;
     return {
       idInstitucion: efectivo,
       setIdInstitucion,
@@ -71,7 +71,7 @@ export function InstitucionFilterProvider({
             `Institution ${efectivo}`)
           : null,
     };
-  }, [user?.esSuper, idInstitucion, instituciones]);
+  }, [esSuper, idInstitucion, instituciones, setIdInstitucion]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

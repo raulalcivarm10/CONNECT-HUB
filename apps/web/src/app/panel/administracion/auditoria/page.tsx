@@ -1,12 +1,13 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useInstitucionesCatalogo } from '@/lib/catalogos';
+import { useDebounce } from '@/lib/debounce';
 import { descargarExcel } from '@/lib/excel';
 import { useI18n } from '@/lib/i18n';
 import { ROL } from '@/lib/types';
-import type { InstitucionRow } from '@/lib/types';
 
 interface LogRow {
   ID_LOG: number;
@@ -181,9 +182,14 @@ export default function AuditoriaPage() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [idInstitucion, setIdInstitucion] = useState('');
-  const [instituciones, setInstituciones] = useState<InstitucionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [abierto, setAbierto] = useState<number | null>(null);
+
+  // el texto libre no dispara un request por tecla: se consulta al parar de escribir
+  const usuarioBuscar = useDebounce(usuario.trim(), 350);
+
+  // instituciones para el filtro (solo superadmin), desde la caché compartida
+  const { instituciones } = useInstitucionesCatalogo(esSuper);
 
   // SYSTEM de institución también puede ver (el server acota a su institución)
   const tieneAcceso = esSuper || !!user?.roles.includes(ROL.SYSTEM);
@@ -191,7 +197,7 @@ export default function AuditoriaPage() {
   const cargar = useCallback(async () => {
     const qs = new URLSearchParams();
     if (!grupo && accion) qs.set('accion', accion);
-    if (usuario.trim()) qs.set('usuario', usuario.trim());
+    if (usuarioBuscar) qs.set('usuario', usuarioBuscar);
     if (desde) qs.set('desde', desde);
     if (hasta) qs.set('hasta', hasta);
     if (esSuper && idInstitucion) qs.set('idInstitucion', idInstitucion);
@@ -201,26 +207,25 @@ export default function AuditoriaPage() {
     const res = await api.get<AuditoriaResp>(`/auditoria?${qs.toString()}`);
     setRows(res.items);
     setTotal(res.total);
-  }, [accion, grupo, usuario, desde, hasta, esSuper, idInstitucion, offset]);
+  }, [accion, grupo, usuarioBuscar, desde, hasta, esSuper, idInstitucion, offset]);
+
+  // firma de los filtros: si cambia estando en una página >1 hay que volver a
+  // la primera, pero sin lanzar además el request con el offset viejo
+  const filtros = `${accion}|${grupo ?? ''}|${usuarioBuscar}|${desde}|${hasta}|${idInstitucion}`;
+  const filtrosPrev = useRef(filtros);
 
   useEffect(() => {
     if (!tieneAcceso) return;
+    if (filtrosPrev.current !== filtros) {
+      filtrosPrev.current = filtros;
+      // el reset re-dispara este efecto con offset 0: un solo request por cambio
+      if (offset !== 0) {
+        setOffset(0);
+        return;
+      }
+    }
     cargar().catch((e) => setError(e.message));
-  }, [cargar, tieneAcceso]);
-
-  // cambiar cualquier filtro vuelve a la primera página
-  useEffect(() => {
-    setOffset(0);
-  }, [accion, grupo, usuario, desde, hasta, idInstitucion]);
-
-  // instituciones para el filtro (solo superadmin)
-  useEffect(() => {
-    if (!esSuper) return;
-    api
-      .get<InstitucionRow[]>('/instituciones')
-      .then(setInstituciones)
-      .catch(() => undefined);
-  }, [esSuper]);
+  }, [cargar, tieneAcceso, filtros, offset]);
 
   if (!tieneAcceso) {
     return <p className="text-text-muted">{t('aud.noAccess')}</p>;

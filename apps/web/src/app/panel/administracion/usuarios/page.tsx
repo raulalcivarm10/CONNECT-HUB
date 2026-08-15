@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useRolesCatalogo } from '@/lib/catalogos';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { useI18n } from '@/lib/i18n';
 import { propsValidacion } from '@/lib/validacion';
@@ -22,7 +23,8 @@ export default function UsuariosPage() {
   const dialogo = useDialogo();
   const { qs, instituciones, nombreFiltro } = useInstitucionFiltro();
   const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
-  const [roles, setRoles] = useState<RolRow[]>([]);
+  // catálogo cacheado: ya no se re-pide en cada cambio de filtro de institución
+  const { roles } = useRolesCatalogo();
   const [showForm, setShowForm] = useState(false);
   const [editar, setEditar] = useState<UsuarioRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,6 @@ export default function UsuariosPage() {
 
   useEffect(() => {
     cargar().catch((e) => setError(e.message));
-    api.get<RolRow[]>('/roles').then(setRoles).catch(() => undefined);
   }, [cargar]);
 
   async function toggleEstado(u: UsuarioRow) {
