@@ -17,6 +17,7 @@ export type EstadoAprobacion =
   | 'SALON_APROBADO'
   | 'REUBICADO'
   | 'PUBLICADO'
+  | 'SUSPENDIDO'
   | 'RECHAZADO';
 
 /**
@@ -240,7 +241,14 @@ export interface EspacioHistorial {
 /** Fila de GET /eventos/:id/historial-espacio */
 export interface HistorialEspacioRow {
   id: number;
-  tipo: 'SOLICITADO' | 'MOVIDO' | 'APROBADO' | 'PUBLICADO' | 'RECHAZADO';
+  tipo:
+    | 'SOLICITADO'
+    | 'MOVIDO'
+    | 'APROBADO'
+    | 'PUBLICADO'
+    | 'RECHAZADO'
+    | 'SUSPENDIDO'
+    | 'REPUBLICADO';
   usuario: string;
   /** 'YYYY-MM-DD HH:MM' */
   fecha: string;
@@ -248,6 +256,8 @@ export interface HistorialEspacioRow {
     solicitado?: EspacioHistorial;
     de?: EspacioHistorial;
     a?: EspacioHistorial;
+    /** motivo de rechazo/suspensión, si se registró */
+    motivo?: string | null;
   } | null;
 }
 
@@ -298,6 +308,19 @@ export function puedeVer(
   if (!user) return false;
   if (user.esSuper) return true;
   return user.roles.some((r) => roles.includes(r));
+}
+
+/**
+ * ¿El evento está publicado y por tanto se puede suspender (retirar de la app)?
+ * Incluye los eventos legados (estadoAprobacion == null): se tratan como
+ * publicados salvo que estén marcados como privados (NO_PUBLICAR = 'S').
+ */
+export function esPublicadoSuspendible(ev: {
+  estadoAprobacion?: EstadoAprobacion | null;
+  NO_PUBLICAR?: string | null;
+}): boolean {
+  if (ev.estadoAprobacion === 'PUBLICADO') return true;
+  return ev.estadoAprobacion == null && ev.NO_PUBLICAR !== 'S';
 }
 
 /**

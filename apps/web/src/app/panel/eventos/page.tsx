@@ -11,6 +11,7 @@ import {
   LineaResuelto,
   listoParaPublicar,
   RechazoModal,
+  SuspenderModal,
 } from './aprobacion-ui';
 import { nasImagenUrl, type NasEntidad } from '@/lib/nas';
 import { useLightbox } from '@/lib/lightbox';
@@ -22,6 +23,7 @@ import { useI18n } from '@/lib/i18n';
 import { propsValidacion } from '@/lib/validacion';
 import {
   esEventoRestringido,
+  esPublicadoSuspendible,
   puedeVer,
   ROL,
   ROLES_APROBAR_SALON,
@@ -200,6 +202,8 @@ function HistorialEspacio({ idEvento }: { idEvento: number }) {
                   {t(`ev.hist${h.tipo}`)}
                 </span>
                 {espacio && <>: {espacioTexto(espacio)}</>}
+                {/* rechazo/suspensión: el motivo (si se registró) va tras el guion */}
+                {!espacio && h.detalle?.motivo && <> — {h.detalle.motivo}</>}
                 {h.tipo === 'MOVIDO' && h.detalle?.de && (
                   <span className="text-text-muted">
                     {' '}
@@ -231,6 +235,8 @@ function BannerAprobacion({
   onAprobarSalon,
   onAprobarPublicacion,
   onRechazar,
+  onSuspender,
+  onRepublicar,
 }: {
   evento: EventoRow;
   puedeAprobarSalon: boolean;
@@ -240,15 +246,23 @@ function BannerAprobacion({
   onAprobarSalon: () => void;
   onAprobarPublicacion: () => void;
   onRechazar: () => void;
+  onSuspender: () => void;
+  onRepublicar: () => void;
 }) {
   const { t } = useI18n();
   const estado = evento.estadoAprobacion;
-  if (estado == null) return null;
-  const estilo = ESTILO_APROBACION[estado];
+  // publicado y suspendible (incluye legados con estado null): puede retirarse
+  const suspendible = esPublicadoSuspendible(evento) && puedePublicar;
+  // en legados (sin estado en BD) el banner solo aparece si aporta la acción
+  if (estado == null && !suspendible) return null;
+  const estilo = ESTILO_APROBACION[estado ?? 'PUBLICADO'];
   if (!estilo) return null;
   // progreso del flujo en 2 pasos: 1) salón, 2) publicación
   const pasoSalonHecho = listoParaPublicar(estado) || estado === 'PUBLICADO';
   const pasoPublicadoHecho = estado === 'PUBLICADO';
+  // el indicador solo tiene sentido dentro del flujo (no en legados/rechazo/suspensión)
+  const mostrarPasos =
+    estado != null && estado !== 'RECHAZADO' && estado !== 'SUSPENDIDO';
 
   return (
     <div className={`mt-5 rounded-2xl border p-4 ${estilo.banner}`}>
@@ -258,7 +272,7 @@ function BannerAprobacion({
             {t('ev.aprStatus')}
           </div>
           <div className="text-lg font-bold">{t(estilo.labelKey)}</div>
-          {estado !== 'RECHAZADO' && (
+          {mostrarPasos && (
             <div className="mt-1 flex items-center gap-2 text-xs font-semibold">
               <span className={pasoSalonHecho ? 'text-success' : ''}>
                 {pasoSalonHecho ? '✓' : '1.'} {t('ev.aprStepVenue')}
@@ -278,11 +292,15 @@ function BannerAprobacion({
           {listoParaPublicar(estado) && (
             <div className="text-sm">{t('ev.aprWaitingPublish')}</div>
           )}
-          {estado === 'RECHAZADO' && evento.motivoRechazo && (
-            <div className="mt-0.5 text-sm">
-              {t('ev.aprReason')}: {evento.motivoRechazo}
-            </div>
+          {estado === 'SUSPENDIDO' && (
+            <div className="mt-0.5 text-sm">{t('ev.aprSuspendedHint')}</div>
           )}
+          {(estado === 'RECHAZADO' || estado === 'SUSPENDIDO') &&
+            evento.motivoRechazo && (
+              <div className="mt-0.5 text-sm">
+                {t('ev.aprReason')}: {evento.motivoRechazo}
+              </div>
+            )}
         </div>
         <div className="flex flex-wrap gap-2">
           {estado === 'BORRADOR' && puedeAprobarSalon && (
@@ -318,6 +336,25 @@ function BannerAprobacion({
               {t('ev.aprReject')}
             </button>
           )}
+          {/* retirar de la app (no destructivo: conserva inscritos y pagos) */}
+          {suspendible && (
+            <button
+              type="button"
+              onClick={onSuspender}
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              {t('ev.aprSuspend')}
+            </button>
+          )}
+          {estado === 'SUSPENDIDO' && puedePublicar && (
+            <button
+              type="button"
+              onClick={onRepublicar}
+              className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              {t('ev.aprRepublish')}
+            </button>
+          )}
         </div>
       </div>
       {/* Gestión Operativa: editar es para organizarse, NO aprueba; solo el botón aprueba */}
@@ -349,8 +386,9 @@ export default function EventosPage() {
   // flujo de aprobación: permisos según roles del JWT (superadmin ve todo)
   const puedeAprobarSalon = puedeVer(user, ROLES_APROBAR_SALON);
   const puedePublicar = puedeVer(user, ROLES_PUBLICAR);
-  // evento en proceso de rechazo (abre el modal de motivo)
+  // evento en proceso de rechazo / de suspensión (abren su modal de motivo)
   const [rechazar, setRechazar] = useState<EventoRow | null>(null);
+  const [suspender, setSuspender] = useState<EventoRow | null>(null);
 
   const cargar = useCallback(async () => {
     const list = await api.get<EventoRow[]>(`/eventos${qs}`);
@@ -474,6 +512,35 @@ export default function EventosPage() {
     }
   }
 
+  /** retira el evento de la app sin borrarlo (conserva inscritos/pagos) */
+  async function suspenderEvento(ev: EventoRow, motivo: string) {
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(
+        `/eventos/${ev.ID_EVENTO}/suspender`,
+        motivo ? { motivo } : {},
+      );
+      setOk(t('ev.aprSuspendOk', { name: ev.TITULO }));
+      setSuspender(null);
+      refrescarAbiertos(await cargar());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('c.error'));
+    }
+  }
+
+  async function republicarEvento(ev: EventoRow) {
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(`/eventos/${ev.ID_EVENTO}/republicar`);
+      setOk(t('ev.aprRepublishOk', { name: ev.TITULO }));
+      refrescarAbiertos(await cargar());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('c.error'));
+    }
+  }
+
   function espacio(ev: EventoRow): string {
     if (!ev.SALON_NOMBRE) {
       return ev.LOCAL_NOMBRE
@@ -539,6 +606,8 @@ export default function EventosPage() {
             onAprobarSalon={() => aprobarSalon(ver)}
             onAprobarPublicacion={() => aprobarPublicacion(ver)}
             onRechazar={() => setRechazar(ver)}
+            onSuspender={() => setSuspender(ver)}
+            onRepublicar={() => republicarEvento(ver)}
           />
           <DetalleEvento
             key={ver.ID_EVENTO}
@@ -562,6 +631,8 @@ export default function EventosPage() {
           onAprobarSalon={() => aprobarSalon(editar)}
           onAprobarPublicacion={() => aprobarPublicacion(editar)}
           onRechazar={() => setRechazar(editar)}
+          onSuspender={() => setSuspender(editar)}
+          onRepublicar={() => republicarEvento(editar)}
         />
       )}
 
@@ -655,6 +726,12 @@ export default function EventosPage() {
                             {t('ev.aprReason')}: {ev.motivoRechazo}
                           </div>
                         )}
+                      {ev.estadoAprobacion === 'SUSPENDIDO' &&
+                        ev.motivoRechazo && (
+                          <div className="text-xs text-text-muted">
+                            {t('ev.aprReason')}: {ev.motivoRechazo}
+                          </div>
+                        )}
                     </div>
                   </div>
                 </td>
@@ -713,6 +790,22 @@ export default function EventosPage() {
                           {t('ev.aprReject')}
                         </button>
                       )}
+                    {esPublicadoSuspendible(ev) && puedePublicar && (
+                      <button
+                        onClick={() => setSuspender(ev)}
+                        className="rounded-lg border border-amber-500/40 px-3 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/10"
+                      >
+                        {t('ev.aprSuspend')}
+                      </button>
+                    )}
+                    {ev.estadoAprobacion === 'SUSPENDIDO' && puedePublicar && (
+                      <button
+                        onClick={() => republicarEvento(ev)}
+                        className="rounded-lg bg-success/10 px-3 py-1 text-xs font-semibold text-success hover:bg-success/20"
+                      >
+                        {t('ev.aprRepublish')}
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setVer(ev);
@@ -761,6 +854,14 @@ export default function EventosPage() {
           evento={rechazar}
           onConfirm={(motivo) => rechazarEvento(rechazar, motivo)}
           onCancel={() => setRechazar(null)}
+        />
+      )}
+
+      {suspender && (
+        <SuspenderModal
+          evento={suspender}
+          onConfirm={(motivo) => suspenderEvento(suspender, motivo)}
+          onCancel={() => setSuspender(null)}
         />
       )}
     </div>

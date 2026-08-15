@@ -43,6 +43,12 @@ export const ESTILO_APROBACION: Record<
     chip: 'bg-danger/10 text-danger',
     banner: 'border-danger/40 bg-danger/10 text-danger',
   },
+  /* retirado de la app temporalmente (conserva inscritos/pagos) */
+  SUSPENDIDO: {
+    labelKey: 'ev.aprSuspended',
+    chip: 'bg-text-muted/15 text-text-muted',
+    banner: 'border-text-muted/40 bg-text-muted/10 text-text-2',
+  },
   /* solo para el banner (el badge de la lista oculta PUBLICADO) */
   PUBLICADO: {
     labelKey: 'ev.aprPublished',
@@ -96,7 +102,7 @@ export function BadgeAprobacion({ ev }: { ev: EventoRow }) {
   return (
     <span
       title={
-        estado === 'RECHAZADO' && ev.motivoRechazo
+        (estado === 'RECHAZADO' || estado === 'SUSPENDIDO') && ev.motivoRechazo
           ? `${t('ev.aprReason')}: ${ev.motivoRechazo}`
           : undefined
       }
@@ -107,18 +113,31 @@ export function BadgeAprobacion({ ev }: { ev: EventoRow }) {
   );
 }
 
-/** Modal para rechazar un evento pidiendo el motivo (obligatorio) */
-export function RechazoModal({
+/**
+ * Modal genérico que pide un motivo antes de una acción sobre el evento.
+ * `requerido` decide si el botón se habilita sin texto (rechazo = obligatorio,
+ * suspensión = opcional) y `tono` el color del botón de confirmación.
+ */
+export function MotivoModal({
   evento,
+  tituloKey,
+  confirmarKey,
+  requerido,
+  tono = 'danger',
   onConfirm,
   onCancel,
 }: {
   evento: EventoRow;
+  tituloKey: string;
+  confirmarKey: string;
+  requerido: boolean;
+  tono?: 'danger' | 'warning';
   onConfirm: (motivo: string) => void;
   onCancel: () => void;
 }) {
   const { t } = useI18n();
   const [motivo, setMotivo] = useState('');
+  const btn = tono === 'warning' ? 'bg-amber-500' : 'bg-danger';
   return (
     <div
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
@@ -131,10 +150,10 @@ export function RechazoModal({
         className="w-full max-w-md rounded-2xl border border-border-app bg-surface p-6 shadow-2xl"
       >
         <h2 className="text-lg font-semibold text-text">
-          {t('ev.aprRejectTitle', { name: evento.TITULO })}
+          {t(tituloKey, { name: evento.TITULO })}
         </h2>
         <label className="mt-3 mb-1 block text-sm font-medium text-text-2">
-          {t('ev.aprReason')}
+          {requerido ? t('ev.aprReason') : t('ev.aprReasonOptional')}
         </label>
         <textarea
           autoFocus
@@ -155,14 +174,59 @@ export function RechazoModal({
           </button>
           <button
             type="button"
-            disabled={!motivo.trim()}
+            disabled={requerido && !motivo.trim()}
             onClick={() => onConfirm(motivo.trim())}
-            className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 ${btn}`}
           >
-            {t('ev.aprReject')}
+            {t(confirmarKey)}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Modal para rechazar un evento pidiendo el motivo (obligatorio) */
+export function RechazoModal({
+  evento,
+  onConfirm,
+  onCancel,
+}: {
+  evento: EventoRow;
+  onConfirm: (motivo: string) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <MotivoModal
+      evento={evento}
+      tituloKey="ev.aprRejectTitle"
+      confirmarKey="ev.aprReject"
+      requerido
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
+}
+
+/** Modal para suspender (retirar de la app) con motivo OPCIONAL */
+export function SuspenderModal({
+  evento,
+  onConfirm,
+  onCancel,
+}: {
+  evento: EventoRow;
+  onConfirm: (motivo: string) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <MotivoModal
+      evento={evento}
+      tituloKey="ev.aprSuspendTitle"
+      confirmarKey="ev.aprSuspend"
+      requerido={false}
+      tono="warning"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   );
 }

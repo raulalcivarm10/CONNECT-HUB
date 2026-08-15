@@ -39,6 +39,8 @@ const ACCIONES = [
   'APROBAR_SALON',
   'PUBLICAR',
   'RECHAZAR_EVENTO',
+  'SUSPENDER_EVENTO',
+  'REPUBLICAR',
   'DESTACAR',
   'CAMBIO_ROLES',
   'USUARIO_ESTADO',
@@ -59,6 +61,8 @@ const BADGE: Record<string, string> = {
   APROBAR_SALON: 'bg-success/10 text-success',
   PUBLICAR: 'bg-success/10 text-success',
   RECHAZAR_EVENTO: 'bg-danger/10 text-danger',
+  SUSPENDER_EVENTO: 'bg-amber-500/10 text-amber-500',
+  REPUBLICAR: 'bg-success/10 text-success',
   DESTACAR: 'bg-amber-500/10 text-amber-500',
   CAMBIO_ROLES: 'bg-amber-500/10 text-amber-500',
   USUARIO_ESTADO: 'bg-amber-500/10 text-amber-500',
@@ -74,6 +78,8 @@ const GRUPOS: Record<string, readonly string[]> = {
     'APROBAR_SALON',
     'PUBLICAR',
     'RECHAZAR_EVENTO',
+    'SUSPENDER_EVENTO',
+    'REPUBLICAR',
     'INST_APROBAR',
     'INST_RECHAZAR',
     'INST_SUSPENDER',
@@ -125,6 +131,10 @@ function descripcionLog(
       return t('aud.dPUBLICAR', { id: disp });
     case 'RECHAZAR_EVENTO':
       return t('aud.dRECHAZAR_EVENTO', { id: disp });
+    case 'SUSPENDER_EVENTO':
+      return t('aud.dSUSPENDER_EVENTO', { id: disp });
+    case 'REPUBLICAR':
+      return t('aud.dREPUBLICAR', { id: disp });
     case 'DESTACAR':
       return t('aud.dDESTACAR', { id: disp });
     case 'CAMBIO_ROLES':

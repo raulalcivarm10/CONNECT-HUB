@@ -47,6 +47,12 @@ class RechazarEventoDto {
   motivo!: string;
 }
 
+class SuspenderEventoDto {
+  @IsOptional()
+  @IsString()
+  motivo?: string;
+}
+
 class GenerarCertDto {
   @IsOptional()
   @IsArray()
@@ -367,6 +373,26 @@ export class EventosController {
     @Body() dto: RechazarEventoDto,
   ) {
     return this.eventos.rechazar(user, id, dto.motivo);
+  }
+
+  @Post(':id/suspender')
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION)
+  @ApiOperation({
+    summary: 'Retira el evento de la app SIN eliminarlo (reversible con republicar)',
+  })
+  suspender(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SuspenderEventoDto,
+  ) {
+    return this.eventos.suspender(user, id, dto?.motivo);
+  }
+
+  @Post(':id/republicar')
+  @Roles(ROL.SYSTEM, ROL.ADMINISTRATION)
+  @ApiOperation({ summary: 'Vuelve a publicar un evento suspendido' })
+  republicar(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.eventos.republicar(user, id);
   }
 
   @Get(':id/historial-espacio')

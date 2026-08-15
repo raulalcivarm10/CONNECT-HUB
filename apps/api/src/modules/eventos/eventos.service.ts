@@ -1843,6 +1843,50 @@ export class EventosService {
     return { ok: true, idEvento, estadoAprobacion: 'PUBLICADO' };
   }
 
+  /**
+   * SUSPENDE un evento publicado: lo retira de la app móvil SIN eliminarlo
+   * (conserva inscritos, pagos, entradas y su historial). Reversible con
+   * republicar(). Solo ADMINISTRATION/SYSTEM (mismos que publican).
+   */
+  async suspender(actor: JwtUser, idEvento: number, motivo?: string) {
+    const ev = await this.estadoActual(actor, idEvento);
+    // legado (NULL) = publicado por el flujo antiguo; también se puede suspender
+    if (ev.ESTADO_APROBACION != null && ev.ESTADO_APROBACION !== 'PUBLICADO') {
+      throw new BadRequestException('Only a published event can be suspended');
+    }
+    await this.oracle.execute(
+      `UPDATE EVENTOS SET
+         ESTADO_APROBACION = 'SUSPENDIDO',
+         NO_PUBLICAR = 'S',
+         MOTIVO_RECHAZO = :motivo
+       WHERE ID_EVENTO = :id`,
+      { motivo: motivo?.slice(0, 2000) ?? null, id: idEvento },
+    );
+    await this.registrarHistorial(idEvento, 'SUSPENDIDO', actor.sub, {
+      motivo: motivo ?? null,
+    });
+    return { ok: true, idEvento, estadoAprobacion: 'SUSPENDIDO' };
+  }
+
+  /** Vuelve a publicar un evento suspendido (sin repetir el flujo de aprobación). */
+  async republicar(actor: JwtUser, idEvento: number) {
+    const ev = await this.estadoActual(actor, idEvento);
+    if (ev.ESTADO_APROBACION !== 'SUSPENDIDO') {
+      throw new BadRequestException('The event is not suspended');
+    }
+    await this.oracle.execute(
+      `UPDATE EVENTOS SET
+         ESTADO_APROBACION = 'PUBLICADO',
+         NO_PUBLICAR = 'N',
+         PUBLICADO_POR = :usr, FECHA_PUBLICADO = SYSDATE,
+         MOTIVO_RECHAZO = NULL
+       WHERE ID_EVENTO = :id AND ESTADO_APROBACION = 'SUSPENDIDO'`,
+      { usr: actor.sub, id: idEvento },
+    );
+    await this.registrarHistorial(idEvento, 'REPUBLICADO', actor.sub, {});
+    return { ok: true, idEvento, estadoAprobacion: 'PUBLICADO' };
+  }
+
   /** Rechaza (en cualquier paso pendiente) con motivo; vuelve al creador. */
   async rechazar(actor: JwtUser, idEvento: number, motivo: string) {
     const ev = await this.estadoActual(actor, idEvento);
@@ -1915,7 +1959,14 @@ export class EventosService {
 
   private async registrarHistorial(
     idEvento: number,
-    tipo: 'SOLICITADO' | 'MOVIDO' | 'APROBADO' | 'PUBLICADO' | 'RECHAZADO',
+    tipo:
+      | 'SOLICITADO'
+      | 'MOVIDO'
+      | 'APROBADO'
+      | 'PUBLICADO'
+      | 'RECHAZADO'
+      | 'SUSPENDIDO'
+      | 'REPUBLICADO',
     usuario: string,
     detalle: unknown,
   ) {
