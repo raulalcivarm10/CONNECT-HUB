@@ -245,6 +245,17 @@ const en: Dict = {
   'apr.openEvent': 'Open event',
   'apr.moveHint':
     'To relocate a request, open the event and change its hall/dates',
+  'ev.aprPublished': 'Published',
+  'ev.aprStepVenue': 'Venue',
+  'ev.aprStepPublish': 'Publish',
+  'ev.aprStep1Pending': 'Step 1 of 2 — venue approval pending',
+  'ev.aprVenueApprovedBy': '✓ Venue approved by {user} on {date}',
+  'ev.aprRelocatedBy': '✓ Venue resolved — relocated by {user} on {date}',
+  'ev.aprPublishedBy': '✓ Published by {user} on {date}',
+  'ev.aprWaitingPublish': 'Waiting for publication (Administration/System)',
+  'ev.aprApproveOrMoveHint':
+    'Approve as requested, or change the hall/dates below and save to relocate',
+  'ev.aprRelocatedToast': 'Event relocated — venue step completed',
   'aud.title': 'Activity log',
   'aud.subtitle':
     'Logins, changes and errors across the platform. Click a row to see the detail.',
@@ -1013,6 +1024,17 @@ const es: Dict = {
   'apr.openEvent': 'Abrir evento',
   'apr.moveHint':
     'Para reubicar una solicitud, abre el evento y cambia su salón/fechas',
+  'ev.aprPublished': 'Publicado',
+  'ev.aprStepVenue': 'Salón',
+  'ev.aprStepPublish': 'Publicación',
+  'ev.aprStep1Pending': 'Paso 1 de 2 — aprobación de salón pendiente',
+  'ev.aprVenueApprovedBy': '✓ Salón aprobado por {user} el {date}',
+  'ev.aprRelocatedBy': '✓ Salón resuelto — reubicado por {user} el {date}',
+  'ev.aprPublishedBy': '✓ Publicado por {user} el {date}',
+  'ev.aprWaitingPublish': 'Esperando publicación (Administración/Sistema)',
+  'ev.aprApproveOrMoveHint':
+    'Aprueba tal como se pidió, o cambia el salón/fechas abajo y guarda para reubicar',
+  'ev.aprRelocatedToast': 'Evento reubicado — paso de salón completado',
   'aud.title': 'Registro de actividad',
   'aud.subtitle':
     'Ingresos, cambios y errores de toda la plataforma. Haz clic en una fila para ver el detalle.',
@@ -1769,6 +1791,17 @@ const fr: Dict = {
   'apr.openEvent': 'Ouvrir l’événement',
   'apr.moveHint':
     'Pour déplacer une demande, ouvrez l’événement et modifiez sa salle/ses dates',
+  'ev.aprPublished': 'Publié',
+  'ev.aprStepVenue': 'Salle',
+  'ev.aprStepPublish': 'Publication',
+  'ev.aprStep1Pending': 'Étape 1 sur 2 — approbation de salle en attente',
+  'ev.aprVenueApprovedBy': '✓ Salle approuvée par {user} le {date}',
+  'ev.aprRelocatedBy': '✓ Salle résolue — déplacée par {user} le {date}',
+  'ev.aprPublishedBy': '✓ Publié par {user} le {date}',
+  'ev.aprWaitingPublish': 'En attente de publication (Administration/Système)',
+  'ev.aprApproveOrMoveHint':
+    'Approuvez tel que demandé, ou modifiez la salle/les dates ci-dessous et enregistrez pour déplacer',
+  'ev.aprRelocatedToast': 'Événement déplacé — étape de salle terminée',
   'aud.title': "Journal d'activité",
   'aud.subtitle':
     'Connexions, modifications et erreurs de toute la plateforme. Cliquez sur une ligne pour voir le détail.',
@@ -2526,6 +2559,17 @@ const pt: Dict = {
   'apr.openEvent': 'Abrir evento',
   'apr.moveHint':
     'Para realocar uma solicitação, abra o evento e altere o salão/as datas',
+  'ev.aprPublished': 'Publicado',
+  'ev.aprStepVenue': 'Salão',
+  'ev.aprStepPublish': 'Publicação',
+  'ev.aprStep1Pending': 'Etapa 1 de 2 — aprovação de salão pendente',
+  'ev.aprVenueApprovedBy': '✓ Salão aprovado por {user} em {date}',
+  'ev.aprRelocatedBy': '✓ Salão resolvido — realocado por {user} em {date}',
+  'ev.aprPublishedBy': '✓ Publicado por {user} em {date}',
+  'ev.aprWaitingPublish': 'Aguardando publicação (Administração/Sistema)',
+  'ev.aprApproveOrMoveHint':
+    'Aprove como solicitado, ou altere o salão/as datas abaixo e salve para realocar',
+  'ev.aprRelocatedToast': 'Evento realocado — etapa do salão concluída',
   'aud.title': 'Registro de atividade',
   'aud.subtitle':
     'Acessos, alterações e erros de toda a plataforma. Clique em uma linha para ver o detalhe.',

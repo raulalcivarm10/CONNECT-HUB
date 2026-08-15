@@ -43,7 +43,48 @@ export const ESTILO_APROBACION: Record<
     chip: 'bg-danger/10 text-danger',
     banner: 'border-danger/40 bg-danger/10 text-danger',
   },
+  /* solo para el banner (el badge de la lista oculta PUBLICADO) */
+  PUBLICADO: {
+    labelKey: 'ev.aprPublished',
+    chip: 'bg-success/10 text-success',
+    banner: 'border-success/40 bg-success/10 text-success',
+  },
 };
+
+/**
+ * Línea verde de confirmación del paso resuelto:
+ * "✓ Salón aprobado/reubicado por X el fecha" o "✓ Publicado por X el fecha".
+ */
+export function LineaResuelto({ ev }: { ev: EventoRow }) {
+  const { t } = useI18n();
+  const estado = ev.estadoAprobacion;
+  if (estado === 'SALON_APROBADO' || estado === 'REUBICADO') {
+    return (
+      <div className="text-sm font-medium text-success">
+        {t(
+          estado === 'REUBICADO'
+            ? 'ev.aprRelocatedBy'
+            : 'ev.aprVenueApprovedBy',
+          {
+            user: ev.salonAprobadoPor ?? '—',
+            date: ev.fechaSalonAprobado ?? '—',
+          },
+        )}
+      </div>
+    );
+  }
+  if (estado === 'PUBLICADO') {
+    return (
+      <div className="text-sm font-medium text-success">
+        {t('ev.aprPublishedBy', {
+          user: ev.publicadoPor ?? '—',
+          date: ev.fechaPublicado ?? '—',
+        })}
+      </div>
+    );
+  }
+  return null;
+}
 
 /** Badge del flujo de aprobación (nada si es legado o ya está publicado) */
 export function BadgeAprobacion({ ev }: { ev: EventoRow }) {

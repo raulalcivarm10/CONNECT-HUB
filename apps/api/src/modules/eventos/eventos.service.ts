@@ -69,7 +69,10 @@ export class EventosService {
               e.COD_ITEM, e.NO_PUBLICAR, e.INCLUYE_IVA, e.MONTO_IVA,
               e.IMAGEN_URL, e.FECHA_REGISTRO,
               e.CREADO_POR, e.GRUPO, e.ESTADO_APROBACION, e.MOTIVO_RECHAZO,
-              e.SALON_APROBADO_POR, e.PUBLICADO_POR,
+              e.SALON_APROBADO_POR,
+              TO_CHAR(e.FECHA_SALON_APROBADO, 'YYYY-MM-DD HH24:MI') AS FECHA_SALON_APROBADO,
+              e.PUBLICADO_POR,
+              TO_CHAR(e.FECHA_PUBLICADO, 'YYYY-MM-DD HH24:MI') AS FECHA_PUBLICADO,
               e.ID_EVENTO_PADRE, p.TITULO AS PADRE_TITULO,
               e.ID_LOCAL, e.ID_SALON, e.ID_SUBSALON, e.ID_CONFIGURACION,
               l.NOMBRE AS LOCAL_NOMBRE, s.NOMBRE AS SALON_NOMBRE,
@@ -104,6 +107,10 @@ export class EventosService {
       grupo: (r.GRUPO as string | null) ?? null,
       estadoAprobacion: (r.ESTADO_APROBACION as string | null) ?? null,
       motivoRechazo: (r.MOTIVO_RECHAZO as string | null) ?? null,
+      salonAprobadoPor: (r.SALON_APROBADO_POR as string | null) ?? null,
+      fechaSalonAprobado: (r.FECHA_SALON_APROBADO as string | null) ?? null,
+      publicadoPor: (r.PUBLICADO_POR as string | null) ?? null,
+      fechaPublicado: (r.FECHA_PUBLICADO as string | null) ?? null,
     }));
   }
 

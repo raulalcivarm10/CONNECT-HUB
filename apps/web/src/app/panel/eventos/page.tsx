@@ -8,6 +8,7 @@ import {
   BadgeAprobacion,
   esPendiente,
   ESTILO_APROBACION,
+  LineaResuelto,
   listoParaPublicar,
   RechazoModal,
 } from './aprobacion-ui';
@@ -242,9 +243,12 @@ function BannerAprobacion({
 }) {
   const { t } = useI18n();
   const estado = evento.estadoAprobacion;
-  if (estado == null || estado === 'PUBLICADO') return null;
+  if (estado == null) return null;
   const estilo = ESTILO_APROBACION[estado];
   if (!estilo) return null;
+  // progreso del flujo en 2 pasos: 1) salón, 2) publicación
+  const pasoSalonHecho = listoParaPublicar(estado) || estado === 'PUBLICADO';
+  const pasoPublicadoHecho = estado === 'PUBLICADO';
 
   return (
     <div className={`mt-5 rounded-2xl border p-4 ${estilo.banner}`}>
@@ -254,6 +258,26 @@ function BannerAprobacion({
             {t('ev.aprStatus')}
           </div>
           <div className="text-lg font-bold">{t(estilo.labelKey)}</div>
+          {estado !== 'RECHAZADO' && (
+            <div className="mt-1 flex items-center gap-2 text-xs font-semibold">
+              <span className={pasoSalonHecho ? 'text-success' : ''}>
+                {pasoSalonHecho ? '✓' : '1.'} {t('ev.aprStepVenue')}
+              </span>
+              <span className="opacity-60">→</span>
+              <span className={pasoPublicadoHecho ? 'text-success' : 'opacity-70'}>
+                {pasoPublicadoHecho ? '✓' : '2.'} {t('ev.aprStepPublish')}
+              </span>
+            </div>
+          )}
+          {estado === 'BORRADOR' && (
+            <div className="mt-1 text-sm">{t('ev.aprStep1Pending')}</div>
+          )}
+          <div className="mt-1">
+            <LineaResuelto ev={evento} />
+          </div>
+          {listoParaPublicar(estado) && (
+            <div className="text-sm">{t('ev.aprWaitingPublish')}</div>
+          )}
           {estado === 'RECHAZADO' && evento.motivoRechazo && (
             <div className="mt-0.5 text-sm">
               {t('ev.aprReason')}: {evento.motivoRechazo}
@@ -296,7 +320,13 @@ function BannerAprobacion({
           )}
         </div>
       </div>
-      {notaMover && esPendiente(estado) && (
+      {/* Gestión Operativa: en BORRADOR aprobar = aceptar TAL CUAL; mover = editar + guardar */}
+      {notaMover && estado === 'BORRADOR' && (
+        <p className="mt-2 text-sm text-text-2">
+          {t('ev.aprApproveOrMoveHint')}
+        </p>
+      )}
+      {notaMover && listoParaPublicar(estado) && (
         <p className="mt-2 text-sm text-text-2">{t('ev.aprRelocateHint')}</p>
       )}
       <HistorialEspacio idEvento={evento.ID_EVENTO} />
@@ -544,11 +574,26 @@ export default function EventosPage() {
           evento={editar}
           fechaInicial={fechaNueva}
           onImagenSubida={() => setImgVersion(Date.now())}
-          onDone={(msg) => {
-            setOk(msg);
+          onDone={async (msg) => {
+            // si al guardar la edición el evento pasó a REUBICADO (lo movieron),
+            // confirma explícitamente que el paso de salón quedó completado
+            const idEditado = editar?.ID_EVENTO ?? null;
+            const estadoPrevio = editar?.estadoAprobacion ?? null;
             setShowForm(false);
             setEditar(null);
-            void cargar();
+            const list = await cargar().catch(() => null);
+            const actualizado =
+              idEditado != null
+                ? list?.find((e) => e.ID_EVENTO === idEditado)
+                : null;
+            if (
+              actualizado?.estadoAprobacion === 'REUBICADO' &&
+              estadoPrevio !== 'REUBICADO'
+            ) {
+              setOk(t('ev.aprRelocatedToast'));
+            } else {
+              setOk(msg);
+            }
           }}
           onCancel={() => {
             setShowForm(false);

@@ -15,6 +15,7 @@ import {
 import type { EventoRow } from '@/lib/types';
 import {
   BadgeAprobacion,
+  LineaResuelto,
   listoParaPublicar,
   RechazoModal,
 } from '../aprobacion-ui';
@@ -69,6 +70,8 @@ function FilaSolicitud({
           {espacioSolicitado(ev, t)}
         </div>
         <div className="text-sm text-text-2">{diasTexto(ev)}</div>
+        {/* confirmación del paso 1: quién aprobó/reubicó el salón y cuándo */}
+        <LineaResuelto ev={ev} />
         <div className="mt-1 text-xs text-text-muted">
           {t('apr.requestedBy')}: {ev.creadoPor ?? '—'}
           {ev.grupo && (

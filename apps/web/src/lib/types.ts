@@ -220,6 +220,12 @@ export interface EventoRow {
   grupo?: string | null;
   estadoAprobacion?: EstadoAprobacion | null;
   motivoRechazo?: string | null;
+  salonAprobadoPor?: string | null;
+  /** 'YYYY-MM-DD HH:MM' */
+  fechaSalonAprobado?: string | null;
+  publicadoPor?: string | null;
+  /** 'YYYY-MM-DD HH:MM' */
+  fechaPublicado?: string | null;
 }
 
 /** Espacio (con nombres ya resueltos) dentro del historial de un evento */
