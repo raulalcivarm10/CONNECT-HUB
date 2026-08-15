@@ -169,6 +169,56 @@ export class MailerService {
   }
 
   /**
+   * Aviso de vencimiento de la suscripción (lo dispara el trabajo nocturno de
+   * suscripciones unos días antes de la fecha de fin). Va al comprador, en
+   * inglés y sobrio: es una comunicación administrativa, no una promoción.
+   */
+  async enviarAvisoVencimiento(opts: {
+    destino: string;
+    nombre: string | null;
+    institucion: string;
+    /** último día CON servicio, 'YYYY-MM-DD' */
+    fechaFin: string;
+    diasRestantes: number;
+  }): Promise<boolean> {
+    if (!this.transporter) return false;
+    const saludo = opts.nombre?.trim() ? opts.nombre.trim() : 'there';
+    const plazo =
+      opts.diasRestantes === 0
+        ? 'today'
+        : opts.diasRestantes === 1
+          ? 'in 1 day'
+          : `in ${opts.diasRestantes} days`;
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to: opts.destino,
+        subject: `ConnectHub — Your subscription expires ${plazo}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#0f172a">
+            <h2 style="color:#7c3aed">ConnectHub</h2>
+            <p>Dear ${saludo},</p>
+            <p>The ConnectHub subscription for <b>${opts.institucion}</b> expires
+               <b>${plazo}</b>, on <b>${opts.fechaFin}</b> (last day of service).</p>
+            <p>If the subscription is not renewed, access to the admin panel will be
+               suspended and the institution's events will stop being visible in the
+               mobile app until it is renewed.</p>
+            <p>To renew, please reply to this email or contact your ConnectHub
+               representative.</p>
+            <p style="color:#64748b;font-size:12px">If the renewal is already in
+               progress, please disregard this message.</p>
+          </div>`,
+      });
+      return true;
+    } catch (err) {
+      this.logger.error(
+        `Error enviando aviso de vencimiento a ${opts.destino}: ${String(err)}`,
+      );
+      return false;
+    }
+  }
+
+  /**
    * Correo de acceso a la demo (evento demo.requested del webhook FSL):
    * credenciales del entorno demo, un usuario por rol.
    */

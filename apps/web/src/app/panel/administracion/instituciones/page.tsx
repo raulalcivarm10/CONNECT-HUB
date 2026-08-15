@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
@@ -8,6 +8,7 @@ import { propsValidacion } from '@/lib/validacion';
 import { useDialogo } from '@/lib/dialogo';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
+import { LicenciasOnpremise } from '@/components/instituciones/licencias-onpremise';
 import { ValorCopiable } from '@/components/integraciones/llave-institucion';
 import type { InstitucionRow, PerfilInstitucion } from '@/lib/types';
 
@@ -36,6 +37,8 @@ export default function InstitucionesPage() {
   const [crear, setCrear] = useState(false);
   // API key de check-in provisionada al crear la institución (se muestra una vez)
   const [llaveNueva, setLlaveNueva] = useState<string | null>(null);
+  // institución con el apartado de licencias on-premise desplegado
+  const [licencias, setLicencias] = useState<number | null>(null);
 
   const cargar = useCallback(async () => {
     setItems(await api.get<InstitucionRow[]>('/instituciones'));
@@ -219,81 +222,108 @@ export default function InstitucionesPage() {
           </thead>
           <tbody>
             {items.map((i) => (
-              <tr key={i.ID_INSTITUCION} className="border-b border-border-app/60">
-                <td className="px-4 py-3">
-                  <ImagenNas
-                    tipoEntidad="INSTITUCION"
-                    id={i.ID_INSTITUCION}
-                    tipoArchivo="LOGO"
-                    uploadPath={`/instituciones/${i.ID_INSTITUCION}/logo`}
-                    deletePath={`/instituciones/${i.ID_INSTITUCION}/logo`}
-                    etiqueta={t('in.logo')}
-                    className="h-10 w-10"
-                  />
-                </td>
-                <td className="px-4 py-3 font-medium text-text">{i.NOMBRE}</td>
-                <td className="px-4 py-3 text-text-2">
-                  {[i.CIUDAD, i.PAIS].filter(Boolean).join(', ') || '—'}
-                </td>
-                <td className="px-4 py-3 text-text-2">{i.TOTAL_USUARIOS}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-semibold ${ESTADO_STYLE[i.ESTADO] ?? ''}`}
-                  >
-                    {t(`st.${i.ESTADO}`)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => abrirEdicion(i.ID_INSTITUCION)}
-                      className="rounded-lg border border-border-app px-3 py-1 text-xs text-text-2 hover:bg-surface-2"
+              <Fragment key={i.ID_INSTITUCION}>
+                <tr className="border-b border-border-app/60">
+                  <td className="px-4 py-3">
+                    <ImagenNas
+                      tipoEntidad="INSTITUCION"
+                      id={i.ID_INSTITUCION}
+                      tipoArchivo="LOGO"
+                      uploadPath={`/instituciones/${i.ID_INSTITUCION}/logo`}
+                      deletePath={`/instituciones/${i.ID_INSTITUCION}/logo`}
+                      etiqueta={t('in.logo')}
+                      className="h-10 w-10"
+                    />
+                  </td>
+                  <td className="px-4 py-3 font-medium text-text">{i.NOMBRE}</td>
+                  <td className="px-4 py-3 text-text-2">
+                    {[i.CIUDAD, i.PAIS].filter(Boolean).join(', ') || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-text-2">{i.TOTAL_USUARIOS}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-semibold ${ESTADO_STYLE[i.ESTADO] ?? ''}`}
                     >
-                      {t('c.edit')}
-                    </button>
-                    <button
-                      onClick={() => eliminar(i)}
-                      className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
-                    >
-                      {t('c.delete')}
-                    </button>
-                    {(i.ESTADO === 'PENDIENTE' || i.ESTADO === 'RECHAZADA') && (
-                      <>
-                        <button
-                          onClick={() => setAprobar(i)}
-                          className="rounded-lg bg-brand px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
-                        >
-                          {t('in.approve')}
-                        </button>
-                        {i.ESTADO === 'PENDIENTE' && (
-                          <button
-                            onClick={() => accion(i.ID_INSTITUCION, 'rechazar')}
-                            className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
-                          >
-                            {t('in.reject')}
-                          </button>
-                        )}
-                      </>
-                    )}
-                    {i.ESTADO === 'APROBADA' && (
+                      {t(`st.${i.ESTADO}`)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => accion(i.ID_INSTITUCION, 'suspender')}
+                        onClick={() => abrirEdicion(i.ID_INSTITUCION)}
+                        className="rounded-lg border border-border-app px-3 py-1 text-xs text-text-2 hover:bg-surface-2"
+                      >
+                        {t('c.edit')}
+                      </button>
+                      {/* licencias on-premise: las emite el superadmin */}
+                      <button
+                        onClick={() =>
+                          setLicencias((a) =>
+                            a === i.ID_INSTITUCION ? null : i.ID_INSTITUCION,
+                          )
+                        }
+                        className={`rounded-lg border px-3 py-1 text-xs ${
+                          licencias === i.ID_INSTITUCION
+                            ? 'border-brand bg-brand/15 font-semibold text-brand'
+                            : 'border-border-app text-text-2 hover:bg-surface-2'
+                        }`}
+                      >
+                        {t('lic.tab')}
+                      </button>
+                      <button
+                        onClick={() => eliminar(i)}
                         className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
                       >
-                        {t('in.suspend')}
+                        {t('c.delete')}
                       </button>
-                    )}
-                    {i.ESTADO === 'SUSPENDIDA' && (
-                      <button
-                        onClick={() => accion(i.ID_INSTITUCION, 'reactivar')}
-                        className="rounded-lg border border-border-app px-3 py-1 text-xs text-success hover:bg-surface-2"
-                      >
-                        {t('in.reactivate')}
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
+                      {(i.ESTADO === 'PENDIENTE' || i.ESTADO === 'RECHAZADA') && (
+                        <>
+                          <button
+                            onClick={() => setAprobar(i)}
+                            className="rounded-lg bg-brand px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+                          >
+                            {t('in.approve')}
+                          </button>
+                          {i.ESTADO === 'PENDIENTE' && (
+                            <button
+                              onClick={() => accion(i.ID_INSTITUCION, 'rechazar')}
+                              className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
+                            >
+                              {t('in.reject')}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {i.ESTADO === 'APROBADA' && (
+                        <button
+                          onClick={() => accion(i.ID_INSTITUCION, 'suspender')}
+                          className="rounded-lg border border-border-app px-3 py-1 text-xs text-danger hover:bg-surface-2"
+                        >
+                          {t('in.suspend')}
+                        </button>
+                      )}
+                      {i.ESTADO === 'SUSPENDIDA' && (
+                        <button
+                          onClick={() => accion(i.ID_INSTITUCION, 'reactivar')}
+                          className="rounded-lg border border-border-app px-3 py-1 text-xs text-success hover:bg-surface-2"
+                        >
+                          {t('in.reactivate')}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+                {licencias === i.ID_INSTITUCION && (
+                  <tr className="border-b border-border-app/60 bg-surface-2/40">
+                    <td colSpan={6} className="px-4 py-3">
+                      <LicenciasOnpremise
+                        idInstitucion={i.ID_INSTITUCION}
+                        nombre={i.NOMBRE}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {items.length === 0 && (
               <tr>

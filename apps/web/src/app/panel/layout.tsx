@@ -8,6 +8,7 @@ import { InstitucionFilterProvider } from '@/lib/institucion-context';
 import { LightboxProvider } from '@/lib/lightbox';
 import { DialogoProvider } from '@/lib/dialogo';
 import { QueryProvider } from '@/lib/query-provider';
+import { AvisoSuscripcion } from '@/components/shell/aviso-suscripcion';
 import { Sidebar } from '@/components/shell/sidebar';
 import { Topbar } from '@/components/shell/topbar';
 
@@ -46,6 +47,9 @@ export default function PanelLayout({
               <Sidebar />
               <div className="flex min-w-0 flex-1 flex-col">
                 <Topbar />
+                {/* franja de vencimiento: se pinta sola cuando la vigencia
+                    de la institución está por acabarse (o ya acabó) */}
+                <AvisoSuscripcion />
                 <main className="flex-1 overflow-y-auto p-6">{children}</main>
               </div>
             </div>

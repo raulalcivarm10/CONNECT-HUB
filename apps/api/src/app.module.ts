@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { OracleModule } from './database/oracle.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
@@ -17,11 +18,15 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 import { PublicModule } from './modules/public/public.module';
 import { PushModule } from './modules/push/push.module';
 import { IntegracionModule } from './modules/integracion/integracion.module';
+import { SuscripcionesModule } from './modules/suscripciones/suscripciones.module';
 
 @Module({
   imports: [
     // las variables llegan por environment del contenedor (env_file en compose)
     ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+    // tareas programadas (hoy: el corte nocturno de suscripciones, 04:00 UTC =
+    // 23:00 en Ecuador). Se registra una sola vez, aquí.
+    ScheduleModule.forRoot(),
     OracleModule,
     RedisModule,
     HealthModule,
@@ -39,6 +44,7 @@ import { IntegracionModule } from './modules/integracion/integracion.module';
     PublicModule,
     PushModule,
     IntegracionModule,
+    SuscripcionesModule,
   ],
 })
 export class AppModule {}

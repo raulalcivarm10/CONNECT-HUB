@@ -108,6 +108,12 @@ export function Sidebar() {
                   label={t('side.institutions')}
                   icon={IconBuilding}
                 />
+                {/* vigencia de cada institución cliente: solo el superadmin */}
+                <NavLink
+                  href="/panel/administracion/suscripciones"
+                  label={t('side.subscriptions')}
+                  icon={IconFinance}
+                />
               </>
             ) : (
               <NavLink
