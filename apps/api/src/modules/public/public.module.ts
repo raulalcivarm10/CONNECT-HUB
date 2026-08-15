@@ -52,5 +52,7 @@ import { RateLimitGuard } from '../../auth/rate-limit.guard';
     NasService,
     RateLimitGuard,
   ],
+  // el módulo de integración (lectores de QR externos) reutiliza el check-in
+  exports: [EntradasService],
 })
 export class PublicModule {}
