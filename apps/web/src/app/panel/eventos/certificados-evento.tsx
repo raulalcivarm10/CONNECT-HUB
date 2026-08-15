@@ -202,9 +202,21 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
       // no se emite certificado a quien no asistió: el API los omite y los cuenta
       const omitidos = res.omitidosSinAsistencia ?? 0;
       if (res.generados === 0 && omitidos > 0) {
+        // ALERTA emergente: el mensaje al pie pasaba desapercibido y parecía
+        // que "no hizo nada". Aquí se dice explícitamente por qué.
         aviso(t('ct.noneGeneratedNoAttendance'), 'warn');
+        await dialogo.alerta({
+          titulo: t('ct.noCertTitle'),
+          mensaje: t('ct.noCertMsg', { m: omitidos }),
+          tono: 'warning',
+        });
       } else if (omitidos > 0) {
         aviso(t('ct.generatedSkipped', { n: res.generados, m: omitidos }), 'warn');
+        await dialogo.alerta({
+          titulo: t('ct.partialCertTitle'),
+          mensaje: t('ct.partialCertMsg', { n: res.generados, m: omitidos }),
+          tono: 'warning',
+        });
       } else {
         aviso(t('ct.generated', { n: res.generados, total: res.total }));
       }

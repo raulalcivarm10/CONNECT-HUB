@@ -398,6 +398,10 @@ const en: Dict = {
   'ct.no': 'No',
   'ct.generatedSkipped':
     '{n} certificates generated · {m} skipped: they have not attended yet',
+  'ct.noCertTitle': "Certificate not generated",
+  'ct.noCertMsg': "The certificate cannot be generated because the attendee did not attend the event. Mark attendance first ({m} pending).",
+  'ct.partialCertTitle': "Some certificates were not generated",
+  'ct.partialCertMsg': "{n} generated. {m} skipped because those attendees did not attend the event.",
   'ct.noneGeneratedNoAttendance':
     'No certificates generated — the selected attendees have not attended yet. Mark attendance first.',
   'ct.needAttendance':
@@ -1340,6 +1344,10 @@ const es: Dict = {
   'ct.no': 'No',
   'ct.generatedSkipped':
     '{n} certificados generados · {m} omitidos: aún no han asistido',
+  'ct.noCertTitle': "No se generó el certificado",
+  'ct.noCertMsg': "No se puede generar el certificado porque el participante no asistió al evento. Marca primero la asistencia ({m} pendiente(s)).",
+  'ct.partialCertTitle': "Algunos certificados no se generaron",
+  'ct.partialCertMsg': "Se generaron {n}. Se omitieron {m} porque esos participantes no asistieron al evento.",
   'ct.noneGeneratedNoAttendance':
     'No se generó ningún certificado — las personas seleccionadas aún no han asistido. Marca primero la asistencia.',
   'ct.needAttendance':
@@ -2271,6 +2279,10 @@ const fr: Dict = {
   'ct.no': 'Non',
   'ct.generatedSkipped':
     '{n} certificats générés · {m} ignorés : ils n’ont pas encore assisté',
+  'ct.noCertTitle': "Certificat non généré",
+  'ct.noCertMsg': "Le certificat ne peut pas être généré car le participant n'a pas assisté à l'événement. Marquez d'abord la présence ({m} en attente).",
+  'ct.partialCertTitle': "Certains certificats non générés",
+  'ct.partialCertMsg': "{n} généré(s). {m} ignoré(s) car ces participants n'ont pas assisté à l'événement.",
   'ct.noneGeneratedNoAttendance':
     'Aucun certificat généré — les personnes sélectionnées n’ont pas encore assisté. Marquez d’abord la présence.',
   'ct.needAttendance':
@@ -3202,6 +3214,10 @@ const pt: Dict = {
   'ct.no': 'Não',
   'ct.generatedSkipped':
     '{n} certificados gerados · {m} ignorados: ainda não compareceram',
+  'ct.noCertTitle': "Certificado não gerado",
+  'ct.noCertMsg': "Não é possível gerar o certificado porque o participante não compareceu ao evento. Marque a presença primeiro ({m} pendente(s)).",
+  'ct.partialCertTitle': "Alguns certificados não foram gerados",
+  'ct.partialCertMsg': "{n} gerado(s). {m} ignorado(s) porque esses participantes não compareceram ao evento.",
   'ct.noneGeneratedNoAttendance':
     'Nenhum certificado gerado — as pessoas selecionadas ainda não compareceram. Marque a presença primeiro.',
   'ct.needAttendance':
