@@ -5,6 +5,11 @@
 }
 
 {$DOMAIN} {
+	# Compresión de TODAS las respuestas (el JSON del panel viajaba crudo:
+	# listas de eventos, auditoría y reportes bajan ~85-90% de peso).
+	# Caddy respeta lo que ya venga comprimido (assets de Next), no recomprime.
+	encode zstd gzip
+
 	# headers de seguridad para todas las respuestas
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
