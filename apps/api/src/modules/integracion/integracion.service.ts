@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { OracleService } from '../../database/oracle.service';
 import { JwtUser } from '../../auth/types';
@@ -173,7 +173,13 @@ export class IntegracionService {
   private institucionDe(actor: JwtUser, idInstitucion?: number): number {
     if (actor.esSuper && idInstitucion != null) return idInstitucion;
     if (actor.idInstitucion == null) {
-      throw new Error('The user has no institution associated');
+      // el superadmin no pertenece a ninguna institución: debe elegir una en
+      // el selector de la barra superior (400 con mensaje, no un 500 opaco)
+      throw new BadRequestException(
+        actor.esSuper
+          ? 'Select an institution in the top bar to manage its API keys'
+          : 'The user has no institution associated',
+      );
     }
     return actor.idInstitucion;
   }

@@ -7,6 +7,7 @@ import { useDialogo } from '@/lib/dialogo';
 import { useI18n } from '@/lib/i18n';
 import { propsValidacion } from '@/lib/validacion';
 import { LlaveInstitucion } from '@/components/integraciones/llave-institucion';
+import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { puedeVer, ROL } from '@/lib/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -73,6 +74,8 @@ function NuevaClaveModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  // superadmin: la llave se crea para la institución elegida en la barra superior
+  const { idInstitucion: instSel } = useInstitucionFiltro();
   const [nombre, setNombre] = useState('');
   const [creada, setCreada] = useState<ClaveNueva | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +89,7 @@ function NuevaClaveModal({
     setSending(true);
     try {
       const res = await api.post<ClaveNueva>('/api-keys', {
+        ...(instSel != null ? { idInstitucion: instSel } : {}),
         nombre: nombre.trim(),
       });
       setCreada(res);
@@ -197,6 +201,7 @@ function NuevaClaveModal({
 
 export default function IntegracionesPage() {
   const { user } = useAuth();
+  const { idInstitucion: instSel } = useInstitucionFiltro();
   const { t } = useI18n();
   const dialogo = useDialogo();
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
@@ -207,9 +212,15 @@ export default function IntegracionesPage() {
 
   const tieneAcceso = puedeVer(user, ROLES_INTEGRACIONES);
 
+  // depende de la institución elegida en la barra superior (superadmin):
+  // al cambiarla se recargan las llaves de esa institución.
   const cargar = useCallback(async () => {
-    setKeys(await api.get<ApiKeyRow[]>('/api-keys'));
-  }, []);
+    setKeys(
+      await api.get<ApiKeyRow[]>(
+        `/api-keys${instSel != null ? `?idInstitucion=${instSel}` : ''}`,
+      ),
+    );
+  }, [instSel]);
 
   useEffect(() => {
     if (!tieneAcceso) return;
@@ -292,7 +303,10 @@ export default function IntegracionesPage() {
 
       {/* Llave propia de la institución: la que se entrega al lector de QR */}
       <div className="mt-5">
-        <LlaveInstitucion onRegenerada={(msg) => setOk(msg)} />
+        <LlaveInstitucion
+          idInstitucion={instSel ?? undefined}
+          onRegenerada={(msg) => setOk(msg)}
+        />
       </div>
 
       <h2 className="mt-6 text-lg font-semibold text-text">

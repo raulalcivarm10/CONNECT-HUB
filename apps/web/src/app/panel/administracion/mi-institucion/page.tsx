@@ -7,10 +7,12 @@ import { useI18n } from '@/lib/i18n';
 import { ImagenNas } from '@/components/ui/imagen-nas';
 import { PerfilInstitucionForm } from '@/components/instituciones/perfil-form';
 import { LlaveInstitucion } from '@/components/integraciones/llave-institucion';
+import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { puedeVer, ROL, type PerfilInstitucion } from '@/lib/types';
 
 export default function MiInstitucionPage() {
   const { user } = useAuth();
+  const { idInstitucion: instSel } = useInstitucionFiltro();
   const { t } = useI18n();
   const [perfil, setPerfil] = useState<PerfilInstitucion | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export default function MiInstitucionPage() {
       {/* API key de check-in de la institución (solo quien la gestiona) */}
       {puedeVer(user, [ROL.SYSTEM, ROL.ADMINISTRATION]) && (
         <div className="mt-5">
-          <LlaveInstitucion compacta />
+          <LlaveInstitucion compacta idInstitucion={instSel ?? undefined} />
         </div>
       )}
 
