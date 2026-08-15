@@ -68,7 +68,13 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
   // del PNG y el texto se descuadra. Default A4-horizontal hasta que cargue la imagen.
   const [ratio, setRatio] = useState(1.414);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  // mensaje del bloque con tono: éxito (verde), advertencia (ámbar) o error (rojo)
+  const [msg, setMsg] = useState<{
+    txt: string;
+    tono: 'ok' | 'warn' | 'err';
+  } | null>(null);
+  const aviso = (txt: string, tono: 'ok' | 'warn' | 'err' = 'ok') =>
+    setMsg({ txt, tono });
   const previewRef = useRef<HTMLDivElement>(null);
 
   const cargar = useCallback(async () => {
@@ -130,7 +136,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
 
   async function guardar() {
     if (!blob) {
-      setMsg(t('ct.uploadFirst'));
+      aviso(t('ct.uploadFirst'), 'warn');
       return;
     }
     setBusy(true);
@@ -140,9 +146,9 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
       form.append('file', blob, 'plantilla.png');
       form.append('config', JSON.stringify(config));
       await api.upload(`/eventos/${idEvento}/certificados/plantilla`, form);
-      setMsg(t('ct.saved'));
+      aviso(t('ct.saved'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : t('c.error'));
+      aviso(err instanceof Error ? err.message : t('c.error'), 'err');
     } finally {
       setBusy(false);
     }
@@ -178,21 +184,34 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
     });
   const allSel = asistentes.length > 0 && sel.size === asistentes.length;
   const toggleAll = () => setSel(allSel ? new Set() : new Set(asistentes.map((a) => a.idCliente)));
+  // solo se certifica a quien asistió: si NINGÚN seleccionado asistió, no hay nada que generar
+  const seleccionados = asistentes.filter((a) => sel.has(a.idCliente));
+  const ningunoAsistio =
+    seleccionados.length > 0 && seleccionados.every((a) => !a.asistio);
 
   async function generar() {
     setBusy(true);
     setMsg(null);
     try {
       const ids = sel.size ? [...sel] : undefined; // vacío → backend genera para todos los que asistieron
-      const res = await api.post<{ generados: number; total: number }>(
-        `/eventos/${idEvento}/certificados/generar`,
-        ids ? { idsClientes: ids } : {},
-      );
-      setMsg(t('ct.generated', { n: res.generados, total: res.total }));
+      const res = await api.post<{
+        generados: number;
+        total: number;
+        omitidosSinAsistencia?: number;
+      }>(`/eventos/${idEvento}/certificados/generar`, ids ? { idsClientes: ids } : {});
+      // no se emite certificado a quien no asistió: el API los omite y los cuenta
+      const omitidos = res.omitidosSinAsistencia ?? 0;
+      if (res.generados === 0 && omitidos > 0) {
+        aviso(t('ct.noneGeneratedNoAttendance'), 'warn');
+      } else if (omitidos > 0) {
+        aviso(t('ct.generatedSkipped', { n: res.generados, m: omitidos }), 'warn');
+      } else {
+        aviso(t('ct.generated', { n: res.generados, total: res.total }));
+      }
       setSel(new Set());
       await cargar();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : t('c.error'));
+      aviso(err instanceof Error ? err.message : t('c.error'), 'err');
     } finally {
       setBusy(false);
     }
@@ -223,11 +242,11 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
         `/eventos/${idEvento}/asistencia`,
         { idsClientes: objetivo, asistio },
       );
-      setMsg(t('ct.attendanceOk', { n: res.actualizados }));
+      aviso(t('ct.attendanceOk', { n: res.actualizados }));
       if (!ids) setSel(new Set());
       await cargar();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : t('c.error'));
+      aviso(err instanceof Error ? err.message : t('c.error'), 'err');
     } finally {
       setBusy(false);
     }
@@ -412,8 +431,9 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
               <button
                 type="button"
                 onClick={generar}
-                disabled={busy || asistentes.length === 0}
-                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                disabled={busy || asistentes.length === 0 || ningunoAsistio}
+                title={ningunoAsistio ? t('ct.needAttendance') : undefined}
+                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {sel.size ? t('ct.generateN', { n: sel.size }) : t('ct.generateAll')}
               </button>
@@ -473,7 +493,19 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
         </div>
       </div>
 
-      {msg && <p className="mt-3 rounded-lg bg-surface px-3 py-2 text-sm text-text">{msg}</p>}
+      {msg && (
+        <p
+          className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+            msg.tono === 'ok'
+              ? 'bg-success/10 text-success'
+              : msg.tono === 'warn'
+                ? 'bg-amber-500/10 text-amber-500'
+                : 'bg-danger/10 text-danger'
+          }`}
+        >
+          {msg.txt}
+        </p>
+      )}
     </div>
   );
 }

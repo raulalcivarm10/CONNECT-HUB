@@ -396,6 +396,12 @@ const en: Dict = {
     'This will mark the selected attendees as not attended. Certificates already issued are kept.',
   'ct.yes': 'Yes',
   'ct.no': 'No',
+  'ct.generatedSkipped':
+    '{n} certificates generated · {m} skipped: they have not attended yet',
+  'ct.noneGeneratedNoAttendance':
+    'No certificates generated — the selected attendees have not attended yet. Mark attendance first.',
+  'ct.needAttendance':
+    'None of the selected attendees has attended yet. Mark attendance first.',
   'sal.capAbbr': 'cap.',
   'pf.connCodeHint': 'Unique, system-generated — not editable',
   'pf.appCodeCheckout': 'App Code (checkout)',
@@ -1332,6 +1338,12 @@ const es: Dict = {
     'Se marcará a las personas seleccionadas como no asistieron. Los certificados ya emitidos se conservan.',
   'ct.yes': 'Sí',
   'ct.no': 'No',
+  'ct.generatedSkipped':
+    '{n} certificados generados · {m} omitidos: aún no han asistido',
+  'ct.noneGeneratedNoAttendance':
+    'No se generó ningún certificado — las personas seleccionadas aún no han asistido. Marca primero la asistencia.',
+  'ct.needAttendance':
+    'Ninguna de las personas seleccionadas ha asistido aún. Marca primero la asistencia.',
   'sal.capAbbr': 'cap.',
   'pf.connCodeHint': 'Único, generado por el sistema — no editable',
   'pf.appCodeCheckout': 'App Code (checkout)',
@@ -2257,6 +2269,12 @@ const fr: Dict = {
     'Les personnes sélectionnées seront marquées comme absentes. Les certificats déjà émis sont conservés.',
   'ct.yes': 'Oui',
   'ct.no': 'Non',
+  'ct.generatedSkipped':
+    '{n} certificats générés · {m} ignorés : ils n’ont pas encore assisté',
+  'ct.noneGeneratedNoAttendance':
+    'Aucun certificat généré — les personnes sélectionnées n’ont pas encore assisté. Marquez d’abord la présence.',
+  'ct.needAttendance':
+    'Aucune des personnes sélectionnées n’a encore assisté. Marquez d’abord la présence.',
   'sal.capAbbr': 'cap.',
   'pf.connCodeHint': 'Unique, généré par le système — non modifiable',
   'pf.appCodeCheckout': 'App Code (checkout)',
@@ -3182,6 +3200,12 @@ const pt: Dict = {
     'As pessoas selecionadas serão marcadas como não compareceram. Os certificados já emitidos são mantidos.',
   'ct.yes': 'Sim',
   'ct.no': 'Não',
+  'ct.generatedSkipped':
+    '{n} certificados gerados · {m} ignorados: ainda não compareceram',
+  'ct.noneGeneratedNoAttendance':
+    'Nenhum certificado gerado — as pessoas selecionadas ainda não compareceram. Marque a presença primeiro.',
+  'ct.needAttendance':
+    'Nenhuma das pessoas selecionadas compareceu ainda. Marque a presença primeiro.',
   'sal.capAbbr': 'cap.',
   'pf.connCodeHint': 'Único, gerado pelo sistema — não editável',
   'pf.appCodeCheckout': 'App Code (checkout)',
