@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api/client';
 import { useDialogo } from '@/lib/dialogo';
+import { useAuth } from '@/lib/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
 
 /** GET /api-keys/institucion — la llave propia de la institución */
@@ -75,22 +76,34 @@ export function LlaveInstitucion({
   onRegenerada?: (msg: string) => void;
 }) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const dialogo = useDialogo();
   const [llave, setLlave] = useState<LlaveInstitucionResp | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
   const qs = idInstitucion != null ? `?idInstitucion=${idInstitucion}` : '';
+  // El superadmin no tiene institución propia: hasta que el selector superior
+  // resuelva una (el contexto la restaura de localStorage en un efecto, así
+  // que el primer render llega vacío) NO se pide nada — si no, el error del
+  // intento en vacío quedaba pegado en pantalla.
+  const esperandoInstitucion = !!user?.esSuper && idInstitucion == null;
 
   const cargar = useCallback(async () => {
     setLlave(await api.get<LlaveInstitucionResp>(`/api-keys/institucion${qs}`));
   }, [qs]);
 
   useEffect(() => {
+    if (esperandoInstitucion) {
+      setCargando(false);
+      return;
+    }
+    setCargando(true);
+    setError(null); // cada recarga parte limpia
     cargar()
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setCargando(false));
-  }, [cargar]);
+  }, [cargar, esperandoInstitucion]);
 
   async function regenerar() {
     const confirmado = await dialogo.confirmar({
@@ -113,6 +126,13 @@ export function LlaveInstitucion({
     }
   }
 
+  if (esperandoInstitucion) {
+    return (
+      <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-text-muted">
+        {t('int.instPickFirst')}
+      </p>
+    );
+  }
   if (cargando) {
     return <p className="text-sm text-text-muted">{t('c.loading')}</p>;
   }

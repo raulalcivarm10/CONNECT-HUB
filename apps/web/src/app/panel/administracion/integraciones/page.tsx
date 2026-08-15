@@ -222,10 +222,14 @@ export default function IntegracionesPage() {
     );
   }, [instSel]);
 
+  // el superadmin espera a que el selector superior resuelva la institución
+  const esperandoInstitucion = !!user?.esSuper && instSel == null;
+
   useEffect(() => {
-    if (!tieneAcceso) return;
+    if (!tieneAcceso || esperandoInstitucion) return;
+    setError(null); // cada recarga parte limpia (si no, el error inicial se pegaba)
     cargar().catch((e) => setError(e.message));
-  }, [cargar, tieneAcceso]);
+  }, [cargar, tieneAcceso, esperandoInstitucion]);
 
   async function revocar(k: ApiKeyRow) {
     const confirmado = await dialogo.confirmar({

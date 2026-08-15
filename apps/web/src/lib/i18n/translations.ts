@@ -254,6 +254,7 @@ const en: Dict = {
   'int.noAccess':
     'Only the SYSTEM user or Administration can manage integration keys.',
   'int.keys': 'API keys',
+  'int.instPickFirst': "Select an institution in the top bar to see its API key",
   'int.instTitle': 'Institution API key',
   'int.instHint':
     'This is the key you hand to the team or provider running the QR reader.',
@@ -1177,6 +1178,7 @@ const es: Dict = {
   'int.noAccess':
     'Solo el usuario SYSTEM o Administración pueden gestionar las llaves de integración.',
   'int.keys': 'Llaves de API',
+  'int.instPickFirst': "Selecciona una institución en la barra superior para ver su llave",
   'int.instTitle': 'Llave de API de la institución',
   'int.instHint':
     'Esta es la llave que entregas al equipo o proveedor que opera el lector de QR.',
@@ -2089,6 +2091,7 @@ const fr: Dict = {
   'int.noAccess':
     'Seuls l’utilisateur SYSTEM ou l’Administration peuvent gérer les clés d’intégration.',
   'int.keys': 'Clés d’API',
+  'int.instPickFirst': "Sélectionnez un établissement dans la barre supérieure pour voir sa clé",
   'int.instTitle': 'Clé d’API de l’institution',
   'int.instHint':
     'C’est la clé que vous remettez à l’équipe ou au prestataire qui exploite le lecteur QR.',
@@ -3003,6 +3006,7 @@ const pt: Dict = {
   'int.noAccess':
     'Apenas o usuário SYSTEM ou a Administração podem gerenciar as chaves de integração.',
   'int.keys': 'Chaves de API',
+  'int.instPickFirst': "Selecione uma instituição na barra superior para ver sua chave",
   'int.instTitle': 'Chave de API da instituição',
   'int.instHint':
     'Esta é a chave que você entrega à equipe ou ao fornecedor que opera o leitor de QR.',
