@@ -20,7 +20,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import '@fastify/multipart';
 import { leerImagenMultipart } from '../archivos/multipart.util';
@@ -51,6 +51,16 @@ class SuspenderEventoDto {
   @IsOptional()
   @IsString()
   motivo?: string;
+}
+
+class MarcarAsistenciaDto {
+  @IsArray()
+  @IsString({ each: true })
+  idsClientes!: string[];
+
+  /** true = asistió; false = no asistió (revierte) */
+  @IsBoolean()
+  asistio!: boolean;
 }
 
 class GenerarCertDto {
@@ -329,6 +339,19 @@ export class EventosController {
   @ApiOperation({ summary: 'Asistentes del evento (para seleccionar y generar certificados)' })
   listarAsistentesCert(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.eventos.listarAsistentesCert(user, id);
+  }
+
+  @Post(':id/asistencia')
+  @ApiOperation({
+    summary:
+      'Asistencia MANUAL (respaldo del lector QR): marca o desmarca a los seleccionados',
+  })
+  marcarAsistencia(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: MarcarAsistenciaDto,
+  ) {
+    return this.eventos.marcarAsistencia(user, id, dto.idsClientes, dto.asistio);
   }
 
   @Get(':id/gafetes')

@@ -30,6 +30,7 @@ function accionDe(metodo: string, ruta: string, fallo: boolean): string {
   if (/^\/eventos\/\d+\/aprobar-publicacion$/.test(ruta)) return 'PUBLICAR';
   if (/^\/eventos\/\d+\/rechazar$/.test(ruta)) return 'RECHAZAR_EVENTO';
   if (/^\/eventos\/\d+\/destacar$/.test(ruta)) return 'DESTACAR';
+  if (/^\/eventos\/\d+\/asistencia$/.test(ruta)) return 'ASISTENCIA';
   if (/^\/eventos\/\d+\/suspender$/.test(ruta)) return 'SUSPENDER_EVENTO';
   if (/^\/eventos\/\d+\/republicar$/.test(ruta)) return 'REPUBLICAR';
   if (/^\/usuarios\/[^/]+\/roles$/.test(ruta)) return 'CAMBIO_ROLES';

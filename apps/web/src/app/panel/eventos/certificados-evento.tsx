@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api/client';
+import { useDialogo } from '@/lib/dialogo';
 import { useI18n } from '@/lib/i18n';
 
 interface OverlayCampo {
@@ -53,6 +54,7 @@ const DEF: Config = {
 /** Gestión de certificados por evento: plantilla-imagen + overlay parametrizable + generación en lote. */
 export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: number; tituloEvento: string }) {
   const { t } = useI18n();
+  const dialogo = useDialogo();
   const [config, setConfig] = useState<Config>(DEF);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -188,6 +190,41 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
       );
       setMsg(t('ct.generated', { n: res.generados, total: res.total }));
       setSel(new Set());
+      await cargar();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t('c.error'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Asistencia MANUAL (respaldo si falla el lector de QR).
+   * `ids` presente = acción sobre una sola fila (sin confirmación);
+   * ausente = acción en lote sobre la selección (desmarcar sí confirma).
+   * No toca certificados: desmarcar no borra uno ya emitido.
+   */
+  async function marcarAsistencia(asistio: boolean, ids?: string[]) {
+    const objetivo = ids ?? [...sel];
+    if (objetivo.length === 0 || busy) return;
+    if (!asistio && !ids) {
+      const confirmado = await dialogo.confirmar({
+        titulo: t('ct.confirmUnattendTitle', { n: objetivo.length }),
+        mensaje: t('ct.confirmUnattend'),
+        tono: 'info',
+        confirmar: t('ct.markNotAttended'),
+      });
+      if (!confirmado) return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await api.post<{ actualizados: number }>(
+        `/eventos/${idEvento}/asistencia`,
+        { idsClientes: objetivo, asistio },
+      );
+      setMsg(t('ct.attendanceOk', { n: res.actualizados }));
+      if (!ids) setSel(new Set());
       await cargar();
     } catch (err) {
       setMsg(err instanceof Error ? err.message : t('c.error'));
@@ -338,9 +375,31 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
 
         {/* Asistentes + generar */}
         <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-text">{t('ct.attendees', { n: asistentes.length })}</span>
-            <div className="flex items-center gap-2">
+          <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <span className="text-sm font-semibold text-text">{t('ct.attendees', { n: asistentes.length })}</span>
+              <p className="text-xs text-text-muted">{t('ct.attendanceHint')}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Asistencia manual en lote sobre los seleccionados */}
+              <button
+                type="button"
+                onClick={() => marcarAsistencia(true)}
+                disabled={busy || sel.size === 0}
+                title={sel.size === 0 ? t('ct.selectFirst') : undefined}
+                className="rounded-lg bg-success/15 px-3 py-1.5 text-sm font-semibold text-success hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('ct.markAttended')}
+              </button>
+              <button
+                type="button"
+                onClick={() => marcarAsistencia(false)}
+                disabled={busy || sel.size === 0}
+                title={sel.size === 0 ? t('ct.selectFirst') : undefined}
+                className="rounded-lg border border-border-app px-3 py-1.5 text-sm font-semibold text-text-2 hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('ct.markNotAttended')}
+              </button>
               {/* Gafetes imprimibles (nombre + QR de check-in) para entregar en el evento */}
               <a
                 href={`/panel/eventos/gafetes?ev=${idEvento}`}
@@ -382,7 +441,22 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                       <div className="text-text">{a.nombre}</div>
                       <div className="text-xs text-text-muted">{a.email}</div>
                     </td>
-                    <td className="p-2">{a.asistio ? '✓' : '—'}</td>
+                    <td className="p-2">
+                      {/* toggle individual: marca/desmarca solo a esta persona */}
+                      <button
+                        type="button"
+                        onClick={() => marcarAsistencia(!a.asistio, [a.idCliente])}
+                        disabled={busy}
+                        title={a.asistio ? t('ct.markNotAttended') : t('ct.markAttended')}
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          a.asistio
+                            ? 'bg-success/10 text-success hover:bg-success/20'
+                            : 'bg-surface-2 text-text-muted hover:bg-surface'
+                        }`}
+                      >
+                        {a.asistio ? `✓ ${t('ct.yes')}` : t('ct.no')}
+                      </button>
+                    </td>
                     <td className="p-2">{a.certificadoCodigo ? '🎓' : '—'}</td>
                   </tr>
                 ))}

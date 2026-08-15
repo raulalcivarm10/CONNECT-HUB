@@ -1157,6 +1157,41 @@ export class EventosService {
   }
 
   /** Asistentes del evento (para seleccionar y generar certificados). */
+  /**
+   * ASISTENCIA MANUAL (respaldo del lector de QR): marca o desmarca la
+   * asistencia de los participantes seleccionados. Reversible — al desmarcar
+   * se limpia también la hora de ingreso. El certificado NO se toca aquí: se
+   * emite con "Generar certificados", y desmarcar no borra uno ya emitido.
+   */
+  async marcarAsistencia(
+    actor: JwtUser,
+    idEvento: number,
+    idsClientes: string[],
+    asistio: boolean,
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const ids = [...new Set((idsClientes ?? []).map((s) => String(s).trim()).filter(Boolean))];
+    if (!ids.length) {
+      throw new BadRequestException('Select at least one attendee');
+    }
+    let afectados = 0;
+    await this.oracle.withConnection(async (conn) => {
+      for (const idCliente of ids) {
+        const r = await conn.execute(
+          `UPDATE EVENTOS_USUARIOS
+              SET ASISTIO = :asistio,
+                  FECHA_ENTRADA = CASE WHEN :asistio = 'S'
+                                       THEN NVL(FECHA_ENTRADA, SYSDATE) END
+            WHERE ID_EVENTO = :e AND ID_CLIENTE = :c`,
+          { asistio: asistio ? 'S' : 'N', e: idEvento, c: idCliente },
+        );
+        afectados += r.rowsAffected ?? 0;
+      }
+      await conn.commit();
+    });
+    return { idEvento, asistio, actualizados: afectados };
+  }
+
   async listarAsistentesCert(actor: JwtUser, idEvento: number) {
     await this.eventoEnAmbito(actor, idEvento);
     const rows = await this.oracle.query<{
