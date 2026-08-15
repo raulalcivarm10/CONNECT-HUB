@@ -1177,12 +1177,15 @@ export class EventosService {
     let afectados = 0;
     await this.oracle.withConnection(async (conn) => {
       for (const idCliente of ids) {
+        // El panel envía los idCliente en MAYÚSCULAS (política aMayusculas del
+        // cliente HTTP) y en BD son UUID en minúscula → comparación
+        // case-insensitive, si no el UPDATE no afectaba ninguna fila.
         const r = await conn.execute(
           `UPDATE EVENTOS_USUARIOS
               SET ASISTIO = :asistio,
                   FECHA_ENTRADA = CASE WHEN :asistio = 'S'
                                        THEN NVL(FECHA_ENTRADA, SYSDATE) END
-            WHERE ID_EVENTO = :e AND ID_CLIENTE = :c`,
+            WHERE ID_EVENTO = :e AND UPPER(ID_CLIENTE) = UPPER(:c)`,
           { asistio: asistio ? 'S' : 'N', e: idEvento, c: idCliente },
         );
         afectados += r.rowsAffected ?? 0;
@@ -1337,9 +1340,14 @@ export class EventosService {
       idsClientes && idsClientes.length
         ? new Set(idsClientes.map((x) => x.toLowerCase()))
         : null;
-    const objetivo = sel
+    // REGLA: el certificado acredita ASISTENCIA — solo se emite a quien asistió
+    // (marcado por el lector de QR o a mano). Los seleccionados que no
+    // asistieron se omiten y se informan para que el panel lo explique.
+    const seleccionados = sel
       ? rows.filter((r) => sel.has(r.ID_CLIENTE.toLowerCase()))
-      : rows.filter((r) => (r.ASISTIO ?? 'N') === 'S');
+      : rows;
+    const objetivo = seleccionados.filter((r) => (r.ASISTIO ?? 'N') === 'S');
+    const omitidosSinAsistencia = seleccionados.length - objetivo.length;
     let generados = 0;
     for (const r of objetivo) {
       if (r.CERT_CODIGO) continue; // ya tiene certificado
@@ -1370,7 +1378,7 @@ export class EventosService {
         if (!String(err).includes('ORA-00001')) throw err; // ya existía (carrera) → ignora
       }
     }
-    return { generados, total: objetivo.length };
+    return { generados, total: objetivo.length, omitidosSinAsistencia };
   }
 
   // ---- Días y horas del evento (EVENTO_HORAS) ----------------------------
