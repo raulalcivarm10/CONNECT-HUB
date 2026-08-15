@@ -213,7 +213,7 @@ function DiaPanel({
       setTitulo('');
       onHecho(t('rsv.created', { date: fecha }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }

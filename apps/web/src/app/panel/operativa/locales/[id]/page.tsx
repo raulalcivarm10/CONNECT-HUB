@@ -45,7 +45,7 @@ export default function LocalDetallePage() {
       await api.del(`/salones/${s.ID_SALON}`);
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -214,7 +214,7 @@ function SalonForm({
       else await api.post('/salones', { ...data, idLocal });
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
       setSending(false);
     }
   }
@@ -357,7 +357,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
       setPrecio('');
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -376,7 +376,7 @@ function SubsalonesPanel({ idSalon }: { idSalon: number }) {
       await api.del(`/subsalones/${id}`);
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     }
   }
 
@@ -473,7 +473,7 @@ function SubsalonItem({
       setEditando(false);
       onGuardado();
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Error');
+      onError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -495,7 +495,7 @@ function SubsalonItem({
         <input
           type="number"
           min={1}
-          placeholder="cap."
+          placeholder={t('sal.capAbbr')}
           value={capacidad}
           onChange={(e) => setCapacidad(e.target.value)}
           className="w-16 rounded border border-border-app bg-surface px-2 py-1 text-sm text-text outline-none focus:border-brand"
@@ -535,13 +535,13 @@ function SubsalonItem({
           tipoArchivo="CROQUIS"
           uploadPath={`/subsalones/${subsalon.ID_SUBSALON}/imagen`}
           deletePath={`/subsalones/${subsalon.ID_SUBSALON}/imagen`}
-          etiqueta="Img"
+          etiqueta={t('sal.img')}
           className="h-9 w-12"
         />
         <span className="truncate text-text">
           {subsalon.NOMBRE}
           <span className="ml-2 text-xs text-text-muted">
-            cap. {subsalon.CAPACIDAD_MAX ?? t('c.na')}
+            {t('sal.capAbbr')} {subsalon.CAPACIDAD_MAX ?? t('c.na')}
           </span>
           {subsalon.PRECIO != null && (
             <span className="ml-2 text-xs font-semibold text-success">
@@ -633,7 +633,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
       cancelarEdicion();
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -647,7 +647,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
       });
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     }
   }
 
@@ -664,7 +664,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
       await api.del(`/configuraciones/${id}`);
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     }
   }
 
@@ -748,7 +748,7 @@ function ConfiguracionesPanel({ idSalon }: { idSalon: number }) {
                 tipoArchivo="CROQUIS"
                 uploadPath={`/configuraciones/${c.ID_CONFIGURACION}/imagen`}
                 deletePath={`/configuraciones/${c.ID_CONFIGURACION}/imagen`}
-                etiqueta="Img"
+                etiqueta={t('sal.img')}
                 className="h-9 w-12"
               />
               <span className="min-w-0">

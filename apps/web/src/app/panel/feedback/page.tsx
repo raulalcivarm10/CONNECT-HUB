@@ -62,7 +62,7 @@ export default function FeedbackPage() {
       setOk(t('fb.sent'));
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -74,7 +74,7 @@ export default function FeedbackPage() {
       await api.patch(`/feedback/${f.ID_FEEDBACK}/estado`, { estado });
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     }
   }
 
@@ -250,7 +250,7 @@ function RespuestaEditor({
       setOk(t('fb.responseSaved'));
       await onSaved();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Error');
+      setErr(e instanceof Error ? e.message : t('c.error'));
     } finally {
       setSaving(false);
     }

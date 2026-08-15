@@ -117,7 +117,7 @@ export default function AprobacionesPage() {
       setOk(t('ev.aprVenueOk', { name: ev.TITULO }));
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -129,7 +129,7 @@ export default function AprobacionesPage() {
       setOk(t('ev.aprPublishOk', { name: ev.TITULO }));
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -142,7 +142,7 @@ export default function AprobacionesPage() {
       setRechazar(null);
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 

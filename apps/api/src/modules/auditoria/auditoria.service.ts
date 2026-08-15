@@ -67,35 +67,54 @@ export class AuditoriaService {
       usuario?: string;
       desde?: string;
       hasta?: string;
+      idInstitucion?: number;
       limit?: number;
       offset?: number;
     },
   ) {
-    if (!actor.esSuper) {
+    // La auditoría es POR CLIENTE: el SYSTEM de una institución ve SOLO los
+    // movimientos de la suya; el superadmin ve todas (con filtro opcional).
+    const esSystem = actor.roles.includes('SYSTEM');
+    if (!actor.esSuper && !esSystem) {
       throw new ForbiddenException(
-        'Only the superadmin can view the activity log',
+        'Only SYSTEM users can view the activity log',
       );
+    }
+    const instForzada = actor.esSuper
+      ? (filtros.idInstitucion ?? null)
+      : actor.idInstitucion;
+    if (!actor.esSuper && instForzada == null) {
+      throw new ForbiddenException('No institution associated to this user');
     }
     const limit = Math.min(Math.max(Number(filtros.limit) || 100, 1), 500);
     const offset = Math.max(Number(filtros.offset) || 0, 0);
-    return this.oracle.query(
-      `SELECT ID_LOG, TO_CHAR(FECHA, 'YYYY-MM-DD HH24:MI:SS') AS FECHA,
-              USUARIO, ID_INSTITUCION, ACCION, METODO, RUTA, STATUS, IP, DETALLE
-         FROM AUDITORIA_LOG
-        WHERE (:accion IS NULL OR ACCION = :accion)
+    const where = `(:accion IS NULL OR ACCION = :accion)
           AND (:usuario IS NULL OR UPPER(USUARIO) LIKE '%' || UPPER(:usuario) || '%')
           AND (:desde IS NULL OR FECHA >= TO_TIMESTAMP(:desde, 'YYYY-MM-DD'))
           AND (:hasta IS NULL OR FECHA < TO_TIMESTAMP(:hasta, 'YYYY-MM-DD') + 1)
-        ORDER BY FECHA DESC, ID_LOG DESC
-        OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY`,
-      {
-        accion: filtros.accion?.trim() || null,
-        usuario: filtros.usuario?.trim() || null,
-        desde: filtros.desde?.trim() || null,
-        hasta: filtros.hasta?.trim() || null,
-        off: offset,
-        lim: limit,
-      },
-    );
+          AND (:inst IS NULL OR ID_INSTITUCION = :inst)`;
+    const binds = {
+      accion: filtros.accion?.trim() || null,
+      usuario: filtros.usuario?.trim() || null,
+      desde: filtros.desde?.trim() || null,
+      hasta: filtros.hasta?.trim() || null,
+      inst: instForzada,
+    };
+    const [rows, totalRows] = await Promise.all([
+      this.oracle.query(
+        `SELECT ID_LOG, TO_CHAR(FECHA, 'YYYY-MM-DD HH24:MI:SS') AS FECHA,
+                USUARIO, ID_INSTITUCION, ACCION, METODO, RUTA, STATUS, IP, DETALLE
+           FROM AUDITORIA_LOG
+          WHERE ${where}
+          ORDER BY FECHA DESC, ID_LOG DESC
+          OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY`,
+        { ...binds, off: offset, lim: limit },
+      ),
+      this.oracle.query<{ N: number }>(
+        `SELECT COUNT(*) AS N FROM AUDITORIA_LOG WHERE ${where}`,
+        binds,
+      ),
+    ]);
+    return { items: rows, total: totalRows[0]?.N ?? 0, limit, offset };
   }
 }

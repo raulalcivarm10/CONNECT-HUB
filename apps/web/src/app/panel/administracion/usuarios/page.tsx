@@ -47,7 +47,7 @@ export default function UsuariosPage() {
       });
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -66,7 +66,7 @@ export default function UsuariosPage() {
       setOk(t('us.deleted', { user: u.COD_USUARIO }));
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -151,7 +151,7 @@ export default function UsuariosPage() {
                   {u.COD_USUARIO}
                   {u.ES_SUPER === 'S' && (
                     <span className="ml-2 rounded bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand">
-                      SUPER
+                      {t('us.superBadge')}
                     </span>
                   )}
                 </td>

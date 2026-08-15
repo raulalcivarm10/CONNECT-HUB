@@ -48,7 +48,7 @@ export default function InstitucionesPage() {
       await api.post(`/instituciones/${id}/${tipo}`);
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -60,7 +60,7 @@ export default function InstitucionesPage() {
       );
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -79,7 +79,7 @@ export default function InstitucionesPage() {
       setOk(t('in.deleted', { name: i.NOMBRE }));
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 

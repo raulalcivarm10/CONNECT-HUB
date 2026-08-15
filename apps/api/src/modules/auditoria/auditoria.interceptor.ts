@@ -16,8 +16,26 @@ const OMITIR = ['/health', '/auth/refresh', '/auth/me', '/auth/logout'];
 const MUTACIONES = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 function accionDe(metodo: string, ruta: string, fallo: boolean): string {
-  if (ruta.startsWith('/auth/login')) return fallo ? 'LOGIN_FAIL' : 'LOGIN_OK';
+  // logins del panel Y de la app móvil
+  if (
+    ruta.startsWith('/auth/login') ||
+    /^\/public\/auth\/(login|google|apple)$/.test(ruta)
+  ) {
+    return fallo ? 'LOGIN_FAIL' : 'LOGIN_OK';
+  }
   if (fallo) return 'ERROR';
+  // Acciones SEMÁNTICAS (máx 20 chars — VARCHAR2(20)): el flujo de aprobación
+  // y la gestión sensible dejan de salir como CREATE/UPDATE genéricos.
+  if (/^\/eventos\/\d+\/aprobar-salon$/.test(ruta)) return 'APROBAR_SALON';
+  if (/^\/eventos\/\d+\/aprobar-publicacion$/.test(ruta)) return 'PUBLICAR';
+  if (/^\/eventos\/\d+\/rechazar$/.test(ruta)) return 'RECHAZAR_EVENTO';
+  if (/^\/eventos\/\d+\/destacar$/.test(ruta)) return 'DESTACAR';
+  if (/^\/usuarios\/[^/]+\/roles$/.test(ruta)) return 'CAMBIO_ROLES';
+  if (/^\/usuarios\/[^/]+\/estado$/.test(ruta)) return 'USUARIO_ESTADO';
+  if (/^\/instituciones\/\d+\/aprobar$/.test(ruta)) return 'INST_APROBAR';
+  if (/^\/instituciones\/\d+\/rechazar$/.test(ruta)) return 'INST_RECHAZAR';
+  if (/^\/instituciones\/\d+\/suspender$/.test(ruta)) return 'INST_SUSPENDER';
+  if (/^\/instituciones\/\d+\/reactivar$/.test(ruta)) return 'INST_REACTIVAR';
   if (metodo === 'DELETE') return 'DELETE';
   if (metodo === 'PATCH' || metodo === 'PUT') return 'UPDATE';
   return 'CREATE';

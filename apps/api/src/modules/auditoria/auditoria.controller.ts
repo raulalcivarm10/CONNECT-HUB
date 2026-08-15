@@ -15,7 +15,7 @@ export class AuditoriaController {
   @Get()
   @ApiOperation({
     summary:
-      'Registro de actividad: logins, cambios y errores (solo superadmin)',
+      'Registro de actividad por institución (SYSTEM ve la suya; superadmin todas)',
   })
   listar(
     @CurrentUser() user: JwtUser,
@@ -23,6 +23,7 @@ export class AuditoriaController {
     @Query('usuario') usuario?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
+    @Query('idInstitucion') idInstitucion?: string,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ) {
@@ -31,6 +32,7 @@ export class AuditoriaController {
       usuario,
       desde,
       hasta,
+      idInstitucion: idInstitucion ? Number(idInstitucion) : undefined,
       limit,
       offset,
     });

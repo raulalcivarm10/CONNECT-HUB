@@ -140,7 +140,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
       await api.upload(`/eventos/${idEvento}/certificados/plantilla`, form);
       setMsg(t('ct.saved'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Error');
+      setMsg(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setBusy(false);
     }
@@ -190,7 +190,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
       setSel(new Set());
       await cargar();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Error');
+      setMsg(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setBusy(false);
     }
@@ -297,7 +297,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                     </label>
                     <input
                       type="color"
-                      aria-label={`color ${t(c.label)}`}
+                      aria-label={`${t('ct.color')} ${t(c.label)}`}
                       value={cfg.color}
                       onChange={(e) => setCampo(c.key, { color: e.target.value })}
                       className="h-7 w-10 rounded border border-border-app"
@@ -369,7 +369,7 @@ export function CertificadosEvento({ idEvento, tituloEvento }: { idEvento: numbe
                   </th>
                   <th className="p-2">{t('ct.name')}</th>
                   <th className="p-2">{t('ct.attended')}</th>
-                  <th className="p-2">Cert.</th>
+                  <th className="p-2">{t('ct.certCol')}</th>
                 </tr>
               </thead>
               <tbody>

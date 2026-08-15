@@ -421,7 +421,7 @@ export default function EventosPage() {
       setOk(t('ev.deleted', { name: ev.TITULO }));
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -433,7 +433,7 @@ export default function EventosPage() {
       });
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -445,7 +445,7 @@ export default function EventosPage() {
       setOk(t('ev.aprVenueOk', { name: ev.TITULO }));
       refrescarAbiertos(await cargar());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -457,7 +457,7 @@ export default function EventosPage() {
       setOk(t('ev.aprPublishOk', { name: ev.TITULO }));
       refrescarAbiertos(await cargar());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -470,7 +470,7 @@ export default function EventosPage() {
       setRechazar(null);
       refrescarAbiertos(await cargar());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -1227,7 +1227,7 @@ function EventoForm({
         onDone(t('ev.created', { name: data.titulo }));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
       setSending(false);
     }
   }
@@ -1824,7 +1824,7 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
       setMaxUsos('');
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -1841,7 +1841,7 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
       await api.del(`/eventos/${idEvento}/cupones/${c.ID_CUPON}`);
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     }
   }
 
@@ -2043,7 +2043,7 @@ function EventoDetalleForm({ idEvento }: { idEvento: number }) {
         setCertTipo(data.certTipo ?? '');
         setCertEntrega(data.certEntrega ?? '');
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Error'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('c.error')))
       .finally(() => {
         if (alive) setLoading(false);
       });
@@ -2081,7 +2081,7 @@ function EventoDetalleForm({ idEvento }: { idEvento: number }) {
       setLoaded(res ?? {});
       setOkMsg(t('det.saved'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -2326,7 +2326,7 @@ function ExpositorForm({
       }
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       setSending(false);
     }
@@ -2487,7 +2487,7 @@ function ExpositoresEvento({ idEvento }: { idEvento: number }) {
   }, [idEvento]);
 
   useEffect(() => {
-    cargar().catch((e) => setError(e instanceof Error ? e.message : 'Error'));
+    cargar().catch((e) => setError(e instanceof Error ? e.message : t('c.error')));
   }, [cargar]);
 
   async function eliminar(e: ExpositorRow) {
@@ -2502,7 +2502,7 @@ function ExpositoresEvento({ idEvento }: { idEvento: number }) {
       await api.del(`/eventos/${idEvento}/expositores/${e.idExpositor}`);
       await cargar();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     }
   }
 

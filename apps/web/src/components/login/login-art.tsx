@@ -35,10 +35,10 @@ export function LoginArt() {
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-white/70">
-              September
+              {t('art.month')}
             </span>
             <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              TODAY
+              {t('art.today')}
             </span>
           </div>
           <div className="grid grid-cols-7 gap-1.5">
@@ -56,7 +56,7 @@ export function LoginArt() {
             ))}
           </div>
           <div className="mt-3 rounded-lg bg-white/15 px-2 py-1.5 text-xs text-white">
-            📅 Innovation Summit · 09:00
+            📅 {t('art.summit')}
           </div>
         </div>
 
@@ -67,15 +67,15 @@ export function LoginArt() {
         >
           <div className="border-b border-dashed border-white/30 p-3">
             <div className="text-[10px] uppercase tracking-widest text-white/60">
-              Ticket
+              {t('art.ticket')}
             </div>
             <div className="text-sm font-bold text-white">
-              Electronic Concert
+              {t('art.concert')}
             </div>
           </div>
           <div className="flex items-center justify-between p-3">
             <div className="text-xs text-white/70">
-              Regent Hall
+              {t('art.hall')}
               <br />
               A + B
             </div>
@@ -103,7 +103,7 @@ export function LoginArt() {
             <div className="anim-scan absolute inset-x-1 top-1/2 h-0.5 rounded bg-fuchsia-500 shadow-[0_0_8px_2px_rgba(217,70,239,0.7)]" />
           </div>
           <div className="mt-2 text-center text-[10px] font-semibold uppercase tracking-widest text-white/70">
-            Check-in
+            {t('art.checkin')}
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export function LoginArt() {
             📍
           </span>
           <span className="text-xs font-semibold text-white">
-            Downtown Venue · Regent Hall
+            {t('art.venue')}
           </span>
         </div>
       </div>

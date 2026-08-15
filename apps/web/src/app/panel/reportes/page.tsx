@@ -162,7 +162,7 @@ export default function ReportesPage() {
       );
       setDetalle({ titulo: ev.TITULO, inscritos });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 

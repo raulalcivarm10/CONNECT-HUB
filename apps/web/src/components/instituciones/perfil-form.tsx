@@ -33,48 +33,48 @@ const PROVEEDORES: Record<
     campos: [
       ['appCodeTokenization', 'pf.appCodeTok'],
       ['appKeyTokenization', 'pf.appKeyTok'],
-      ['appCodeCheckout', 'App Code (checkout)'],
-      ['appKeyCheckout', 'App Key (checkout)'],
-      ['usuarioPasarela', 'Server App Code'],
-      ['contrasenaPasarela', 'Server App Key'],
+      ['appCodeCheckout', 'pf.appCodeCheckout'],
+      ['appKeyCheckout', 'pf.appKeyCheckout'],
+      ['usuarioPasarela', 'pf.serverAppCode'],
+      ['contrasenaPasarela', 'pf.serverAppKey'],
     ],
   },
   PAYPAL: {
     label: 'PayPal',
     campos: [
-      ['appCodeTokenization', 'Client ID'],
-      ['appKeyTokenization', 'Client Secret'],
-      ['tokenPasarela', 'Webhook ID'],
+      ['appCodeTokenization', 'pf.clientId'],
+      ['appKeyTokenization', 'pf.clientSecret'],
+      ['tokenPasarela', 'pf.webhookId'],
     ],
   },
   PAYPHONE: {
     label: 'PayPhone',
     campos: [
-      ['tokenPasarela', 'API Token'],
-      ['usuarioPasarela', 'Store ID'],
+      ['tokenPasarela', 'pf.apiToken'],
+      ['usuarioPasarela', 'pf.storeId'],
     ],
   },
   STRIPE: {
     label: 'Stripe',
     campos: [
-      ['appCodeTokenization', 'Publishable Key'],
-      ['appKeyTokenization', 'Secret Key'],
-      ['tokenPasarela', 'Webhook Signing Secret'],
+      ['appCodeTokenization', 'pf.publishableKey'],
+      ['appKeyTokenization', 'pf.secretKey'],
+      ['tokenPasarela', 'pf.webhookSecret'],
     ],
   },
   SQUARE: {
     label: 'Square',
     campos: [
-      ['appCodeTokenization', 'Application ID'],
-      ['appKeyTokenization', 'Access Token'],
-      ['usuarioPasarela', 'Location ID'],
+      ['appCodeTokenization', 'pf.applicationId'],
+      ['appKeyTokenization', 'pf.accessToken'],
+      ['usuarioPasarela', 'pf.locationId'],
     ],
   },
   AUTHNET: {
     label: 'Authorize.Net',
     campos: [
-      ['appCodeTokenization', 'API Login ID'],
-      ['appKeyTokenization', 'Transaction Key'],
+      ['appCodeTokenization', 'pf.apiLoginId'],
+      ['appKeyTokenization', 'pf.transactionKey'],
     ],
   },
 };
@@ -173,7 +173,7 @@ export function PerfilInstitucionForm({
         appKeyCheckout: '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
     } finally {
       // libera el botón siempre (en Mi institución el form no se desmonta)
       setSending(false);
@@ -198,7 +198,7 @@ export function PerfilInstitucionForm({
           className={`${inputCls} normal-case bg-surface-2 text-text-muted cursor-not-allowed`}
         />
         <p className="mt-1 text-xs text-text-muted">
-          Unique, system-generated — not editable
+          {t('pf.connCodeHint')}
         </p>
       </div>
       <div className="sm:col-span-2">

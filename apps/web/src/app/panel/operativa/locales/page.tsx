@@ -42,7 +42,7 @@ export default function LocalesPage() {
       await api.del(`/locales/${l.ID_LOCAL}`);
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
+      setError(e instanceof Error ? e.message : t('c.error'));
     }
   }
 
@@ -214,7 +214,7 @@ function LocalForm({
       }
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      setError(err instanceof Error ? err.message : t('c.error'));
       setSending(false);
     }
   }
