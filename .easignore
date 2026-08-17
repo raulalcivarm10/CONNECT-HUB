@@ -34,3 +34,14 @@ coverage/
 .expo/
 *.log
 .env.local
+
+# Respaldos comprimidos sueltos en el repo. Aquí vivía apps/mobile.rar (158 MB),
+# que era por sí solo TODO el peso del envío y hacía que la subida se cortara.
+# No está en git ni ignorado por git, así que EAS lo empaquetaba sin más.
+*.rar
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.bak
