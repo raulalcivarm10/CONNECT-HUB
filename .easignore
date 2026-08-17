@@ -1,0 +1,33 @@
+# Qué NO se sube a EAS Build.
+#
+# Sin este archivo EAS usa .gitignore, y el paquete de iOS salía en 162 MB, lo
+# que hacía que la subida se cortara a medias (ECONNRESET) en conexiones
+# domésticas. El build móvil solo necesita apps/mobile y packages/.
+#
+# OJO: .easignore REEMPLAZA a .gitignore para EAS, así que aquí hay que repetir
+# también lo que ya ignora git (node_modules y salidas de compilación).
+
+# Dependencias: EAS las instala en el servidor
+node_modules/
+
+# El resto del monorepo no interviene en el build móvil.
+# packages/ SÍ se sube: apps/mobile importa @connecthub/shared-types desde ahí
+# (apps/mobile/tsconfig.json -> ../../packages/shared-types/src/index.ts).
+apps/api/
+apps/web/
+docs/
+
+# Salidas de compilación y artefactos
+.next/
+dist/
+build/
+coverage/
+*.aab
+*.apk
+*.ipa
+*.tsbuildinfo
+
+# Temporales y locales
+.expo/
+*.log
+.env.local
