@@ -52,6 +52,37 @@ export interface EventoResumen {
   institucionNombre?: string | null;
 }
 
+/** Un ponente dentro de una charla. */
+export interface PonenteSesion {
+  nombre: string;
+  nacionalidad: string | null;
+}
+
+/** Una charla: un tema con uno o varios ponentes (mesa redonda = varios). */
+export interface CharlaSesion {
+  tema: string;
+  patrocinador: string | null;
+  ponentes: PonenteSesion[];
+}
+
+/**
+ * Un bloque de la agenda de un día: mismo horario y mismo salón.
+ * Con varias salas en paralelo hay VARIAS sesiones a la misma hora.
+ *
+ * `tipo` distinto de 'PONENCIA' (DESCANSO, PROTOCOLO: coffee break, almuerzo,
+ * inauguración…) ⇒ `charlas` viene VACÍO y el rótulo está en `titulo`.
+ * En las ponencias es al revés: `titulo` es null y el contenido va en `charlas`.
+ */
+export interface SesionAgenda {
+  horaInicio: string | null;
+  horaFin: string | null;
+  salon: string | null;
+  area: string | null;
+  tipo: string;
+  titulo: string | null;
+  charlas: CharlaSesion[];
+}
+
 /** Un día de la agenda de un evento. */
 export interface DiaEvento {
   id: number;
@@ -59,6 +90,13 @@ export interface DiaEvento {
   horaInicio: string | null;
   horaFin: string | null;
   orden: number | null;
+  /**
+   * Agenda detallada del día (sesiones en paralelo con sus charlas). Opcional
+   * a propósito: la API siempre lo manda (array vacío si el evento no tiene
+   * agenda cargada), pero las versiones de la app anteriores a este campo —y
+   * cualquier respuesta cacheada de antes— no lo traen.
+   */
+  sesiones?: SesionAgenda[];
 }
 
 /** Expositor / ponente (datos públicos, sin email). */

@@ -21,6 +21,7 @@ import { useMisEntradas, inscribirEvento } from '@/api/entradas';
 import { ApiError, errorCode } from '@/api/client';
 import { ImageViewer } from '@/design-system/image-viewer';
 import { SaveButton } from '@/features/eventos/cards';
+import { AgendaDiaSheet, sesionesDeDia } from '@/features/eventos/agenda-dia';
 import { resumenDias, shortDate, weekday, dayNum } from '@/lib/fecha';
 
 const HERO_H = 330;
@@ -49,20 +50,35 @@ function Bullets({ items }: { items: string[] }) {
   );
 }
 
-function DayRow({ dia, index, lang }: { dia: DiaEvento; index: number; lang: Lang }) {
+function DayRow({
+  dia,
+  index,
+  lang,
+  onPress,
+}: {
+  dia: DiaEvento;
+  index: number;
+  lang: Lang;
+  onPress: () => void;
+}) {
   const t = useTheme();
   const { t: tr } = useI18n();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.md,
-        backgroundColor: t.colors.surfaceAlt,
-        borderRadius: radius.md,
-        padding: spacing.md,
-      }}
-    >
+  // Sin sesiones (API sin desplegar o día sin agenda cargada) el día NO es
+  // tocable y se pinta exactamente igual que antes: nada de afordancia falsa.
+  const nSesiones = sesionesDeDia(dia).length;
+  const tocable = nSesiones > 0;
+
+  const base = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.md,
+    backgroundColor: t.colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  };
+
+  const contenido = (
+    <>
       <View
         style={{
           width: 52,
@@ -86,9 +102,26 @@ function DayRow({ dia, index, lang }: { dia: DiaEvento; index: number; lang: Lan
         </AppText>
         <AppText muted variant="caption">
           {dia.horaInicio && dia.horaFin ? `${dia.horaInicio} – ${dia.horaFin}` : shortDate(dia.fecha, lang)}
+          {tocable
+            ? ` · ${nSesiones} ${nSesiones === 1 ? tr('agendaDia.session') : tr('agendaDia.sessions')}`
+            : ''}
         </AppText>
       </View>
-    </View>
+      {tocable ? <Ionicons name="chevron-forward" size={18} color={t.colors.textMuted} /> : null}
+    </>
+  );
+
+  if (!tocable) return <View style={base}>{contenido}</View>;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint={tr('agendaDia.viewAgenda')}
+      style={({ pressed }) => [base, { opacity: pressed ? 0.85 : 1 }]}
+    >
+      {contenido}
+    </Pressable>
   );
 }
 
@@ -288,6 +321,7 @@ export default function EventoDetalle() {
   const [registering, setRegistering] = useState(false);
   const [selectedExp, setSelectedExp] = useState<Expositor | null>(null);
   const [heroZoom, setHeroZoom] = useState<string | null>(null);
+  const [diaAgenda, setDiaAgenda] = useState<number | null>(null);
 
   async function handleInscribir() {
     if (miEntrada) {
@@ -510,7 +544,7 @@ export default function EventoDetalle() {
             <Section title={tr('event.agenda')}>
               <View style={{ gap: spacing.sm }}>
                 {e.dias.map((d, i) => (
-                  <DayRow key={d.id} dia={d} index={i} lang={lang} />
+                  <DayRow key={d.id} dia={d} index={i} lang={lang} onPress={() => setDiaAgenda(i)} />
                 ))}
               </View>
             </Section>
@@ -591,6 +625,12 @@ export default function EventoDetalle() {
       </View>
 
       <ExpositorSheet exp={selectedExp} onClose={() => setSelectedExp(null)} />
+      <AgendaDiaSheet
+        dia={diaAgenda === null ? null : (e.dias[diaAgenda] ?? null)}
+        indice={diaAgenda ?? 0}
+        lang={lang}
+        onClose={() => setDiaAgenda(null)}
+      />
       <ImageViewer uri={heroZoom} onClose={() => setHeroZoom(null)} />
     </View>
   );

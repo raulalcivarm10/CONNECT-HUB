@@ -82,6 +82,15 @@ const en = {
   'event.registerFree': 'Register — free',
   'event.registerPaid': 'Register',
 
+  'agendaDia.session': 'session',
+  'agendaDia.sessions': 'sessions',
+  'agendaDia.parallel': 'Parallel tracks — pick one',
+  'agendaDia.break': 'Break',
+  'agendaDia.empty': 'No agenda for this day yet',
+  'agendaDia.until': 'until',
+  'agendaDia.room': 'Room',
+  'agendaDia.viewAgenda': 'View the agenda for this day',
+
   'tabs.tickets': 'Tickets',
   'entradas.title': 'My Tickets',
   'entradas.empty': 'No tickets yet',
@@ -368,6 +377,15 @@ const es: Dict = {
   'event.registerFree': 'Inscribirme — gratis',
   'event.registerPaid': 'Inscribirme',
 
+  'agendaDia.session': 'sesión',
+  'agendaDia.sessions': 'sesiones',
+  'agendaDia.parallel': 'Sesiones en paralelo — elige una',
+  'agendaDia.break': 'Descanso',
+  'agendaDia.empty': 'Aún no hay agenda para este día',
+  'agendaDia.until': 'hasta',
+  'agendaDia.room': 'Sala',
+  'agendaDia.viewAgenda': 'Ver la agenda de este día',
+
   'tabs.tickets': 'Entradas',
   'entradas.title': 'Mis Entradas',
   'entradas.empty': 'Aún no tienes entradas',
@@ -651,6 +669,15 @@ const fr: Dict = {
   'event.registerFree': 'S’inscrire — gratuit',
   'event.registerPaid': 'S’inscrire',
 
+  'agendaDia.session': 'séance',
+  'agendaDia.sessions': 'séances',
+  'agendaDia.parallel': 'Séances en parallèle — choisissez-en une',
+  'agendaDia.break': 'Pause',
+  'agendaDia.empty': 'Pas encore de programme pour ce jour',
+  'agendaDia.until': 'jusqu’à',
+  'agendaDia.room': 'Salle',
+  'agendaDia.viewAgenda': 'Voir le programme de ce jour',
+
   'tabs.tickets': 'Billets',
   'entradas.title': 'Mes billets',
   'entradas.empty': 'Aucun billet',
@@ -933,6 +960,15 @@ const pt: Dict = {
   'event.parentFirst': 'Inscreva-se primeiro no evento principal',
   'event.registerFree': 'Inscrever-se — grátis',
   'event.registerPaid': 'Inscrever-se',
+
+  'agendaDia.session': 'sessão',
+  'agendaDia.sessions': 'sessões',
+  'agendaDia.parallel': 'Sessões em paralelo — escolha uma',
+  'agendaDia.break': 'Intervalo',
+  'agendaDia.empty': 'Ainda não há programação para este dia',
+  'agendaDia.until': 'até',
+  'agendaDia.room': 'Sala',
+  'agendaDia.viewAgenda': 'Ver a programação deste dia',
 
   'tabs.tickets': 'Ingressos',
   'entradas.title': 'Meus ingressos',

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { OracleService } from '../../../database/oracle.service';
 
 // Las imágenes se sirven vía NUESTRO proxy con caché Redis (/archivos/proxy),
@@ -39,6 +39,202 @@ function toDias(dias: unknown, fallback: string): string[] {
   return dias ? String(dias).split(',') : [fallback];
 }
 
+/* ---------- Agenda detallada por día (EVENTO_AGENDA) --------------------- */
+
+/**
+ * CONTRATO de `dias[].sesiones` (campo NUEVO y ADITIVO: la app ya publicada en
+ * las tiendas lo ignora; ningún campo existente de `dias[]` ni del detalle
+ * cambia de nombre, tipo ni significado).
+ *
+ *   sesiones: [{
+ *     horaInicio: string | null,     // 'HH:MM'
+ *     horaFin:    string | null,
+ *     salon:      string | null,     // texto libre (sala del centro de convenciones)
+ *     area:       string | null,     // primera AREA no vacía del bloque
+ *     tipo:       string,            // 'PONENCIA' | 'DESCANSO' | 'PROTOCOLO' | …
+ *     titulo:     string | null,     // SOLO si tipo != 'PONENCIA' (ver abajo)
+ *     charlas: [{
+ *       tema: string,
+ *       patrocinador: string | null,
+ *       ponentes: [{ nombre: string, nacionalidad: string | null }]
+ *     }]
+ *   }]
+ *
+ * Decisión documentada (regla 3 del pedido): los bloques que NO son ponencia
+ * (coffee break, almuerzo, inauguración…) van SIEMPRE con `charlas: []` y su
+ * rótulo en `titulo` (viene de CONFERENCISTA, que es donde el Excel del cliente
+ * escribe "Coffee break"; si estuviera vacío se usa TEMA). En las ponencias
+ * `titulo` es null y el contenido está en `charlas`. Es consistente: el campo
+ * `titulo` existe en todas las sesiones.
+ *
+ * Los textos (tema, ponente, salón…) se devuelven TAL CUAL están en la BD: el
+ * panel manda todo en MAYÚSCULAS (su cliente HTTP aplica aMayusculas), así que
+ * el cliente que los muestre decide la capitalización. El API no la toca.
+ */
+interface PonenteSesion {
+  nombre: string;
+  nacionalidad: string | null;
+}
+interface CharlaSesion {
+  tema: string;
+  patrocinador: string | null;
+  ponentes: PonenteSesion[];
+}
+interface SesionAgenda {
+  horaInicio: string | null;
+  horaFin: string | null;
+  salon: string | null;
+  area: string | null;
+  tipo: string;
+  titulo: string | null;
+  charlas: CharlaSesion[];
+}
+
+/** Fila plana de EVENTO_AGENDA (una por línea del Excel del cliente). */
+interface AgendaFila {
+  DIA_ORDEN: number;
+  HORA_INICIO: string | null;
+  HORA_FIN: string | null;
+  SALON: string | null;
+  AREA: string | null;
+  TEMA: string | null;
+  CONFERENCISTA: string | null;
+  NACIONALIDAD: string | null;
+  TIPO: string | null;
+  PATROCINADOR: string | null;
+}
+
+/** Texto util: recorta y convierte '' en null. */
+function txt(v: unknown): string | null {
+  const s = v == null ? '' : String(v).trim();
+  return s === '' ? null : s;
+}
+
+/**
+ * 'HH:MM' → minutos. Lo no parseable (o vacío) va al final del día. Se usa un
+ * finito grande, no Infinity: Infinity - Infinity da NaN y rompería el sort.
+ */
+function minutosHora(h: string | null): number {
+  const m = /^(\d{1,2}):(\d{2})/.exec(h ?? '');
+  return m ? Number(m[1]) * 60 + Number(m[2]) : Number.MAX_SAFE_INTEGER;
+}
+
+/** Estructura de trabajo: la sesión + índices para agrupar sin O(n²). */
+interface SesionEnCurso extends SesionAgenda {
+  charlasPorTema: Map<string, CharlaSesion>;
+  ultimaCharla: CharlaSesion | null;
+}
+
+/**
+ * Agrupa las filas planas de UN día en sesiones. Se hace en Node (no en SQL)
+ * porque depende del orden original del Excel:
+ *
+ *  1. arrastre: una fila SIN horario Y SIN salón es "otro ponente/tema del
+ *     bloque anterior" (así viene el Excel del cliente); hereda hora y salón.
+ *     Si el panel ya rellenó esos huecos, el arrastre simplemente no se activa.
+ *  2. (HORA_INICIO, HORA_FIN, SALON) → una sesión.
+ *  3. dentro de la sesión, TEMA → una charla (varias filas con el mismo tema =
+ *     una charla con varios panelistas; temas distintos = varias charlas del
+ *     mismo bloque, que es el caso de las salas en paralelo).
+ *
+ * `filas` debe llegar en el orden original (ORDEN). El resultado sale ordenado
+ * por hora y, a igual hora, por salón: el Excel del cliente NO viene ordenado.
+ */
+function agruparSesiones(filas: AgendaFila[]): SesionAgenda[] {
+  const sesiones = new Map<string, SesionEnCurso>();
+  let ultHoraInicio: string | null = null;
+  let ultHoraFin: string | null = null;
+  let ultSalon: string | null = null;
+
+  for (const f of filas) {
+    const horaPropia = txt(f.HORA_INICIO);
+    const salonPropio = txt(f.SALON);
+    // fila de continuación = sin hora Y sin salón → hereda el bloque anterior
+    const continua = horaPropia === null && salonPropio === null;
+    // anotados a mano: sin la anotación, TS ve la ida y vuelta con las
+    // variables de arrastre como una inferencia circular (TS7022).
+    const horaInicio: string | null = continua ? ultHoraInicio : horaPropia;
+    const horaFin: string | null = continua ? ultHoraFin : txt(f.HORA_FIN);
+    const salon: string | null = continua ? ultSalon : salonPropio;
+    if (!continua) {
+      ultHoraInicio = horaInicio;
+      ultHoraFin = horaFin;
+      ultSalon = salon;
+    }
+
+    const tipo = (txt(f.TIPO) ?? 'PONENCIA').toUpperCase();
+    const tema = txt(f.TEMA);
+    const conferencista = txt(f.CONFERENCISTA);
+    // Línea sin nada que mostrar (ni tema ni ponente/rótulo) → se ignora, para
+    // no publicar sesiones fantasma. Se descarta DESPUÉS de actualizar el
+    // arrastre, así las filas de continuación que vengan detrás siguen
+    // heredando bien la hora y el salón.
+    if (tema === null && conferencista === null) continue;
+
+    const clave = `${horaInicio ?? ''}|${horaFin ?? ''}|${(salon ?? '').toUpperCase()}`;
+    let ses = sesiones.get(clave);
+    if (!ses) {
+      ses = {
+        horaInicio,
+        horaFin,
+        salon,
+        area: txt(f.AREA),
+        tipo,
+        titulo: null,
+        charlas: [],
+        charlasPorTema: new Map(),
+        ultimaCharla: null,
+      };
+      sesiones.set(clave, ses);
+    }
+    // el área/tipo de la sesión = el primero no vacío de sus filas
+    ses.area ??= txt(f.AREA);
+
+    if (tipo !== 'PONENCIA') {
+      // descanso/protocolo: sin charlas, el rótulo va en `titulo`. El TIPO de la
+      // sesión lo fija su PRIMERA fila (al crearla), no se pisa después: así una
+      // sesión nunca queda con tipo de descanso y charlas dentro, ni al revés.
+      ses.titulo ??= conferencista ?? tema;
+      continue;
+    }
+
+    const claveTema = (tema ?? '').toUpperCase();
+    let charla = tema === null ? ses.ultimaCharla : ses.charlasPorTema.get(claveTema);
+    if (!charla) {
+      charla = { tema: tema ?? '', patrocinador: txt(f.PATROCINADOR), ponentes: [] };
+      ses.charlas.push(charla);
+      ses.charlasPorTema.set(claveTema, charla);
+    }
+    charla.patrocinador ??= txt(f.PATROCINADOR);
+    ses.ultimaCharla = charla;
+    if (
+      conferencista !== null &&
+      !charla.ponentes.some(
+        (p) => p.nombre.toUpperCase() === conferencista.toUpperCase(),
+      )
+    ) {
+      charla.ponentes.push({ nombre: conferencista, nacionalidad: txt(f.NACIONALIDAD) });
+    }
+  }
+
+  return [...sesiones.values()]
+    .sort(
+      (a, b) =>
+        minutosHora(a.horaInicio) - minutosHora(b.horaInicio) ||
+        (a.salon ?? '').localeCompare(b.salon ?? ''),
+    )
+    .map(({ charlasPorTema: _c, ultimaCharla: _u, ...ses }): SesionAgenda => {
+      const esPonencia = ses.tipo === 'PONENCIA';
+      // invariante del contrato: ponencia → charlas y titulo null;
+      // descanso/protocolo → titulo con el rótulo y charlas vacío.
+      return {
+        ...ses,
+        titulo: esPonencia ? null : (ses.titulo ?? ses.charlas[0]?.tema ?? null),
+        charlas: esPonencia ? ses.charlas : [],
+      };
+    });
+}
+
 interface EventoBaseRow {
   ID_EVENTO: number;
   ID_INSTITUCION: number | null;
@@ -54,6 +250,8 @@ interface EventoBaseRow {
  */
 @Injectable()
 export class CatalogoService {
+  private readonly logger = new Logger(CatalogoService.name);
+
   constructor(private readonly oracle: OracleService) {}
 
   /** CODIGO_CONEXION → institución (aprobada). Sin datos sensibles. */
@@ -374,20 +572,69 @@ export class CatalogoService {
     return ev;
   }
 
-  /** Días (agenda) de un evento. */
+  /**
+   * Agenda detallada del evento agrupada por DIA_ORDEN (1 = primer día).
+   * Devuelve un Map vacío si el evento no tiene agenda cargada.
+   *
+   * La lectura NO puede tumbar el detalle del evento: la app móvil YA está
+   * publicada y vive de este endpoint. Si algo falla leyendo EVENTO_AGENDA
+   * (tabla nueva) se registra y se devuelve el detalle sin `sesiones`.
+   */
+  private async sesionesPorDia(id: number): Promise<Map<number, SesionAgenda[]>> {
+    const porDia = new Map<number, SesionAgenda[]>();
+    let filas: AgendaFila[] = [];
+    try {
+      filas = await this.oracle.query<AgendaFila>(
+        `SELECT DIA_ORDEN, HORA_INICIO, HORA_FIN, SALON, AREA, TEMA,
+                CONFERENCISTA, NACIONALIDAD, TIPO, PATROCINADOR
+           FROM EVENTO_AGENDA
+          WHERE ID_EVENTO = :id
+          ORDER BY DIA_ORDEN, NVL(ORDEN, 999999), ID_AGENDA`,
+        { id },
+      );
+    } catch (err) {
+      this.logger.error(`No se pudo leer EVENTO_AGENDA del evento ${id}: ${String(err)}`);
+      return porDia;
+    }
+    // agrupa por día CONSERVANDO el orden original (el ORDER BY ya lo trae)
+    const filasPorDia = new Map<number, AgendaFila[]>();
+    for (const f of filas) {
+      const dia = Number(f.DIA_ORDEN);
+      if (!Number.isFinite(dia)) continue;
+      const acc = filasPorDia.get(dia);
+      if (acc) acc.push(f);
+      else filasPorDia.set(dia, [f]);
+    }
+    for (const [dia, delDia] of filasPorDia) {
+      porDia.set(dia, agruparSesiones(delDia));
+    }
+    return porDia;
+  }
+
+  /**
+   * Días (agenda) de un evento. `sesiones` es un campo NUEVO y ADITIVO (ver el
+   * contrato arriba): los campos id/fecha/horaInicio/horaFin/orden que ya
+   * consume la app publicada NO cambian.
+   */
   private async diasEvento(id: number) {
-    const rows = await this.oracle.query<Record<string, unknown>>(
-      `SELECT ID_HORA, TO_CHAR(FECHA, 'YYYY-MM-DD') AS FECHA,
-              HORA_INICIO, HORA_FIN, ORDEN
-         FROM EVENTO_HORAS WHERE ID_EVENTO = :id ORDER BY FECHA, HORA_INICIO`,
-      { id },
-    );
-    return rows.map((r) => ({
+    const [rows, sesiones] = await Promise.all([
+      this.oracle.query<Record<string, unknown>>(
+        `SELECT ID_HORA, TO_CHAR(FECHA, 'YYYY-MM-DD') AS FECHA,
+                HORA_INICIO, HORA_FIN, ORDEN
+           FROM EVENTO_HORAS WHERE ID_EVENTO = :id ORDER BY FECHA, HORA_INICIO`,
+        { id },
+      ),
+      this.sesionesPorDia(id),
+    ]);
+    // DIA_ORDEN = POSICIÓN del día (1 = primero), NO la fecha: el Excel del
+    // cliente traía fechas corridas y se decidió mapear siempre por orden.
+    return rows.map((r, i) => ({
       id: Number(r.ID_HORA),
       fecha: r.FECHA as string,
       horaInicio: (r.HORA_INICIO as string) ?? null,
       horaFin: (r.HORA_FIN as string) ?? null,
       orden: r.ORDEN == null ? null : Number(r.ORDEN),
+      sesiones: sesiones.get(i + 1) ?? [],
     }));
   }
 

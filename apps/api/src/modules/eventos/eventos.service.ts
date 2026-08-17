@@ -485,8 +485,13 @@ export class EventosService {
     });
   }
 
-  /** Carga el evento y verifica que pertenezca a la institución del actor */
-  private async eventoEnAmbito(actor: JwtUser, idEvento: number) {
+  /**
+   * Carga el evento y verifica que pertenezca a la institución del actor.
+   * Público (no `private`) para que otros servicios del MISMO módulo —hoy
+   * AgendaService— usen exactamente el mismo control de acceso en vez de
+   * reimplementarlo.
+   */
+  async eventoEnAmbito(actor: JwtUser, idEvento: number) {
     const rows = await this.oracle.query<{
       ID_EVENTO: number;
       ID_LOCAL: number | null;

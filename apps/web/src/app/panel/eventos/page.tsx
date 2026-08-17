@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { api } from '@/lib/api/client';
+import { AgendaEvento } from './agenda-evento';
 import { CertificadosEvento } from './certificados-evento';
 import {
   BadgeAprobacion,
@@ -1239,6 +1240,7 @@ function EventoForm({
   const [cuponesOpen, setCuponesOpen] = useState(false);
   const [detalleOpen, setDetalleOpen] = useState(false);
   const [expositoresOpen, setExpositoresOpen] = useState(false);
+  const [agendaOpen, setAgendaOpen] = useState(false);
   const [certGenOpen, setCertGenOpen] = useState(false);
 
   // clave estable de fechas: solo cambia al añadir/quitar/cambiar una fecha
@@ -1927,6 +1929,22 @@ function EventoForm({
             {expositoresOpen && (
               <div className="mt-2">
                 <ExpositoresEvento idEvento={evento.ID_EVENTO} />
+              </div>
+            )}
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3">
+            <button
+              type="button"
+              onClick={() => setAgendaOpen((v) => !v)}
+              className="flex w-full items-center gap-2 rounded-lg border border-border-app bg-surface-2 px-3 py-2 text-left text-sm font-semibold text-text-2 transition hover:bg-surface"
+            >
+              <span className="text-brand">{agendaOpen ? '▾' : '▸'}</span>
+              {t('ag.section')}
+            </button>
+            {agendaOpen && (
+              <div className="mt-2">
+                <AgendaEvento idEvento={evento.ID_EVENTO} />
               </div>
             )}
           </div>
