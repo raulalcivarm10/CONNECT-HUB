@@ -93,13 +93,105 @@ function porDia<T extends { diaOrden: number }>(filas: T[]): Array<[number, T[]]
   return [...m.entries()].sort((a, b) => a[0] - b[0]);
 }
 
-/**
- * Los textos se guardan en MAYÚSCULAS (política del cliente API). Al MOSTRARLOS
- * se bajan a minúsculas y es CSS quien repone las iniciales (`capitalize` /
- * `first-letter:uppercase`), igual que se hace con los correos en el panel, para
- * que no se lean gritados.
+/* ── capitalización conservadora (copia del criterio de la app móvil) ──
+ * La agenda la escribe el CLIENTE en su Excel y se guarda TAL CUAL
+ * (`api.putTalCual`), así que su capitalización original es información: no se
+ * toca. Solo se recapitaliza lo que llega TODO EN MAYÚSCULAS.
+ *
+ * Ojo: esto NO puede hacerse con CSS. `capitalize` aplicado a un texto ya
+ * redactado ("Cleft care in Bauru") lo destrozaría ("Cleft Care In Bauru"), y
+ * `text-transform` no distingue un texto gritado de uno bien escrito. Va en JS.
+ *
+ * Debe dar el MISMO resultado que `tituloCase()` de
+ * apps/mobile/src/features/eventos/agenda-dia.tsx: el asistente ve la agenda en
+ * la app y el organizador la ve aquí, y no pueden verse distintas.
  */
-const suave = (s: string | null | undefined) => (s ?? '').toLowerCase();
+
+const RE_MINUSCULA = /[a-zà-öø-ÿ]/;
+const RE_LETRA = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+const RE_BORDES = /^[^A-Za-zÀ-ÖØ-öø-ÿ0-9]+|[^A-Za-zÀ-ÖØ-öø-ÿ0-9]+$/g;
+const RE_VOCAL = /[AEIOUÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÃÕ]/;
+
+/** Tratamientos: se escriben con formato propio, no en mayúsculas. */
+const HONORIFICOS: Record<string, string> = {
+  DR: 'Dr', DRA: 'Dra', PROF: 'Prof', PROFA: 'Profa', MTRO: 'Mtro', MTRA: 'Mtra',
+  LIC: 'Lic', LICDA: 'Licda', ING: 'Ing', MG: 'Mg', MGS: 'Mgs', ESP: 'Esp',
+  MSC: 'MSc', PHD: 'PhD', SR: 'Sr', SRA: 'Sra', OD: 'Od',
+};
+
+/** Siglas con vocales que se destruirían al capitalizar (ATM -> "Atm"). */
+const SIGLAS = new Set([
+  'ATM', 'CAD', 'CAM', 'TAC', 'TAO', 'PRP', 'PRF', 'MTA', 'ADA', 'FDI', 'AAO',
+  'ITI', 'ONG', 'UEES', 'USA', 'UK', 'LED', 'ISO', 'PDF', 'IA', 'AI', 'ORL',
+  'CBCT', 'OPG', 'RX', 'TMD', 'TMJ', 'ATP', 'UV', 'CO2', 'AM', 'PM',
+]);
+
+/** Numerales romanos frecuentes en títulos de congreso (XV Congreso…). */
+const ROMANOS = new Set([
+  'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X',
+  'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX',
+]);
+
+/** Conectores que van en minúscula salvo al inicio. */
+const CONECTORES = new Set([
+  'de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'o', 'u', 'en', 'a', 'al',
+  'con', 'por', 'para', 'un', 'una', 'sin', 'no', 'da', 'das', 'do', 'dos',
+  'the', 'of', 'and', 'in', 'for', 'to', 'on', 'at', 'with',
+  'le', 'les', 'du', 'des', 'et', 'aux', 'sur',
+]);
+
+function capitalizar(tok: string): string {
+  return tok
+    .toLowerCase()
+    .replace(/(^|[-'’.])([a-zà-öø-ÿ])/g, (_m, pre: string, c: string) => pre + c.toUpperCase());
+}
+
+function palabra(tok: string, primera: boolean, ultima: boolean): string {
+  const nucleo = tok.replace(RE_BORDES, '');
+  if (!nucleo || !RE_LETRA.test(nucleo)) return tok;
+  // códigos y siglas compuestas: COVID-19, 3D, CAD/CAM, I+D
+  if (/[0-9]/.test(nucleo) || /[/+&]/.test(tok)) return tok;
+  const clave = nucleo.toUpperCase();
+  const hon = HONORIFICOS[clave];
+  if (hon) return tok.replace(nucleo, hon);
+  if (SIGLAS.has(clave) || ROMANOS.has(clave)) return tok;
+  // siglas sin vocales: TMJ, PRF, CBCT
+  if (nucleo.length >= 2 && nucleo.length <= 5 && !RE_VOCAL.test(clave)) return tok;
+  // Una letra suelta no es el conector "a"/"y": o es la inicial de un nombre
+  // ("LUIS A. RAMÍREZ") o identifica algo y va al final ("SALÓN A", "AULA B").
+  // En medio de una frase sí puede serlo ("ATENCIÓN A PACIENTES"), así que solo
+  // se rescata cuando lleva punto o cierra el texto.
+  const esIdentificador = nucleo.length === 1 && (tok.includes('.') || ultima);
+  if (!primera && !esIdentificador && CONECTORES.has(clave.toLowerCase())) {
+    return tok.toLowerCase();
+  }
+  return capitalizar(tok);
+}
+
+/**
+ * Texto de la agenda listo para pintar. Si YA trae minúsculas se devuelve tal
+ * cual: significa que el cliente lo escribió con su formato y es el bueno.
+ * Solo lo que viene gritado se recapitaliza, sin destrozar siglas ni nombres.
+ */
+function tituloCase(texto?: string | null): string {
+  const s = (texto ?? '').trim();
+  if (!s) return '';
+  if (RE_MINUSCULA.test(s)) return s;
+  let primera = true;
+  const trozos = s.split(/(\s+)/);
+  const ultimoTexto = trozos.reduce(
+    (acc, tok, i) => (tok && !/^\s+$/.test(tok) ? i : acc),
+    -1,
+  );
+  return trozos
+    .map((tok, i) => {
+      if (!tok || /^\s+$/.test(tok)) return tok;
+      const out = palabra(tok, primera, i === ultimoTexto);
+      primera = false;
+      return out;
+    })
+    .join('');
+}
 
 /** Paleta fija (tonos medios que se leen bien en claro y en oscuro). */
 const PALETA = [
@@ -353,7 +445,11 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
     setBusy(true);
     setMsg(null);
     try {
-      await api.put(`/eventos/${idEvento}/agenda`, {
+      // `putTalCual` y no `put`: la agenda la redacta el cliente en su Excel y
+      // hay que guardarla EXACTAMENTE como la escribió. Con la política general
+      // de mayúsculas se perderían las siglas (CAD/CAM, IADR, LPF) y luego
+      // habría que adivinarlas al mostrarla.
+      await api.putTalCual(`/eventos/${idEvento}/agenda`, {
         items: limpias.map((f) => ({
           diaOrden: f.diaOrden,
           horaInicio: f.horaInicio,
@@ -687,12 +783,12 @@ function PanelPrevia({
                     {s.horaFin ? `–${s.horaFin}` : ''}
                   </span>
                   {s.esDescanso ? (
-                    <span className="capitalize text-text-muted">
-                      {suave(s.filas[0]?.tema)}
+                    <span className="text-text-muted">
+                      {tituloCase(s.filas[0]?.tema)}
                     </span>
                   ) : (
                     <>
-                      <span className="capitalize text-text">{suave(s.salon) || '—'}</span>
+                      <span className="text-text">{tituloCase(s.salon) || '—'}</span>
                       {s.area && (
                         <EtiquetaArea area={s.area} />
                       )}
@@ -733,8 +829,17 @@ function PanelPrevia({
 
 /* ───────────────────────── edición manual ───────────────────────── */
 
+/**
+ * `normal-case` es OBLIGATORIO aquí. globals.css pinta todos los inputs del
+ * panel en MAYÚSCULAS porque el cliente API los subía a mayúsculas al guardar;
+ * la agenda ya no pasa por ahí (`api.putTalCual`), así que sin esta clase el
+ * input MENTIRÍA: mostraría "CLEFT CARE IN BAURU" mientras guarda "Cleft care
+ * in Bauru", y quien reescribiera la celda perdería la capitalización del
+ * cliente sin enterarse. globals.css contempla justo este caso ("campos con
+ * case sensible usan la clase `normal-case`").
+ */
 const INP =
-  'w-full rounded-md border border-border-app bg-surface px-2 py-1 text-sm text-text outline-none focus:border-brand';
+  'w-full rounded-md border border-border-app bg-surface px-2 py-1 text-sm text-text normal-case outline-none focus:border-brand';
 
 function TablaDia({
   dia,
@@ -946,10 +1051,10 @@ function EtiquetaArea({ area }: { area: string }) {
   const c = colorArea(area.toUpperCase());
   return (
     <span
-      className="rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize"
+      className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
       style={{ color: c, backgroundColor: `${c}1f`, borderColor: `${c}55` }}
     >
-      {suave(area)}
+      {tituloCase(area)}
     </span>
   );
 }
@@ -1002,8 +1107,8 @@ function VistaAsistente({ dias }: { dias: Array<[number, FilaLocal[]]> }) {
                         {hhmm(d.horaInicio)}
                       </span>
                       <span className="h-px flex-1 bg-border-app" />
-                      <span className="shrink-0 text-[11px] capitalize text-text-muted">
-                        {suave(d.filas[0]?.tema)}
+                      <span className="shrink-0 text-[11px] text-text-muted">
+                        {tituloCase(d.filas[0]?.tema)}
                       </span>
                       <span className="h-px flex-1 bg-border-app" />
                     </div>
@@ -1048,8 +1153,8 @@ function TarjetaSesion({ sesion }: { sesion: SesionAgenda }) {
     <div className="min-w-0 rounded-lg border border-border-app bg-surface p-2.5">
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
         {sesion.salon && (
-          <span className="truncate text-xs font-semibold capitalize text-text">
-            {suave(sesion.salon)}
+          <span className="truncate text-xs font-semibold text-text">
+            {tituloCase(sesion.salon)}
           </span>
         )}
         {sesion.area && <EtiquetaArea area={sesion.area} />}
@@ -1057,14 +1162,14 @@ function TarjetaSesion({ sesion }: { sesion: SesionAgenda }) {
       <ul className="flex flex-col gap-1.5">
         {sesion.filas.map((f, i) => (
           <li key={i} className="border-l-2 border-border-app pl-2">
-            <div className="text-sm leading-snug text-text first-letter:uppercase">
-              {suave(f.tema)}
+            <div className="text-sm leading-snug text-text">
+              {tituloCase(f.tema)}
             </div>
             {(f.conferencista || f.nacionalidad) && (
-              <div className="text-[11px] capitalize text-text-muted">
-                {suave(f.conferencista)}
+              <div className="text-[11px] text-text-muted">
+                {tituloCase(f.conferencista)}
                 {f.conferencista && f.nacionalidad ? ' · ' : ''}
-                {suave(f.nacionalidad)}
+                {tituloCase(f.nacionalidad)}
               </div>
             )}
             <div className="mt-0.5 flex flex-wrap gap-1">
@@ -1074,8 +1179,8 @@ function TarjetaSesion({ sesion }: { sesion: SesionAgenda }) {
                 </span>
               )}
               {f.patrocinador && (
-                <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-text-muted">
-                  {suave(f.patrocinador)}
+                <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-muted">
+                  {tituloCase(f.patrocinador)}
                 </span>
               )}
             </div>

@@ -1023,7 +1023,7 @@ const pt: Dict = {
   'lic.st.VENCIDA': 'VENCIDA',
   'lic.st.REVOCADA': 'REVOGADA',
   // agenda del evento (importación del Excel del cliente)
-  'ag.section': 'Agenda',
+  'ag.section': 'Programação',
   'ag.desc':
     'Importe a agenda do Excel do cliente, ajuste-a aqui e salve. O arquivo é lido no seu navegador: nunca é enviado.',
   'ag.workshopNote':

@@ -1038,7 +1038,7 @@ const en: Dict = {
   'lic.st.VENCIDA': 'EXPIRED',
   'lic.st.REVOCADA': 'REVOKED',
   // agenda del evento (importación del Excel del cliente)
-  'ag.section': 'Agenda',
+  'ag.section': 'Schedule',
   'ag.desc':
     'Import the schedule from the client’s Excel file, fine-tune it here and save. The file is read in your browser — it is never uploaded.',
   'ag.workshopNote':

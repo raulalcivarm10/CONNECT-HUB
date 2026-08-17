@@ -78,7 +78,7 @@ function capitalizar(tok: string): string {
     .replace(/(^|[-'’.])([a-zà-öø-ÿ])/g, (_m, pre: string, c: string) => pre + c.toUpperCase());
 }
 
-function palabra(tok: string, primera: boolean): string {
+function palabra(tok: string, primera: boolean, ultima: boolean): string {
   const nucleo = tok.replace(RE_BORDES, '');
   if (!nucleo || !RE_LETRA.test(nucleo)) return tok;
   // códigos y siglas compuestas: COVID-19, 3D, CAD/CAM, I+D
@@ -89,9 +89,14 @@ function palabra(tok: string, primera: boolean): string {
   if (SIGLAS.has(clave) || ROMANOS.has(clave)) return tok;
   // siglas sin vocales: TMJ, PRF, CBCT
   if (nucleo.length >= 2 && nucleo.length <= 5 && !RE_VOCAL.test(clave)) return tok;
-  // inicial de un nombre ("LUIS A. RAMÍREZ"): no es el conector "a"
-  const esInicial = nucleo.length === 1 && tok.includes('.');
-  if (!primera && !esInicial && CONECTORES.has(clave.toLowerCase())) return tok.toLowerCase();
+  // Una letra suelta no es el conector "a"/"y": o es la inicial de un nombre
+  // ("LUIS A. RAMÍREZ") o identifica algo y va al final ("SALÓN A", "AULA B").
+  // En medio de una frase sí puede serlo ("ATENCIÓN A PACIENTES"), así que solo
+  // se rescata cuando lleva punto o cierra el texto.
+  const esIdentificador = nucleo.length === 1 && (tok.includes('.') || ultima);
+  if (!primera && !esIdentificador && CONECTORES.has(clave.toLowerCase())) {
+    return tok.toLowerCase();
+  }
   return capitalizar(tok);
 }
 
@@ -105,11 +110,15 @@ export function tituloCase(texto?: string | null): string {
   if (!s) return '';
   if (RE_MINUSCULA.test(s)) return s;
   let primera = true;
-  return s
-    .split(/(\s+)/)
-    .map((tok) => {
+  const trozos = s.split(/(\s+)/);
+  const ultimoTexto = trozos.reduce(
+    (acc, tok, i) => (tok && !/^\s+$/.test(tok) ? i : acc),
+    -1,
+  );
+  return trozos
+    .map((tok, i) => {
       if (!tok || /^\s+$/.test(tok)) return tok;
-      const out = palabra(tok, primera);
+      const out = palabra(tok, primera, i === ultimoTexto);
       primera = false;
       return out;
     })

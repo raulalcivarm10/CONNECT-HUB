@@ -94,6 +94,25 @@ export const api = {
     }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 
+  /**
+   * PUT que envía el texto TAL CUAL, sin pasarlo a mayúsculas.
+   *
+   * Para contenido que redacta el propio cliente y del que él es el autor —hoy,
+   * la agenda que sube desde su Excel—. Ahí las mayúsculas destruyen información:
+   * "Cleft care in Bauru Craniofacial Center" se guardaría gritado y luego habría
+   * que ADIVINAR las minúsculas al mostrarlo, con siglas como CAD/CAM, IADR o LPF
+   * a merced de una heurística. Guardando lo que escribió el cliente, se muestra
+   * exactamente eso.
+   *
+   * No usar para datos de gestión (nombres, direcciones, etc.): esos siguen la
+   * política general de mayúsculas del panel.
+   */
+  putTalCual: <T>(path: string, data?: unknown) =>
+    request<T>(path, {
+      method: 'PUT',
+      body: JSON.stringify(data ?? {}),
+    }),
+
   /** multipart: el navegador arma el boundary, no fijar Content-Type */
   upload: async <T>(path: string, form: FormData): Promise<T> => {
     const doFetch = () =>
