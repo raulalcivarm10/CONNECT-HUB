@@ -7,8 +7,11 @@
 # OJO: .easignore REEMPLAZA a .gitignore para EAS, así que aquí hay que repetir
 # también lo que ya ignora git (node_modules y salidas de compilación).
 
-# Dependencias: EAS las instala en el servidor
+# Dependencias: EAS las reinstala en el servidor desde package-lock.json.
+# Hace falta el patrón con ** además del suelto: sin él, apps/mobile/node_modules
+# (564 MB en disco, ~150 MB comprimidos) se colaba y era TODO el peso del envío.
 node_modules/
+**/node_modules/
 
 # El resto del monorepo no interviene en el build móvil.
 # packages/ SÍ se sube: apps/mobile importa @connecthub/shared-types desde ahí
