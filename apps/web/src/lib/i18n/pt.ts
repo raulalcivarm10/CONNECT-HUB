@@ -1044,14 +1044,16 @@ const pt: Dict = {
   'ag.previewSheet': 'Linhas lidas da planilha “{name}”.',
   'ag.previewSkipped': '{n} linha(s) vazia(s) ignorada(s)',
   'ag.replaceWarn':
-    'Salvar SUBSTITUI toda a agenda que este evento tem hoje.',
-  'ag.useImport': 'Usar esta importação',
+    'Isto SUBSTITUI toda a agenda que este evento tem hoje, e é salvo assim que você confirmar.',
+  'ag.useImport': 'Importar e salvar',
   'ag.discard': 'Descartar',
-  'ag.importApplied':
-    'Importação carregada na tela. Nada é gravado até você clicar em Salvar agenda.',
+  'ag.importedAndSaved': 'Agenda importada e salva: já há {n} linhas gravadas.',
   'ag.tabEdit': 'Editar',
   'ag.tabAttendee': 'Visão do participante',
   'ag.dirty': 'Alterações não salvas',
+  'ag.dirtyMsg':
+    'Estas edições só existem no seu navegador. Se você sair sem salvar, elas se perdem.',
+  'ag.saveNow': 'Salvar agora',
   'ag.rowsCount': '{n} linha(s)',
   'ag.sessionsCount': '{n} sessão(ões)',
   'ag.talksCount': '{n} palestra(s)',
@@ -1077,6 +1079,7 @@ const pt: Dict = {
   'ag.sponsor': 'Patrocinador',
   'ag.tPONENCIA': 'Palestra',
   'ag.tDESCANSO': 'Intervalo',
+  'ag.tPROTOCOLO': 'Cerimônia',
   'ag.empty': 'Este evento ainda não tem agenda. Importe o Excel para começar.',
   'ag.save': 'Salvar agenda',
   'ag.saved': 'Agenda salva',
@@ -1084,6 +1087,8 @@ const pt: Dict = {
   'ag.saveMsg':
     'As {n} linhas na tela substituem a agenda que este evento tem hoje.',
   'ag.nothingToSave': 'Não há nada para salvar: todas as linhas estão vazias.',
+  'ag.saveError': 'A agenda NÃO foi salva. O servidor recusou: {reason}',
+  'ag.clearError': 'A agenda NÃO foi limpa. O servidor recusou: {reason}',
   'ag.clear': 'Limpar agenda',
   'ag.clearTitle': 'Limpar toda a agenda?',
   'ag.clearMsg':

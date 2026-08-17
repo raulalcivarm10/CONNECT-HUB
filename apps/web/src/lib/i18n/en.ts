@@ -1059,14 +1059,16 @@ const en: Dict = {
   'ag.previewSheet': 'Rows read from sheet “{name}”.',
   'ag.previewSkipped': '{n} empty row(s) ignored',
   'ag.replaceWarn':
-    'Saving REPLACES the whole agenda currently stored for this event.',
-  'ag.useImport': 'Use this import',
+    'This REPLACES the whole agenda currently stored for this event, and it is saved as soon as you confirm.',
+  'ag.useImport': 'Import and save',
   'ag.discard': 'Discard',
-  'ag.importApplied':
-    'Import loaded on screen. Nothing is stored until you press Save agenda.',
+  'ag.importedAndSaved': 'Agenda imported and saved — {n} rows are now stored.',
   'ag.tabEdit': 'Edit',
   'ag.tabAttendee': 'Attendee view',
   'ag.dirty': 'Unsaved changes',
+  'ag.dirtyMsg':
+    'These edits only live in your browser. If you leave without saving, they are lost.',
+  'ag.saveNow': 'Save now',
   'ag.rowsCount': '{n} row(s)',
   'ag.sessionsCount': '{n} session(s)',
   'ag.talksCount': '{n} talk(s)',
@@ -1092,6 +1094,7 @@ const en: Dict = {
   'ag.sponsor': 'Sponsor',
   'ag.tPONENCIA': 'Talk',
   'ag.tDESCANSO': 'Break',
+  'ag.tPROTOCOLO': 'Ceremony',
   'ag.empty': 'This event has no agenda yet. Import the Excel file to start.',
   'ag.save': 'Save agenda',
   'ag.saved': 'Agenda saved',
@@ -1099,6 +1102,8 @@ const en: Dict = {
   'ag.saveMsg':
     'The {n} rows on screen replace the agenda currently stored for this event.',
   'ag.nothingToSave': 'There is nothing to save: every row is empty.',
+  'ag.saveError': 'The agenda was NOT saved. The server rejected it: {reason}',
+  'ag.clearError': 'The agenda was NOT cleared. The server rejected it: {reason}',
   'ag.clear': 'Clear agenda',
   'ag.clearTitle': 'Clear the whole agenda?',
   'ag.clearMsg':

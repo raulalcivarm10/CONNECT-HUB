@@ -122,6 +122,21 @@ function colorArea(area: string): string {
 
 const hhmm = (h: string) => h || '--:--';
 
+/** TIPO de bloque que admite el API (EVENTO_AGENDA.TIPO). */
+const TIPOS = ['PONENCIA', 'DESCANSO', 'PROTOCOLO'] as const;
+
+/**
+ * Etiqueta traducida del tipo. Los valores viajan en MAYÚSCULAS y en castellano
+ * (son los del API), así que pintarlos crudos metía "PROTOCOLO" tal cual en un
+ * panel en inglés; solo se cae al valor bruto si llega uno desconocido.
+ */
+function etiquetaTipo(
+  t: (k: string, v?: Record<string, string | number>) => string,
+  tipo: string,
+): string {
+  return (TIPOS as readonly string[]).includes(tipo) ? t(`ag.t${tipo}`) : tipo;
+}
+
 /* ───────────────────────── componente principal ───────────────────────── */
 
 export function AgendaEvento({ idEvento }: { idEvento: number }) {
@@ -162,6 +177,23 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  /**
+   * Guarda de salida SOLO mientras haya cambios sin guardar (las ediciones
+   * manuales sí necesitan pulsar Guardar; la importación ya guarda sola).
+   * El listener se quita al desmontar y en cuanto `sucio` vuelve a false tras
+   * guardar, para que no salte cuando no hay nada pendiente.
+   */
+  useEffect(() => {
+    if (!sucio) return;
+    const alSalir = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Chrome sigue exigiendo returnValue para mostrar su diálogo nativo
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', alSalir);
+    return () => window.removeEventListener('beforeunload', alSalir);
+  }, [sucio]);
 
   const dias = useMemo(() => porDia(filas), [filas]);
 
@@ -283,32 +315,41 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
     }
   }
 
-  function aplicarImport() {
+  /**
+   * IMPORTAR = GUARDAR. La importación en dos pasos era una trampa: parecía
+   * completada, el usuario salía de la pantalla y la agenda se evaporaba sin
+   * decir nada (EVENTO_AGENDA quedaba vacía). El aviso de que REEMPLAZA ya está
+   * en la vista previa, así que confirmar allí completa el guardado.
+   */
+  async function importarYGuardar() {
     if (!previa) return;
-    setFilas(ordenarYNumerar(previa.filas).map(conUid));
+    const nuevas = ordenarYNumerar(previa.filas).map(conUid);
+    setFilas(nuevas);
     setPrevia(null);
+    // si el PUT falla queda marcado como pendiente: ni se pierde lo importado
+    // ni se puede salir sin que la guarda de `beforeunload` avise
     setSucio(true);
-    aviso(t('ag.importApplied'), 'warn');
+    if (await enviarAgenda(nuevas)) {
+      aviso(t('ag.importedAndSaved', { n: nuevas.length }));
+      await cargar();
+    }
   }
 
   /* ── persistencia ── */
 
-  async function guardar() {
+  /**
+   * Manda la agenda completa al API. Si falla NO toca lo que hay en pantalla:
+   * el usuario conserva su trabajo, ve el motivo y puede reintentar.
+   */
+  async function enviarAgenda(lista: FilaLocal[]): Promise<boolean> {
     // filas sin contenido no se guardan (el usuario pudo dejar una en blanco)
     const limpias = renumerar(
-      filas.filter((f) => f.tema.trim() !== '' || f.conferencista.trim() !== ''),
+      lista.filter((f) => f.tema.trim() !== '' || f.conferencista.trim() !== ''),
     );
     if (limpias.length === 0) {
       aviso(t('ag.nothingToSave'), 'warn');
-      return;
+      return false;
     }
-    const ok = await dialogo.confirmar({
-      titulo: t('ag.saveTitle'),
-      mensaje: t('ag.saveMsg', { n: limpias.length }),
-      tono: 'warning',
-      confirmar: t('ag.save'),
-    });
-    if (!ok) return;
     setBusy(true);
     setMsg(null);
     try {
@@ -327,12 +368,32 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
           orden: f.orden,
         })),
       });
-      aviso(t('ag.saved'));
-      await cargar();
+      return true;
     } catch (err) {
-      aviso(err instanceof Error ? err.message : t('c.error'), 'err');
+      // el motivo del API va dentro del aviso: sin él el usuario cree que guardó
+      aviso(
+        t('ag.saveError', {
+          reason: err instanceof Error ? err.message : t('c.error'),
+        }),
+        'err',
+      );
+      return false;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function guardar() {
+    const ok = await dialogo.confirmar({
+      titulo: t('ag.saveTitle'),
+      mensaje: t('ag.saveMsg', { n: filas.length }),
+      tono: 'warning',
+      confirmar: t('ag.save'),
+    });
+    if (!ok) return;
+    if (await enviarAgenda(filas)) {
+      aviso(t('ag.saved'));
+      await cargar();
     }
   }
 
@@ -352,7 +413,12 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
       setSucio(false);
       aviso(t('ag.cleared'));
     } catch (err) {
-      aviso(err instanceof Error ? err.message : t('c.error'), 'err');
+      aviso(
+        t('ag.clearError', {
+          reason: err instanceof Error ? err.message : t('c.error'),
+        }),
+        'err',
+      );
     } finally {
       setBusy(false);
     }
@@ -420,12 +486,6 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
           ))}
         </div>
 
-        {sucio && (
-          <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-500">
-            {t('ag.dirty')}
-          </span>
-        )}
-
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <span className="text-xs text-text-muted">
             {t('ag.rowsCount', { n: total })}
@@ -438,16 +498,38 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
           >
             {t('ag.clear')}
           </button>
+          {/* con cambios pendientes el botón resalta; sin ellos queda apagado */}
           <button
             type="button"
             onClick={guardar}
             disabled={busy || total === 0}
-            className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              sucio
+                ? 'bg-brand text-white ring-2 ring-brand/40 hover:opacity-90'
+                : 'border border-border-app bg-surface text-text-2 hover:bg-surface-2'
+            }`}
           >
             {busy ? t('c.saving') : t('ag.save')}
           </button>
         </div>
       </div>
+
+      {/* aviso GRANDE de cambios pendientes: el pill discreto pasaba inadvertido
+          y la agenda se perdía al salir de la pantalla */}
+      {sucio && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2">
+          <span className="text-sm font-semibold text-amber-500">{t('ag.dirty')}</span>
+          <span className="text-xs text-text-2">{t('ag.dirtyMsg')}</span>
+          <button
+            type="button"
+            onClick={guardar}
+            disabled={busy || total === 0}
+            className="ml-auto rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? t('c.saving') : t('ag.saveNow')}
+          </button>
+        </div>
+      )}
 
       {/* el libro trae varias hojas: cada una es la agenda de un evento distinto */}
       {libro && (
@@ -492,7 +574,8 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
       {previa && (
         <PanelPrevia
           res={previa}
-          onAplicar={aplicarImport}
+          busy={busy}
+          onImportar={importarYGuardar}
           onDescartar={() => setPrevia(null)}
         />
       )}
@@ -529,14 +612,17 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
         <VistaAsistente dias={dias} />
       )}
 
+      {/* el fallo del guardado va con borde y en negrita: si pasa inadvertido,
+          el usuario se va creyendo que guardó */}
       {msg && (
         <p
+          role={msg.tono === 'err' ? 'alert' : undefined}
           className={`mt-3 rounded-lg px-3 py-2 text-sm ${
             msg.tono === 'ok'
               ? 'bg-success/10 text-success'
               : msg.tono === 'warn'
                 ? 'bg-amber-500/10 text-amber-500'
-                : 'bg-danger/10 text-danger'
+                : 'border border-danger/50 bg-danger/10 font-semibold text-danger'
           }`}
         >
           {msg.txt}
@@ -550,11 +636,13 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
 
 function PanelPrevia({
   res,
-  onAplicar,
+  busy,
+  onImportar,
   onDescartar,
 }: {
   res: ResultadoAgendaExcel;
-  onAplicar: () => void;
+  busy: boolean;
+  onImportar: () => void;
   onDescartar: () => void;
 }) {
   const { t } = useI18n();
@@ -621,17 +709,20 @@ function PanelPrevia({
       </div>
 
       <div className="mt-2 flex gap-2">
+        {/* importa Y GUARDA en un paso: no hay un segundo botón que descubrir */}
         <button
           type="button"
-          onClick={onAplicar}
-          className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+          onClick={onImportar}
+          disabled={busy}
+          className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {t('ag.useImport')}
+          {busy ? t('c.saving') : t('ag.useImport')}
         </button>
         <button
           type="button"
           onClick={onDescartar}
-          className="rounded-lg border border-border-app bg-surface px-3 py-1.5 text-sm font-semibold text-text-2 hover:bg-surface-2"
+          disabled={busy}
+          className="rounded-lg border border-border-app bg-surface px-3 py-1.5 text-sm font-semibold text-text-2 hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t('ag.discard')}
         </button>
@@ -770,7 +861,7 @@ function TablaDia({
                 <td className="p-1">
                   <input
                     value={f.area}
-                    maxLength={120}
+                    maxLength={80}
                     onChange={(e) => onCampo(f.uid, 'area', e.target.value)}
                     aria-label={t('ag.area')}
                     className={INP}
@@ -779,7 +870,7 @@ function TablaDia({
                 <td className="p-1">
                   <input
                     value={f.tema}
-                    maxLength={500}
+                    maxLength={600}
                     onChange={(e) => onCampo(f.uid, 'tema', e.target.value)}
                     aria-label={t('ag.topic')}
                     className={INP}
@@ -810,9 +901,12 @@ function TablaDia({
                     aria-label={t('ag.type')}
                     className={INP}
                   >
-                    <option value="PONENCIA">{t('ag.tPONENCIA')}</option>
-                    <option value="DESCANSO">{t('ag.tDESCANSO')}</option>
-                    {f.tipo !== 'PONENCIA' && f.tipo !== 'DESCANSO' && (
+                    {TIPOS.map((tp) => (
+                      <option key={tp} value={tp}>
+                        {t(`ag.t${tp}`)}
+                      </option>
+                    ))}
+                    {!(TIPOS as readonly string[]).includes(f.tipo) && (
                       <option value={f.tipo}>{f.tipo}</option>
                     )}
                   </select>
@@ -820,7 +914,7 @@ function TablaDia({
                 <td className="p-1">
                   <input
                     value={f.patrocinador}
-                    maxLength={200}
+                    maxLength={160}
                     onChange={(e) => onCampo(f.uid, 'patrocinador', e.target.value)}
                     aria-label={t('ag.sponsor')}
                     className={INP}
@@ -949,6 +1043,7 @@ function VistaAsistente({ dias }: { dias: Array<[number, FilaLocal[]]> }) {
 }
 
 function TarjetaSesion({ sesion }: { sesion: SesionAgenda }) {
+  const { t } = useI18n();
   return (
     <div className="min-w-0 rounded-lg border border-border-app bg-surface p-2.5">
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
@@ -974,8 +1069,8 @@ function TarjetaSesion({ sesion }: { sesion: SesionAgenda }) {
             )}
             <div className="mt-0.5 flex flex-wrap gap-1">
               {f.tipo !== 'PONENCIA' && f.tipo !== 'DESCANSO' && (
-                <span className="rounded-full border border-border-app px-1.5 py-0.5 text-[10px] capitalize text-text-2">
-                  {suave(f.tipo)}
+                <span className="rounded-full border border-border-app px-1.5 py-0.5 text-[10px] text-text-2">
+                  {etiquetaTipo(t, f.tipo)}
                 </span>
               )}
               {f.patrocinador && (

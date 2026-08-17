@@ -1046,14 +1046,17 @@ const fr: Dict = {
   'ag.previewSheet': 'Lignes lues dans la feuille « {name} ».',
   'ag.previewSkipped': '{n} ligne(s) vide(s) ignorée(s)',
   'ag.replaceWarn':
-    'Enregistrer REMPLACE tout le programme actuellement stocké pour cet événement.',
-  'ag.useImport': 'Utiliser cet import',
+    'Ceci REMPLACE tout le programme actuellement stocké pour cet événement, et l’enregistrement se fait dès que vous confirmez.',
+  'ag.useImport': 'Importer et enregistrer',
   'ag.discard': 'Abandonner',
-  'ag.importApplied':
-    'Import chargé à l’écran. Rien n’est stocké tant que vous n’avez pas enregistré.',
+  'ag.importedAndSaved':
+    'Programme importé et enregistré : {n} lignes sont désormais stockées.',
   'ag.tabEdit': 'Modifier',
   'ag.tabAttendee': 'Vue participant',
   'ag.dirty': 'Modifications non enregistrées',
+  'ag.dirtyMsg':
+    'Ces modifications n’existent que dans votre navigateur. Si vous quittez sans enregistrer, elles sont perdues.',
+  'ag.saveNow': 'Enregistrer maintenant',
   'ag.rowsCount': '{n} ligne(s)',
   'ag.sessionsCount': '{n} session(s)',
   'ag.talksCount': '{n} intervention(s)',
@@ -1079,6 +1082,7 @@ const fr: Dict = {
   'ag.sponsor': 'Sponsor',
   'ag.tPONENCIA': 'Intervention',
   'ag.tDESCANSO': 'Pause',
+  'ag.tPROTOCOLO': 'Cérémonie',
   'ag.empty':
     'Cet événement n’a pas encore de programme. Importez le fichier Excel pour commencer.',
   'ag.save': 'Enregistrer le programme',
@@ -1087,6 +1091,9 @@ const fr: Dict = {
   'ag.saveMsg':
     'Les {n} lignes affichées remplacent le programme actuellement stocké pour cet événement.',
   'ag.nothingToSave': 'Rien à enregistrer : toutes les lignes sont vides.',
+  'ag.saveError':
+    'Le programme n’a PAS été enregistré. Le serveur l’a refusé : {reason}',
+  'ag.clearError': 'Le programme n’a PAS été vidé. Le serveur l’a refusé : {reason}',
   'ag.clear': 'Vider le programme',
   'ag.clearTitle': 'Vider tout le programme ?',
   'ag.clearMsg':

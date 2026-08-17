@@ -1044,14 +1044,16 @@ const es: Dict = {
   'ag.previewSheet': 'Filas leídas de la hoja «{name}».',
   'ag.previewSkipped': '{n} fila(s) vacías ignoradas',
   'ag.replaceWarn':
-    'Guardar REEMPLAZA toda la agenda que hoy tiene este evento.',
-  'ag.useImport': 'Usar esta importación',
+    'Esto REEMPLAZA toda la agenda que hoy tiene este evento, y se guarda en cuanto confirmes.',
+  'ag.useImport': 'Importar y guardar',
   'ag.discard': 'Descartar',
-  'ag.importApplied':
-    'Importación cargada en pantalla. No se guarda nada hasta que pulses Guardar agenda.',
+  'ag.importedAndSaved': 'Agenda importada y guardada: ya hay {n} filas almacenadas.',
   'ag.tabEdit': 'Editar',
   'ag.tabAttendee': 'Vista del asistente',
   'ag.dirty': 'Cambios sin guardar',
+  'ag.dirtyMsg':
+    'Estas ediciones solo existen en tu navegador. Si sales sin guardar, se pierden.',
+  'ag.saveNow': 'Guardar ahora',
   'ag.rowsCount': '{n} fila(s)',
   'ag.sessionsCount': '{n} sesión(es)',
   'ag.talksCount': '{n} charla(s)',
@@ -1077,6 +1079,7 @@ const es: Dict = {
   'ag.sponsor': 'Patrocinador',
   'ag.tPONENCIA': 'Ponencia',
   'ag.tDESCANSO': 'Descanso',
+  'ag.tPROTOCOLO': 'Acto protocolario',
   'ag.empty': 'Este evento aún no tiene agenda. Importa el Excel para empezar.',
   'ag.save': 'Guardar agenda',
   'ag.saved': 'Agenda guardada',
@@ -1084,6 +1087,8 @@ const es: Dict = {
   'ag.saveMsg':
     'Las {n} filas en pantalla reemplazan la agenda que hoy tiene este evento.',
   'ag.nothingToSave': 'No hay nada que guardar: todas las filas están vacías.',
+  'ag.saveError': 'La agenda NO se guardó. El servidor la rechazó: {reason}',
+  'ag.clearError': 'La agenda NO se vació. El servidor lo rechazó: {reason}',
   'ag.clear': 'Vaciar agenda',
   'ag.clearTitle': '¿Vaciar toda la agenda?',
   'ag.clearMsg':
