@@ -1028,15 +1028,22 @@ const fr: Dict = {
   'ag.section': 'Programme',
   'ag.desc':
     'Importez le programme depuis le fichier Excel du client, ajustez-le ici puis enregistrez. Le fichier est lu dans votre navigateur : il n’est jamais téléversé.',
+  'ag.workshopNote':
+    'Une feuille par événement : la feuille choisie est importée UNIQUEMENT dans CET événement. Les ateliers sont des événements distincts (événements enfants) ; leur feuille s’importe donc en ouvrant l’événement de l’atelier et en y choisissant cette feuille.',
   'ag.import': 'Importer un Excel',
   'ag.reading': 'Lecture du fichier…',
   'ag.readError': 'Le fichier n’a pas pu être lu. Vérifiez qu’il s’agit d’un .xlsx valide.',
+  'ag.sheetPickTitle': 'Quelle feuille voulez-vous importer ?',
+  'ag.sheetPickMsg':
+    'Ce fichier contient {n} feuilles. Seule celle que vous choisissez est importée, et elle va dans CET événement. Si une autre feuille contient le programme des ateliers, importez-la depuis l’événement de l’atelier.',
+  'ag.sheetLabel': 'Feuille',
+  'ag.sheetContinue': 'Lire cette feuille',
   'ag.noColumns':
-    'Aucune colonne de programme reconnue. Attendu : Jour, Horaire, Salle, Nationalité, Intervenant, Sujet, Domaine.',
-  'ag.noRows': 'Le fichier ne contient aucune ligne exploitable.',
+    'Aucune colonne de programme reconnue dans la feuille « {sheet} ». Attendu : Jour, Horaire, Salle, Nationalité, Intervenant, Sujet, Domaine.',
+  'ag.noRows': 'La feuille « {sheet} » ne contient aucune ligne exploitable.',
   'ag.previewTitle': 'Aperçu de l’import',
   'ag.previewCount': '{rows} lignes → {sessions} sessions sur {days} jour(s)',
-  'ag.previewSheets': 'Feuilles lues : {names}',
+  'ag.previewSheet': 'Lignes lues dans la feuille « {name} ».',
   'ag.previewSkipped': '{n} ligne(s) vide(s) ignorée(s)',
   'ag.replaceWarn':
     'Enregistrer REMPLACE tout le programme actuellement stocké pour cet événement.',

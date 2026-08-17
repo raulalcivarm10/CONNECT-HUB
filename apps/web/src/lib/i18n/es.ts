@@ -1026,15 +1026,22 @@ const es: Dict = {
   'ag.section': 'Agenda',
   'ag.desc':
     'Importa la agenda desde el Excel del cliente, corrígela aquí y guárdala. El archivo se lee en tu navegador: nunca se sube.',
+  'ag.workshopNote':
+    'Una hoja por evento: la hoja que elijas se importa SOLO a ESTE evento. Los workshops son eventos aparte (eventos hijos), así que su hoja se importa abriendo el evento del workshop y eligiendo esa hoja allí.',
   'ag.import': 'Importar Excel',
   'ag.reading': 'Leyendo el archivo…',
   'ag.readError': 'No se pudo leer el archivo. Verifica que sea un .xlsx válido.',
+  'ag.sheetPickTitle': '¿Qué hoja quieres importar?',
+  'ag.sheetPickMsg':
+    'Este archivo tiene {n} hojas. Solo se importa la que elijas, y va a ESTE evento. Si otra hoja tiene la agenda de los workshops, impórtala desde el evento del propio workshop.',
+  'ag.sheetLabel': 'Hoja',
+  'ag.sheetContinue': 'Leer esta hoja',
   'ag.noColumns':
-    'No se reconoció ninguna columna de agenda. Se esperan: Día, Horario, Salón, Nacionalidad, Conferencista, Tema, Área.',
-  'ag.noRows': 'El archivo no tiene filas aprovechables.',
+    'No se reconoció ninguna columna de agenda en la hoja «{sheet}». Se esperan: Día, Horario, Salón, Nacionalidad, Conferencista, Tema, Área.',
+  'ag.noRows': 'La hoja «{sheet}» no tiene filas aprovechables.',
   'ag.previewTitle': 'Vista previa de la importación',
   'ag.previewCount': '{rows} filas → {sessions} sesiones en {days} día(s)',
-  'ag.previewSheets': 'Hojas leídas: {names}',
+  'ag.previewSheet': 'Filas leídas de la hoja «{name}».',
   'ag.previewSkipped': '{n} fila(s) vacías ignoradas',
   'ag.replaceWarn':
     'Guardar REEMPLAZA toda la agenda que hoy tiene este evento.',

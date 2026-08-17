@@ -1026,15 +1026,22 @@ const pt: Dict = {
   'ag.section': 'Agenda',
   'ag.desc':
     'Importe a agenda do Excel do cliente, ajuste-a aqui e salve. O arquivo é lido no seu navegador: nunca é enviado.',
+  'ag.workshopNote':
+    'Uma planilha por evento: a planilha escolhida é importada SOMENTE para ESTE evento. Os workshops são eventos separados (eventos filhos), então a planilha deles se importa abrindo o evento do próprio workshop e escolhendo essa planilha lá.',
   'ag.import': 'Importar Excel',
   'ag.reading': 'Lendo o arquivo…',
   'ag.readError': 'Não foi possível ler o arquivo. Verifique se é um .xlsx válido.',
+  'ag.sheetPickTitle': 'Qual planilha você quer importar?',
+  'ag.sheetPickMsg':
+    'Este arquivo tem {n} planilhas. Só a que você escolher é importada, e vai para ESTE evento. Se outra planilha tiver a agenda dos workshops, importe-a a partir do evento do próprio workshop.',
+  'ag.sheetLabel': 'Planilha',
+  'ag.sheetContinue': 'Ler esta planilha',
   'ag.noColumns':
-    'Nenhuma coluna de agenda reconhecida. Esperado: Dia, Horário, Sala, Nacionalidade, Palestrante, Tema, Área.',
-  'ag.noRows': 'O arquivo não tem linhas aproveitáveis.',
+    'Nenhuma coluna de agenda reconhecida na planilha “{sheet}”. Esperado: Dia, Horário, Sala, Nacionalidade, Palestrante, Tema, Área.',
+  'ag.noRows': 'A planilha “{sheet}” não tem linhas aproveitáveis.',
   'ag.previewTitle': 'Prévia da importação',
   'ag.previewCount': '{rows} linhas → {sessions} sessões em {days} dia(s)',
-  'ag.previewSheets': 'Planilhas lidas: {names}',
+  'ag.previewSheet': 'Linhas lidas da planilha “{name}”.',
   'ag.previewSkipped': '{n} linha(s) vazia(s) ignorada(s)',
   'ag.replaceWarn':
     'Salvar SUBSTITUI toda a agenda que este evento tem hoje.',

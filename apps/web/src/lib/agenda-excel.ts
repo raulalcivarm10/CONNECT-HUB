@@ -186,24 +186,51 @@ function mapearColumnas(
  *   de la fila anterior; eso es lo que agrupa a los ponentes de un bloque.
  * - **Días por ORDEN, no por fecha**: las fechas del Excel están corridas, así
  *   que se toman los valores distintos de `Día` en el orden en que aparecen
- *   (compartidos entre hojas) y se mapean a 1, 2, 3…
+ *   y se mapean a 1, 2, 3…
  * - **Descansos y protocolo**: si `Tema` y `Area` vienen vacíos, la fila es un
  *   descanso o acto y el rótulo está en `Conferencista`.
  * - Se ignoran las filas totalmente vacías (la hoja WORKSHOP trae ~985 de 996).
+ *
+ * UNA HOJA A LA VEZ. El libro del cliente trae la agenda principal y una hoja
+ * "WORKSHOP", pero los workshops se dan de alta como EVENTOS APARTE (eventos
+ * hijos), así que fusionar ambas hojas metería la agenda de un evento dentro de
+ * otro. Sin `hoja` se usa la primera; para cargar los workshops hay que abrir su
+ * propio evento y elegir esa hoja.
  */
+/**
+ * Nombres de las hojas del libro, para poder elegir cuál se importa antes de
+ * parsear nada. La agenda principal y la de workshops viven en hojas distintas
+ * y pertenecen a eventos distintos.
+ */
+export async function hojasDelExcel(archivo: File | Blob): Promise<string[]> {
+  const XLSX = await import('xlsx');
+  // bookSheets: solo lee la lista de hojas, no el contenido
+  const wb = XLSX.read(await archivo.arrayBuffer(), {
+    type: 'array',
+    bookSheets: true,
+  });
+  return wb.SheetNames;
+}
+
 export async function parsearAgendaExcel(
   archivo: File | Blob,
+  hojaElegida?: string,
 ): Promise<ResultadoAgendaExcel> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(await archivo.arrayBuffer(), { type: 'array' });
 
-  // día del Excel (tal cual, p. ej. "46298") → 1, 2, 3… COMPARTIDO entre hojas
+  // día del Excel (tal cual, p. ej. "46298") → 1, 2, 3…
   const dias = new Map<string, number>();
   const filas: FilaAgenda[] = [];
   const hojas: string[] = [];
   let omitidas = 0;
 
-  for (const nombre of wb.SheetNames) {
+  const objetivo =
+    hojaElegida && wb.SheetNames.includes(hojaElegida)
+      ? [hojaElegida]
+      : wb.SheetNames.slice(0, 1);
+
+  for (const nombre of objetivo) {
     const hoja = wb.Sheets[nombre];
     if (!hoja) continue;
     const matriz = XLSX.utils.sheet_to_json<unknown[]>(hoja, {

@@ -1041,15 +1041,22 @@ const en: Dict = {
   'ag.section': 'Agenda',
   'ag.desc':
     'Import the schedule from the client’s Excel file, fine-tune it here and save. The file is read in your browser — it is never uploaded.',
+  'ag.workshopNote':
+    'One sheet per event: the sheet you pick is imported into THIS event only. Workshops are separate (child) events, so their sheet is imported by opening the workshop’s own event and choosing that sheet there.',
   'ag.import': 'Import Excel',
   'ag.reading': 'Reading the file…',
   'ag.readError': 'The file could not be read. Check that it is a valid .xlsx.',
+  'ag.sheetPickTitle': 'Which sheet do you want to import?',
+  'ag.sheetPickMsg':
+    'This file has {n} sheets. Only the one you pick is imported, and it goes into THIS event. If another sheet holds the workshop schedule, import it from the workshop’s own event.',
+  'ag.sheetLabel': 'Sheet',
+  'ag.sheetContinue': 'Read this sheet',
   'ag.noColumns':
-    'No agenda columns were recognised. Expected headers: Day, Time, Room, Nationality, Speaker, Topic, Area.',
-  'ag.noRows': 'The file has no usable rows.',
+    'No agenda columns were recognised in sheet “{sheet}”. Expected headers: Day, Time, Room, Nationality, Speaker, Topic, Area.',
+  'ag.noRows': 'Sheet “{sheet}” has no usable rows.',
   'ag.previewTitle': 'Preview of the import',
   'ag.previewCount': '{rows} rows → {sessions} sessions across {days} day(s)',
-  'ag.previewSheets': 'Sheets read: {names}',
+  'ag.previewSheet': 'Rows read from sheet “{name}”.',
   'ag.previewSkipped': '{n} empty row(s) ignored',
   'ag.replaceWarn':
     'Saving REPLACES the whole agenda currently stored for this event.',

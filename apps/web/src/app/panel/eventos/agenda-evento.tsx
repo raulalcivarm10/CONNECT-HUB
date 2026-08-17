@@ -6,6 +6,7 @@ import { useDialogo } from '@/lib/dialogo';
 import { useI18n } from '@/lib/i18n';
 import {
   agruparSesiones,
+  hojasDelExcel,
   ordenarYNumerar,
   parsearAgendaExcel,
   resumenAgenda,
@@ -18,6 +19,12 @@ import {
  * Agenda detallada del evento: se importa del Excel del cliente (parseo en el
  * navegador, el archivo no se sube), se corrige a mano y se guarda entera con
  * un PUT que REEMPLAZA la agenda del evento.
+ *
+ * UNA HOJA POR EVENTO. El libro del cliente trae la agenda principal y una hoja
+ * "WORKSHOP", pero los workshops se dan de alta como EVENTOS APARTE (hijos), así
+ * que fusionar las hojas metería la agenda de un evento dentro de otro. Si el
+ * libro tiene más de una hoja se pregunta cuál importar; con una sola, no se
+ * molesta al usuario.
  */
 
 /** Fila con identidad local estable: reordenar/borrar no debe hacer que React
@@ -126,6 +133,9 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
   const [sucio, setSucio] = useState(false);
   const [vista, setVista] = useState<'editar' | 'asistente'>('editar');
   const [previa, setPrevia] = useState<ResultadoAgendaExcel | null>(null);
+  // libro con varias hojas: hay que elegir cuál se importa ANTES de parsear
+  const [libro, setLibro] = useState<{ archivo: File; hojas: string[] } | null>(null);
+  const [hojaSel, setHojaSel] = useState('');
   const [msg, setMsg] = useState<{ txt: string; tono: 'ok' | 'warn' | 'err' } | null>(null);
 
   const aviso = (txt: string, tono: 'ok' | 'warn' | 'err' = 'ok') => setMsg({ txt, tono });
@@ -223,13 +233,49 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
     setBusy(true);
     setMsg(null);
     setPrevia(null);
+    setLibro(null);
     try {
-      const res = await parsearAgendaExcel(archivo);
-      if (res.filas.length === 0) {
-        aviso(res.hojas.length === 0 ? t('ag.noColumns') : t('ag.noRows'), 'warn');
+      const hojas = await hojasDelExcel(archivo);
+      if (hojas.length === 0) {
+        aviso(t('ag.readError'), 'err');
         return;
       }
-      setPrevia(res);
+      // una sola hoja: no hay nada que elegir, se importa directo
+      if (hojas.length === 1) {
+        await leerHoja(archivo, hojas[0]);
+        return;
+      }
+      setLibro({ archivo, hojas });
+      setHojaSel(hojas[0]);
+    } catch {
+      aviso(t('ag.readError'), 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Parsea UNA hoja del libro: cada hoja es la agenda de UN evento. */
+  async function leerHoja(archivo: File, hoja: string) {
+    const res = await parsearAgendaExcel(archivo, hoja);
+    if (res.filas.length === 0) {
+      aviso(
+        res.hojas.length === 0
+          ? t('ag.noColumns', { sheet: hoja })
+          : t('ag.noRows', { sheet: hoja }),
+        'warn',
+      );
+      return;
+    }
+    setPrevia(res);
+    setLibro(null);
+  }
+
+  async function confirmarHoja() {
+    if (!libro) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await leerHoja(libro.archivo, hojaSel);
     } catch {
       aviso(t('ag.readError'), 'err');
     } finally {
@@ -335,7 +381,11 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
 
   return (
     <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
-      <p className="mb-3 text-xs text-text-muted">{t('ag.desc')}</p>
+      <p className="mb-2 text-xs text-text-muted">{t('ag.desc')}</p>
+      {/* los workshops son eventos hijos: su hoja se importa desde SU evento */}
+      <p className="mb-3 rounded-lg border border-border-app bg-surface px-3 py-2 text-xs text-text-2">
+        {t('ag.workshopNote')}
+      </p>
 
       {/* barra de acciones */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -398,6 +448,46 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
           </button>
         </div>
       </div>
+
+      {/* el libro trae varias hojas: cada una es la agenda de un evento distinto */}
+      {libro && (
+        <div className="mb-3 rounded-lg border border-brand/40 bg-brand/5 p-3">
+          <p className="text-sm font-semibold text-text">{t('ag.sheetPickTitle')}</p>
+          <p className="mt-0.5 text-xs text-text-2">
+            {t('ag.sheetPickMsg', { n: libro.hojas.length })}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-text-2">{t('ag.sheetLabel')}</span>
+            <select
+              value={hojaSel}
+              onChange={(e) => setHojaSel(e.target.value)}
+              aria-label={t('ag.sheetLabel')}
+              className="rounded-md border border-border-app bg-surface px-2 py-1 text-sm text-text outline-none focus:border-brand"
+            >
+              {libro.hojas.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={confirmarHoja}
+              disabled={busy}
+              className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy ? t('ag.reading') : t('ag.sheetContinue')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLibro(null)}
+              className="rounded-lg border border-border-app bg-surface px-3 py-1.5 text-sm font-semibold text-text-2 hover:bg-surface-2"
+            >
+              {t('ag.discard')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {previa && (
         <PanelPrevia
@@ -478,12 +568,16 @@ function PanelPrevia({
     <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
       <p className="text-sm font-semibold text-text">{t('ag.previewTitle')}</p>
       <p className="mt-0.5 text-sm text-text-2">
+        {t('ag.previewSheet', { name: res.hojas[0] ?? '' })}
+      </p>
+      <p className="mt-0.5 text-sm text-text-2">
         {t('ag.previewCount', { rows: r.filas, sessions: r.sesiones, days: r.dias })}
       </p>
-      <p className="mt-0.5 text-xs text-text-muted">
-        {t('ag.previewSheets', { names: res.hojas.join(', ') })}
-        {res.omitidas > 0 ? ` · ${t('ag.previewSkipped', { n: res.omitidas })}` : ''}
-      </p>
+      {res.omitidas > 0 && (
+        <p className="mt-0.5 text-xs text-text-muted">
+          {t('ag.previewSkipped', { n: res.omitidas })}
+        </p>
+      )}
       <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-500">
         {t('ag.replaceWarn')}
       </p>
