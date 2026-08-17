@@ -386,12 +386,18 @@ export function AgendaDiaSheet({
 
   return (
     <Modal visible={!!dia} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        onPress={onClose}
-        style={{ flex: 1, backgroundColor: t.colors.overlay, justifyContent: 'flex-end' }}
-      >
+      {/* El fondo va como hermano DETRÁS de la hoja, no como padre. Antes la
+          hoja colgaba de un Pressable con stopPropagation y ese componente se
+          quedaba con el gesto de arrastre en iOS: la agenda no scrolleaba y
+          solo se veían las primeras horas del día. */}
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable
-          onPress={(e) => e.stopPropagation()}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={tr('common.close')}
+          style={[StyleSheet.absoluteFill, { backgroundColor: t.colors.overlay }]}
+        />
+        <View
           style={{
             backgroundColor: t.colors.bgElevated,
             borderTopLeftRadius: radius['2xl'],
@@ -444,8 +450,8 @@ export function AgendaDiaSheet({
               bloques.map((b) => <BloqueAgenda key={b.clave} bloque={b} />)
             )}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

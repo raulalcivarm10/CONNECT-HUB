@@ -32,3 +32,9 @@ docker-compose.override.yml
 apps/mobile/.expo/
 apps/mobile/web-build/
 apps/mobile/dist/
+
+# Respaldos comprimidos sueltos: no van al repositorio (GitHub rechaza >100 MB)
+*.rar
+*.zip
+*.7z
+*.bak

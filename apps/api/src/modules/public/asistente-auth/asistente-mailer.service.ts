@@ -78,24 +78,24 @@ export class AsistenteMailerService {
     const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;background:#ffffff">
       <div style="background:linear-gradient(135deg,#0e7490,#1e293b);padding:32px 24px;text-align:center;border-radius:8px 8px 0 0">
-        <div style="color:#ffffff;font-size:24px;font-weight:700">Compra exitosa</div>
-        <div style="color:#cbd5e1;font-size:14px;margin-top:4px">Confirmación de inscripción</div>
+        <div style="color:#ffffff;font-size:24px;font-weight:700">Payment successful</div>
+        <div style="color:#cbd5e1;font-size:14px;margin-top:4px">Registration confirmed</div>
       </div>
       <div style="padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
-        <p>Estimado/a <b>${nombre}</b>,</p>
-        <p>Tu inscripción al evento ha sido <b>confirmada</b>.</p>
+        <p>Hi <b>${nombre}</b>,</p>
+        <p>Your registration for this event has been <b>confirmed</b>.</p>
         <div style="border-left:4px solid #0e7490;background:#f1f5f9;padding:16px 20px;border-radius:6px;margin:16px 0">
           <div style="font-size:18px;font-weight:700;color:#0f172a">${evento}</div>
-          <div style="margin-top:8px;color:#334155">Estado: <b>PAGADO</b></div>
-          <div style="color:#334155">Monto: <b>$${monto.toFixed(2)}</b></div>
-          <div style="color:#334155">Transacción: <b>${transactionId}</b></div>
+          <div style="margin-top:8px;color:#334155">Status: <b>PAID</b></div>
+          <div style="color:#334155">Amount: <b>$${monto.toFixed(2)}</b></div>
+          <div style="color:#334155">Transaction: <b>${transactionId}</b></div>
         </div>
-        <p>Puedes encontrar tu código QR en la sección de información del evento dentro de la aplicación.</p>
-        <p>Te recomendamos tenerlo listo el día del evento para un acceso más ágil.</p>
-        <p>Gracias por usar nuestra aplicación.</p>
+        <p>You can find your QR code in the event information section of the app.</p>
+        <p>Have it ready on the day of the event for faster entry.</p>
+        <p>Thank you for using ConnectHub.</p>
       </div>
     </div>`;
-    return this.enviar(to, 'Compra exitosa · Confirmación de inscripción', html);
+    return this.enviar(to, 'Payment successful · Registration confirmed', html);
   }
 
   /** Recuperación: enlace de reset (el token NO cambia la clave hasta /reset). */
