@@ -218,9 +218,15 @@ export default function Checkout() {
         await pedirCompletarPerfil();
         return;
       }
-      // el cupón pudo agotarse entre validar y registrar → refresca el estado
+      // El cupón pudo agotarse entre validar y registrar (otro asistente tomó
+      // el último cupo): mensaje TRADUCIDO, no el texto crudo del servidor.
       setCuponInfo(null);
-      const msg = err instanceof ApiError ? err.message : tr('pay.errorBody');
+      const agotado = err instanceof ApiError && /exhausted/i.test(err.message);
+      const msg = agotado
+        ? tr('pay.couponExhausted')
+        : err instanceof ApiError
+          ? err.message
+          : tr('pay.errorBody');
       aviso(tr('pay.errorTitle'), msg, true);
     }
   }

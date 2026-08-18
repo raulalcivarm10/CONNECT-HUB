@@ -536,7 +536,22 @@ export class PagosService {
     }
 
     // misma entrada que un pago aprobado (QR, Mis Entradas, check-in, certificados)
-    const entrada = await this.entradas.emitirPorPago(idCliente, idEvento);
+    let entrada: { idEventoUsuario: number; qrToken: string | null };
+    try {
+      entrada = await this.entradas.emitirPorPago(idCliente, idEvento);
+    } catch (err) {
+      // El uso ya se había consumido: si la emisión falla, se DEVUELVE para no
+      // quemar cupo de un cupón de N personas sin entregar entrada (best-effort).
+      await this.oracle
+        .execute(
+          `UPDATE EVENTO_CUPONES
+              SET USOS = GREATEST(NVL(USOS, 1) - 1, 0)
+            WHERE ID_EVENTO = :e AND UPPER(CODIGO) = :c`,
+          { e: idEvento, c: (codigo ?? '').trim().toUpperCase() },
+        )
+        .catch(() => undefined);
+      throw err;
+    }
     await this.oracle.execute(
       `UPDATE EVENTOS_USUARIOS
           SET CUPON_CODIGO = :cup
