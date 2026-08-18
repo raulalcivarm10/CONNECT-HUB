@@ -2,7 +2,23 @@
 
 **Para:** equipo de Evento-back
 **De:** ConnectHub
-**Fecha:** 2026-08-18
+**Fecha:** 2026-08-18 (actualizado tras las pruebas del 18/08)
+
+## Estado actual — qué falta exactamente
+
+Verificado en producción con las pruebas del 18/08 (pagos de $40 sobre un
+evento de $80 con cupón del 50%):
+
+| Paso | Estado |
+|---|---|
+| 1-4. Generar la referencia con el monto descontado | ✅ **Ya funciona** (referencias de $40 confirmadas) |
+| 5. **Consumir el uso del cupón al aprobarse el pago** | ❌ **FALTA** — el contador `EVENTO_CUPONES.USOS` sigue en 0 después de 2 pagos aprobados con cupón |
+
+**Lo único pendiente es el paso 5** (sección "Lo que debe hacer el servicio",
+punto 5 más abajo): al confirmar un pago aprobado que usó cupón, ejecutar el
+UPDATE de consumo. Sin eso, el panel muestra `0/10` aunque haya pagos con
+descuento, y un cupón limitado a N personas nunca se agota — se puede usar
+infinitas veces.
 
 ## El problema
 
