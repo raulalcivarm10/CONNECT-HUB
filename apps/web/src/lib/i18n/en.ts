@@ -1096,7 +1096,7 @@ const en: Dict = {
   'ag.tDESCANSO': 'Break',
   'ag.tPROTOCOLO': 'Ceremony',
   'ag.empty': 'This event has no agenda yet. Import the Excel file to start.',
-  'ag.save': 'Save agenda',
+  'ag.save': 'Save schedule',
   'ag.saved': 'Agenda saved',
   'ag.saveTitle': 'Replace the saved agenda?',
   'ag.saveMsg':
@@ -1104,7 +1104,7 @@ const en: Dict = {
   'ag.nothingToSave': 'There is nothing to save: every row is empty.',
   'ag.saveError': 'The agenda was NOT saved. The server rejected it: {reason}',
   'ag.clearError': 'The agenda was NOT cleared. The server rejected it: {reason}',
-  'ag.clear': 'Clear agenda',
+  'ag.clear': 'Clear schedule',
   'ag.clearTitle': 'Clear the whole agenda?',
   'ag.clearMsg':
     'Every day and session stored for this event is deleted. This action cannot be undone.',

@@ -1081,7 +1081,7 @@ const pt: Dict = {
   'ag.tDESCANSO': 'Intervalo',
   'ag.tPROTOCOLO': 'Cerimônia',
   'ag.empty': 'Este evento ainda não tem agenda. Importe o Excel para começar.',
-  'ag.save': 'Salvar agenda',
+  'ag.save': 'Salvar programação',
   'ag.saved': 'Agenda salva',
   'ag.saveTitle': 'Substituir a agenda salva?',
   'ag.saveMsg':
@@ -1089,7 +1089,7 @@ const pt: Dict = {
   'ag.nothingToSave': 'Não há nada para salvar: todas as linhas estão vazias.',
   'ag.saveError': 'A agenda NÃO foi salva. O servidor recusou: {reason}',
   'ag.clearError': 'A agenda NÃO foi limpa. O servidor recusou: {reason}',
-  'ag.clear': 'Limpar agenda',
+  'ag.clear': 'Limpar programação',
   'ag.clearTitle': 'Limpar toda a agenda?',
   'ag.clearMsg':
     'Todos os dias e sessões salvos deste evento são excluídos. Esta ação não pode ser desfeita.',

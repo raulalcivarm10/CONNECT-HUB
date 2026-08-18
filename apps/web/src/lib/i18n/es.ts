@@ -1081,7 +1081,7 @@ const es: Dict = {
   'ag.tDESCANSO': 'Descanso',
   'ag.tPROTOCOLO': 'Acto protocolario',
   'ag.empty': 'Este evento aún no tiene agenda. Importa el Excel para empezar.',
-  'ag.save': 'Guardar agenda',
+  'ag.save': 'Guardar programa',
   'ag.saved': 'Agenda guardada',
   'ag.saveTitle': '¿Reemplazar la agenda guardada?',
   'ag.saveMsg':
@@ -1089,7 +1089,7 @@ const es: Dict = {
   'ag.nothingToSave': 'No hay nada que guardar: todas las filas están vacías.',
   'ag.saveError': 'La agenda NO se guardó. El servidor la rechazó: {reason}',
   'ag.clearError': 'La agenda NO se vació. El servidor lo rechazó: {reason}',
-  'ag.clear': 'Vaciar agenda',
+  'ag.clear': 'Vaciar programa',
   'ag.clearTitle': '¿Vaciar toda la agenda?',
   'ag.clearMsg':
     'Se eliminan todos los días y sesiones guardados de este evento. Esta acción no se puede deshacer.',
