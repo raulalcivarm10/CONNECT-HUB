@@ -74,7 +74,13 @@ export class AsistenteMailerService {
     evento: string,
     monto: number,
     transactionId: string,
+    cupon?: string | null,
   ): Promise<boolean> {
+    // Línea extra solo cuando la inscripción usó cupón (el servidor la lee de
+    // EVENTOS_USUARIOS.CUPON_CODIGO, así que no depende de lo que mande la app).
+    const lineaCupon = cupon
+      ? `<div style="color:#334155">Coupon: <b>${cupon}</b></div>`
+      : '';
     const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;background:#ffffff">
       <div style="background:linear-gradient(135deg,#0e7490,#1e293b);padding:32px 24px;text-align:center;border-radius:8px 8px 0 0">
@@ -88,6 +94,7 @@ export class AsistenteMailerService {
           <div style="font-size:18px;font-weight:700;color:#0f172a">${evento}</div>
           <div style="margin-top:8px;color:#334155">Status: <b>PAID</b></div>
           <div style="color:#334155">Amount: <b>$${monto.toFixed(2)}</b></div>
+          ${lineaCupon}
           <div style="color:#334155">Transaction: <b>${transactionId}</b></div>
         </div>
         <p>You can find your QR code in the event information section of the app.</p>

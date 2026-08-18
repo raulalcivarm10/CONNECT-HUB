@@ -97,7 +97,21 @@ export class PagosService {
       { e: idEvento },
     );
     const titulo = ev[0]?.TITULO ?? 'Evento';
-    const sent = await this.mailer.enviarConfirmacionPago(destino, nombre, titulo, monto, transactionId);
+    // Cupón usado en la inscripción (lo graba el flujo del 100%): se lee de la
+    // BD y no de la app, para que el correo lo muestre aunque la app no lo mande.
+    const cup = await this.oracle.query<{ CUPON_CODIGO: string | null }>(
+      `SELECT CUPON_CODIGO FROM EVENTOS_USUARIOS
+        WHERE ID_EVENTO = :e AND ID_CLIENTE = :c`,
+      { e: idEvento, c: idCliente },
+    );
+    const sent = await this.mailer.enviarConfirmacionPago(
+      destino,
+      nombre,
+      titulo,
+      monto,
+      transactionId,
+      cup[0]?.CUPON_CODIGO ?? null,
+    );
     return { sent };
   }
 
