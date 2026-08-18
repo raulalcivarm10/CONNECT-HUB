@@ -1096,6 +1096,30 @@ const pt: Dict = {
   'ag.cleared': 'Agenda limpa',
   'ag.loadError': 'Não foi possível carregar a agenda.',
   'ag.parallelHint': 'As salas que acontecem no mesmo horário aparecem lado a lado.',
+  // plantilla descargable de la agenda (encabezados y ejemplo genérico)
+  'ag.tplDownload': 'Baixar modelo',
+  'ag.tplHelp': 'Como o Excel precisa estar',
+  'ag.tplRule1':
+    'Uma linha por palestrante. A coluna Dia agrupa as jornadas na ordem em que aparecem: o primeiro valor é o dia 1 e o próximo diferente, o dia 2.',
+  'ag.tplRule2':
+    'Deixe Horário e Sala vazios para somar outro palestrante ao bloco de cima (painéis, mesas-redondas).',
+  'ag.tplRule3':
+    'Os intervalos não levam Tema nem Área: o rótulo deles vai na coluna Palestrante.',
+  'ag.tplColDay': 'Dia',
+  'ag.tplColTime': 'Horário',
+  'ag.tplRoomA': 'Sala principal',
+  'ag.tplRoomB': 'Sala 1',
+  'ag.tplArea1': 'Geral',
+  'ag.tplArea2': 'Inovação',
+  'ag.tplT1': 'Sessão de abertura',
+  'ag.tplT2': 'Para onde vai o setor',
+  'ag.tplT3': 'Workshop A: a prática desde o começo',
+  'ag.tplT4': 'Estudo de caso: o que funcionou e o que não',
+  'ag.tplT5': 'Painel: perguntas do público',
+  'ag.tplBreak': 'Intervalo para o café',
+  'ag.tplNat1': 'Canadá',
+  'ag.tplNat2': 'México',
+  'ag.tplNat3': 'Brasil',
 };
 
 export default pt;

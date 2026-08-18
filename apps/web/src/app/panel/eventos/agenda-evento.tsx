@@ -6,6 +6,7 @@ import { useDialogo } from '@/lib/dialogo';
 import { useI18n } from '@/lib/i18n';
 import {
   agruparSesiones,
+  descargarPlantillaAgenda,
   hojasDelExcel,
   ordenarYNumerar,
   parsearAgendaExcel,
@@ -348,6 +349,21 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
     mutar((l) => l.filter((f) => f.diaOrden !== dia));
   }
 
+  /* ── plantilla de ejemplo ── */
+
+  /**
+   * SIEMPRE disponible, también sin agenda cargada: es justo cuando hace falta
+   * saber qué archivo hay que subir. El .xlsx se arma en el navegador, con los
+   * encabezados del idioma activo.
+   */
+  async function bajarPlantilla() {
+    try {
+      await descargarPlantillaAgenda(t);
+    } catch {
+      aviso(t('c.error'), 'err');
+    }
+  }
+
   /* ── importación del Excel ── */
 
   async function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -565,6 +581,15 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
           />
         </label>
 
+        {/* la plantilla no depende de que haya agenda: se ve siempre */}
+        <button
+          type="button"
+          onClick={() => void bajarPlantilla()}
+          className="inline-flex items-center rounded-lg border border-border-app bg-surface px-3 py-1.5 text-sm font-semibold text-text-2 hover:border-brand"
+        >
+          {t('ag.tplDownload')}
+        </button>
+
         <div className="flex overflow-hidden rounded-lg border border-border-app">
           {(['editar', 'asistente'] as const).map((v) => (
             <button
@@ -609,6 +634,19 @@ export function AgendaEvento({ idEvento }: { idEvento: number }) {
           </button>
         </div>
       </div>
+
+      {/* las tres reglas que la gente hace mal, en una línea cada una: se
+          entienden sin descargar la plantilla */}
+      <details className="mb-3 rounded-lg border border-border-app bg-surface px-3 py-2">
+        <summary className="cursor-pointer text-xs font-semibold text-text-2">
+          {t('ag.tplHelp')}
+        </summary>
+        <ul className="mt-1.5 list-disc space-y-1 pl-4 text-xs text-text-muted">
+          <li>{t('ag.tplRule1')}</li>
+          <li>{t('ag.tplRule2')}</li>
+          <li>{t('ag.tplRule3')}</li>
+        </ul>
+      </details>
 
       {/* aviso GRANDE de cambios pendientes: el pill discreto pasaba inadvertido
           y la agenda se perdía al salir de la pantalla */}

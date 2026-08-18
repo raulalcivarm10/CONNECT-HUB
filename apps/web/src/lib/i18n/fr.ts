@@ -1101,6 +1101,30 @@ const fr: Dict = {
   'ag.cleared': 'Programme vidé',
   'ag.loadError': 'Le programme n’a pas pu être chargé.',
   'ag.parallelHint': 'Les salles qui se déroulent en même temps sont affichées côte à côte.',
+  // plantilla descargable de la agenda (encabezados y ejemplo genérico)
+  'ag.tplDownload': 'Télécharger le modèle',
+  'ag.tplHelp': 'À quoi doit ressembler le fichier Excel',
+  'ag.tplRule1':
+    'Une ligne par intervenant. La colonne Jour regroupe les journées dans leur ordre d’apparition : la première valeur est le jour 1, la suivante le jour 2.',
+  'ag.tplRule2':
+    'Laissez Horaire et Salle vides pour ajouter un intervenant au bloc juste au-dessus (panels, tables rondes).',
+  'ag.tplRule3':
+    'Les pauses n’ont ni Sujet ni Domaine : leur libellé se met dans la colonne Intervenant.',
+  'ag.tplColDay': 'Jour',
+  'ag.tplColTime': 'Horaire',
+  'ag.tplRoomA': 'Grande salle',
+  'ag.tplRoomB': 'Salle 1',
+  'ag.tplArea1': 'Général',
+  'ag.tplArea2': 'Innovation',
+  'ag.tplT1': 'Séance d’ouverture',
+  'ag.tplT2': 'Vers où va le secteur',
+  'ag.tplT3': 'Atelier A : les bases en pratique',
+  'ag.tplT4': 'Étude de cas : ce qui a marché et ce qui n’a pas marché',
+  'ag.tplT5': 'Panel : questions du public',
+  'ag.tplBreak': 'Pause café',
+  'ag.tplNat1': 'Canada',
+  'ag.tplNat2': 'Mexique',
+  'ag.tplNat3': 'Brésil',
 };
 
 export default fr;

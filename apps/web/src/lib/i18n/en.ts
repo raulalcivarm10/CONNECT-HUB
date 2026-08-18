@@ -1111,6 +1111,30 @@ const en: Dict = {
   'ag.cleared': 'Agenda cleared',
   'ag.loadError': 'The agenda could not be loaded.',
   'ag.parallelHint': 'Rooms running at the same time are shown side by side.',
+  // plantilla descargable de la agenda (encabezados y ejemplo genérico)
+  'ag.tplDownload': 'Download template',
+  'ag.tplHelp': 'What the Excel file must look like',
+  'ag.tplRule1':
+    'One row per speaker. The Day column groups the days in the order they appear: the first value is day 1, the next different one is day 2.',
+  'ag.tplRule2':
+    'Leave Time and Room empty to add another speaker to the block right above (panels, round tables).',
+  'ag.tplRule3':
+    'Breaks carry no Topic and no Area: write their label in the Speaker column.',
+  'ag.tplColDay': 'Day',
+  'ag.tplColTime': 'Time',
+  'ag.tplRoomA': 'Main Hall',
+  'ag.tplRoomB': 'Room 1',
+  'ag.tplArea1': 'General',
+  'ag.tplArea2': 'Innovation',
+  'ag.tplT1': 'Opening session',
+  'ag.tplT2': 'Where the sector is heading',
+  'ag.tplT3': 'Workshop A: hands-on basics',
+  'ag.tplT4': 'Case study: what worked and what did not',
+  'ag.tplT5': 'Panel: questions from the audience',
+  'ag.tplBreak': 'Coffee break',
+  'ag.tplNat1': 'Canada',
+  'ag.tplNat2': 'Mexico',
+  'ag.tplNat3': 'Brazil',
 };
 
 export default en;

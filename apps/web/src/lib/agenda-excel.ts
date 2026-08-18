@@ -7,7 +7,12 @@
  * El archivo real trae `Día | Horario | Salón | Nacionalidad | Conferencista |
  * Tema de conferencia | Area` y una segunda hoja "WORKSHOP" que añade
  * `Tipo | Patrocinador`. Las columnas se detectan POR ENCABEZADO (tolerando
- * tildes, mayúsculas y espacios), nunca por posición.
+ * tildes, mayúsculas y espacios), nunca por posición, y en los cuatro idiomas
+ * del panel (ver ALIAS).
+ *
+ * Aquí vive también la PLANTILLA descargable (`descargarPlantillaAgenda`): el
+ * ejemplo que se reparte y el lector que lo vuelve a leer tienen que ir a la
+ * par, así que están en el mismo archivo a propósito.
  */
 
 /** Una fila de la agenda, con los campos del contrato del API. */
@@ -51,12 +56,49 @@ type Campo =
  * Se prueba primero la coincidencia EXACTA de todos los encabezados y solo
  * después la parcial, para que "tema de conferencia" no se lleve la columna
  * de "conferencista" ni al revés.
+ *
+ * Hay sinónimos de los CUATRO idiomas del panel, no solo del español. El panel
+ * arranca en inglés y la plantilla descargable (`libroPlantillaAgenda`) sale con
+ * los encabezados del idioma activo, así que el lector tiene que reconocer los
+ * cuatro juegos o la plantilla que reparte no se podría volver a importar. Los
+ * del archivo original del cliente (en español) siguen intactos: se AÑADEN, no
+ * se sustituyen.
  */
 const ALIAS: Record<Campo, string[]> = {
-  dia: ['dia', 'dias', 'fecha', 'jornada'],
-  horario: ['horario', 'hora', 'horas', 'hora inicio', 'horarios'],
-  salon: ['salon', 'salones', 'sala', 'auditorio', 'aula'],
-  nacionalidad: ['nacionalidad', 'pais', 'nacion', 'origen'],
+  dia: ['dia', 'dias', 'fecha', 'jornada', 'day', 'date', 'jour'],
+  horario: [
+    'horario',
+    'hora',
+    'horas',
+    'hora inicio',
+    'horarios',
+    'time',
+    'schedule',
+    'hours',
+    'horaire',
+  ],
+  salon: [
+    'salon',
+    'salones',
+    'sala',
+    'auditorio',
+    'aula',
+    'room',
+    'hall',
+    'venue',
+    'auditorium',
+    'salle',
+  ],
+  nacionalidad: [
+    'nacionalidad',
+    'pais',
+    'nacion',
+    'origen',
+    'nationality',
+    'country',
+    'nationalite',
+    'nacionalidade',
+  ],
   conferencista: [
     'conferencista',
     'conferencistas',
@@ -64,6 +106,10 @@ const ALIAS: Record<Campo, string[]> = {
     'expositor',
     'disertante',
     'speaker',
+    'presenter',
+    'lecturer',
+    'intervenant',
+    'palestrante',
   ],
   tema: [
     'tema de conferencia',
@@ -73,9 +119,26 @@ const ALIAS: Record<Campo, string[]> = {
     'conferencia',
     'titulo',
     'charla',
+    'topic',
+    'title',
+    'session',
+    'talk',
+    'lecture',
+    'sujet',
   ],
-  area: ['area', 'areas', 'eje', 'categoria', 'especialidad'],
-  tipo: ['tipo', 'tipos', 'modalidad'],
+  area: [
+    'area',
+    'areas',
+    'eje',
+    'categoria',
+    'especialidad',
+    'track',
+    'category',
+    'field',
+    'speciality',
+    'domaine',
+  ],
+  tipo: ['tipo', 'tipos', 'modalidad', 'type', 'kind'],
   patrocinador: ['patrocinador', 'patrocinadores', 'auspiciante', 'sponsor'],
 };
 
@@ -406,4 +469,85 @@ export function resumenAgenda(filas: FilaAgenda[]) {
     sesiones: agruparSesiones(filas).length,
     dias: new Set(filas.map((f) => f.diaOrden)).size,
   };
+}
+
+/* ─────────────────────── plantilla descargable ─────────────────────── */
+
+/** El `t()` del panel: la plantilla sale en el idioma activo. */
+type Traducir = (clave: string, vars?: Record<string, string | number>) => string;
+
+/** Nombre del archivo que se descarga. */
+export const ARCHIVO_PLANTILLA = 'schedule-template.xlsx';
+
+/** Ancho (en caracteres) de cada columna, para que se lea al abrirlo. */
+const ANCHOS = [9, 16, 18, 14, 18, 42, 16, 13, 18];
+
+/**
+ * Libro de la plantilla de agenda, con los encabezados del idioma activo y un
+ * ejemplo GENÉRICO (nada de datos reales de ningún cliente).
+ *
+ * El ejemplo no es decorativo: cada fila enseña una regla del lector, que son
+ * justo las que la gente hace mal.
+ *   1. sesión completa;
+ *   2. fila con Horario y Salón VACÍOS = otro ponente del MISMO bloque;
+ *   3. dos salas a la misma hora = sesiones en paralelo (válido);
+ *   4. descanso: sin Tema ni Área y con el rótulo en la columna del ponente;
+ *   5. dos días, para que se vea que la columna Día es la que agrupa.
+ *
+ * Se devuelve el libro (y no el archivo) para poder comprobar el viaje de ida
+ * y vuelta: lo que sale de aquí tiene que volver a entrar por
+ * `parsearAgendaExcel` sin perder la agrupación.
+ */
+export async function libroPlantillaAgenda(t: Traducir) {
+  const XLSX = await import('xlsx');
+
+  const dia1 = t('ag.day', { n: 1 });
+  const dia2 = t('ag.day', { n: 2 });
+  const salaA = t('ag.tplRoomA');
+  const salaB = t('ag.tplRoomB');
+  const area1 = t('ag.tplArea1');
+  const area2 = t('ag.tplArea2');
+  const ponencia = t('ag.tPONENCIA');
+  const descanso = t('ag.tDESCANSO');
+  // ponentes de mentira y sin apellido: nadie debe confundirlos con personas
+  const ponente = (n: number) => `${t('ag.speaker')} ${n}`;
+
+  const filas: string[][] = [
+    [
+      t('ag.tplColDay'),
+      t('ag.tplColTime'),
+      t('ag.room'),
+      t('ag.nationality'),
+      t('ag.speaker'),
+      t('ag.topic'),
+      t('ag.area'),
+      t('ag.type'),
+      t('ag.sponsor'),
+    ],
+    // 1) sesión normal completa
+    [dia1, '09:00 - 09:45', salaA, t('ag.tplNat1'), ponente(1), t('ag.tplT1'), area1, ponencia, ''],
+    // 2) MISMO bloque que la de arriba: horario y salón vacíos
+    [dia1, '', '', t('ag.tplNat2'), ponente(2), t('ag.tplT2'), area1, ponencia, ''],
+    // 3) otra sala a la MISMA hora: sesiones en paralelo
+    [dia1, '09:00 - 09:45', salaB, t('ag.tplNat3'), ponente(3), t('ag.tplT3'), area2, ponencia, 'Acme Corp'],
+    // 4) descanso: sin tema ni área, el rótulo va en la columna del ponente
+    [dia1, '10:00 - 10:30', '', '', t('ag.tplBreak'), '', '', descanso, ''],
+    [dia1, '10:30 - 11:15', salaA, t('ag.tplNat1'), ponente(4), t('ag.tplT4'), area2, ponencia, ''],
+    // 5) segundo día: la columna Día es la que separa las jornadas
+    [dia2, '09:00 - 10:00', salaA, t('ag.tplNat2'), ponente(1), t('ag.tplT5'), area1, ponencia, ''],
+    [dia2, '', '', t('ag.tplNat3'), ponente(5), t('ag.tplT5'), area1, ponencia, ''],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(filas);
+  ws['!cols'] = ANCHOS.map((wch) => ({ wch }));
+  const wb = XLSX.utils.book_new();
+  // una sola hoja: al reimportarla no se pregunta cuál usar
+  XLSX.utils.book_append_sheet(wb, ws, t('ag.section').slice(0, 31));
+  return wb;
+}
+
+/** Descarga la plantilla (mismo patrón que `descargarExcel` de excel.ts). */
+export async function descargarPlantillaAgenda(t: Traducir) {
+  const XLSX = await import('xlsx');
+  XLSX.writeFile(await libroPlantillaAgenda(t), ARCHIVO_PLANTILLA);
 }
