@@ -30,7 +30,7 @@ import { Roles } from '../../auth/roles.decorator';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { JwtUser, ROL } from '../../auth/types';
 import { EventosService } from './eventos.service';
-import { CrearCuponDto } from './dto/cupon.dto';
+import { CrearCuponDto, EditarCuponDto } from './dto/cupon.dto';
 import {
   CreateEventoDto,
   DestacarDto,
@@ -195,8 +195,22 @@ export class EventosController {
     return this.eventos.crearCupon(user, id, dto);
   }
 
+  @Patch(':id/cupones/:idCupon')
+  @ApiOperation({
+    summary:
+      'Editar el CUPO de un cupón (usos máximos). El monto es inmutable: con pagos hechos, cambiarlo reescribiría compras pasadas.',
+  })
+  editarCupon(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idCupon', ParseIntPipe) idCupon: number,
+    @Body() dto: EditarCuponDto,
+  ) {
+    return this.eventos.editarCupon(user, id, idCupon, dto);
+  }
+
   @Delete(':id/cupones/:idCupon')
-  @ApiOperation({ summary: 'Eliminar cupón de descuento' })
+  @ApiOperation({ summary: 'Eliminar cupón de descuento (solo si no tiene usos)' })
   eliminarCupon(
     @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,

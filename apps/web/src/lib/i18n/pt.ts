@@ -525,6 +525,8 @@ const pt: Dict = {
   'cup.maxUses': 'Usos máximos',
   'cup.maxUsesHint': 'Deixe vazio para ilimitado',
   'cup.uses': '{used}/{max} usos',
+  'cup.usesOnly': '{used} usos',
+  'cup.editQuota': 'Editar cota (usos máximos)',
   'cup.unlimited': 'ilimitado',
   'cup.percentSuffix': '% de desconto',
   'cup.add': '+ Adicionar cupom',

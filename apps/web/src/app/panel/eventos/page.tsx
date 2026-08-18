@@ -2061,6 +2061,25 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
     }
   }
 
+  // Edición del CUPO (usos máximos) únicamente. El monto es inmutable a
+  // propósito: con pagos ya hechos, cambiarlo reescribiría las condiciones de
+  // compras pasadas (el API lo rechaza igual; aquí ni se ofrece).
+  const [editando, setEditando] = useState<number | null>(null);
+  const [cupoNuevo, setCupoNuevo] = useState('');
+
+  async function guardarCupo(c: CuponRow) {
+    setError(null);
+    try {
+      await api.patch(`/eventos/${idEvento}/cupones/${c.ID_CUPON}`, {
+        maxUsos: cupoNuevo.trim() ? Number(cupoNuevo) : null,
+      });
+      setEditando(null);
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('c.error'));
+    }
+  }
+
   return (
     <div className="rounded-lg border border-border-app bg-surface-2 p-3 sm:col-span-2 lg:col-span-3">
       <div className="flex flex-wrap items-end gap-2">
@@ -2124,19 +2143,65 @@ function CuponesEvento({ idEvento }: { idEvento: number }) {
                 ? `${c.MONTO_DESCUENTO}${t('cup.percentSuffix')}`
                 : `-${money(c.MONTO_DESCUENTO, locale)}`}
             </span>
-            {c.MAX_USOS != null && (
-              <span className="text-text-muted">
-                {t('cup.uses', { used: c.USOS ?? 0, max: c.MAX_USOS })}
+            {editando === c.ID_CUPON ? (
+              <span className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={c.USOS ?? 0}
+                  step="1"
+                  value={cupoNuevo}
+                  onChange={(e) => setCupoNuevo(e.target.value)}
+                  placeholder={t('cup.maxUses')}
+                  aria-label={t('cup.editQuota')}
+                  className="w-16 rounded border border-border-app bg-surface-2 px-1 py-0.5 text-xs text-text outline-none focus:border-brand"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => guardarCupo(c)}
+                  className="text-success hover:opacity-70"
+                  title={t('c.save')}
+                >
+                  &#10003;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditando(null)}
+                  className="text-text-muted hover:opacity-70"
+                  title={t('c.cancel')}
+                >
+                  &#10005;
+                </button>
               </span>
+            ) : (
+              <>
+                {/* usos SIEMPRE visibles: con cupo muestra N/M, sin cupo solo N */}
+                <span className="text-text-muted">
+                  {c.MAX_USOS != null
+                    ? t('cup.uses', { used: c.USOS ?? 0, max: c.MAX_USOS })
+                    : t('cup.usesOnly', { used: c.USOS ?? 0 })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditando(c.ID_CUPON);
+                    setCupoNuevo(c.MAX_USOS != null ? String(c.MAX_USOS) : '');
+                  }}
+                  className="text-text-muted hover:text-brand"
+                  title={t('cup.editQuota')}
+                >
+                  &#9998;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => eliminar(c)}
+                  className="text-danger hover:opacity-70"
+                  title={t('c.delete')}
+                >
+                  &#10005;
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={() => eliminar(c)}
-              className="text-danger hover:opacity-70"
-              title={t('c.delete')}
-            >
-              &#10005;
-            </button>
           </span>
         ))}
         {cupones.length === 0 && (

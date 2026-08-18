@@ -532,6 +532,8 @@ const en: Dict = {
   'cup.maxUses': 'Max uses',
   'cup.maxUsesHint': 'Leave empty for unlimited',
   'cup.uses': '{used}/{max} uses',
+  'cup.usesOnly': '{used} uses',
+  'cup.editQuota': 'Edit quota (max uses)',
   'cup.unlimited': 'unlimited',
   'cup.percentSuffix': '% off',
   'cup.add': '+ Add coupon',

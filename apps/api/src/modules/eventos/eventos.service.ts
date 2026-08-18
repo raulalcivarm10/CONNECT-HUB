@@ -13,7 +13,7 @@ import { ScopeService } from '../operativa/scope.service';
 import { ArchivosService } from '../archivos/archivos.service';
 import { PushService } from '../push/push.service';
 import { CreateEventoDto, UpdateEventoDto, DiaDto } from './dto/evento.dto';
-import { CrearCuponDto } from './dto/cupon.dto';
+import { CrearCuponDto, EditarCuponDto } from './dto/cupon.dto';
 import {
   EventoDetalleDto,
   CreateExpositorDto,
@@ -1068,8 +1068,55 @@ export class EventosService {
     }
   }
 
+  /**
+   * Edita un cupón: SOLO el cupo (MAX_USOS). El monto y el tipo son inmutables:
+   * si ya hay pagos con ese código, cambiarle el valor reescribiría las
+   * condiciones de compras pasadas. El cupo nuevo no puede quedar por debajo
+   * de los usos ya consumidos.
+   */
+  async editarCupon(
+    actor: JwtUser,
+    idEvento: number,
+    idCupon: number,
+    dto: EditarCuponDto,
+  ) {
+    await this.eventoEnAmbito(actor, idEvento);
+    const rows = await this.oracle.query<{ USOS: number | null }>(
+      `SELECT USOS FROM EVENTO_CUPONES WHERE ID_CUPON = :c AND ID_EVENTO = :e`,
+      { c: idCupon, e: idEvento },
+    );
+    if (!rows.length) throw new NotFoundException('Coupon not found');
+    const usados = rows[0].USOS ?? 0;
+    if (dto.maxUsos != null && dto.maxUsos < usados) {
+      throw new BadRequestException(
+        `The new quota (${dto.maxUsos}) is below the uses already consumed (${usados})`,
+      );
+    }
+    await this.oracle.execute(
+      `UPDATE EVENTO_CUPONES SET MAX_USOS = :m WHERE ID_CUPON = :c AND ID_EVENTO = :e`,
+      {
+        m: { val: dto.maxUsos ?? null, type: this.oracle.NUMBER },
+        c: idCupon,
+        e: idEvento,
+      },
+    );
+    return { idCupon, maxUsos: dto.maxUsos ?? null, usos: usados };
+  }
+
   async eliminarCupon(actor: JwtUser, idEvento: number, idCupon: number) {
     await this.eventoEnAmbito(actor, idEvento);
+    // Un cupón ya usado no se borra: su contador es el registro de cuántas
+    // inscripciones salieron con ese descuento. Para retirarlo de circulación
+    // se le pone el cupo igual a los usos consumidos (queda agotado).
+    const usados = await this.oracle.query<{ USOS: number | null }>(
+      `SELECT USOS FROM EVENTO_CUPONES WHERE ID_CUPON = :c AND ID_EVENTO = :e`,
+      { c: idCupon, e: idEvento },
+    );
+    if (usados.length && (usados[0].USOS ?? 0) > 0) {
+      throw new ConflictException(
+        `This coupon has already been used ${usados[0].USOS} time(s) and cannot be deleted. Set its quota to the used count to retire it.`,
+      );
+    }
     const r = await this.oracle.execute(
       `DELETE FROM EVENTO_CUPONES WHERE ID_CUPON = :c AND ID_EVENTO = :e`,
       { c: idCupon, e: idEvento },

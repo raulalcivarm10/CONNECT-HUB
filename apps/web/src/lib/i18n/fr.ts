@@ -526,6 +526,8 @@ const fr: Dict = {
   'cup.maxUses': 'Utilisations max',
   'cup.maxUsesHint': 'Laisser vide pour illimité',
   'cup.uses': '{used}/{max} utilisations',
+  'cup.usesOnly': '{used} utilisations',
+  'cup.editQuota': 'Modifier le quota (utilisations max)',
   'cup.unlimited': 'illimité',
   'cup.percentSuffix': '% de réduction',
   'cup.add': '+ Ajouter un coupon',
