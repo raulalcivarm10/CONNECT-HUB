@@ -131,6 +131,20 @@ export function Topbar() {
               {tema === 'dark' ? t('top.themeLight') : t('top.themeDark')}
             </button>
 
+            {/* Manual de producto. Es un PDF estatico servido desde /public: se
+                abre en pestaña nueva (los navegadores lo previsualizan y desde
+                ahi se guarda) en vez de forzar la descarga. El documento esta
+                en INGLES a proposito; lo que se traduce es esta etiqueta. */}
+            <a
+              href="/connecthub-manual.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMenuAbierto(false)}
+              className="mx-1 mt-2 block w-[calc(100%-0.5rem)] rounded-lg px-2 py-1.5 text-left text-sm text-text-2 transition hover:bg-surface-2"
+            >
+              📘 {t('top.manual')}
+            </a>
+
             <div className="my-2 border-t border-border-app" />
 
             <button

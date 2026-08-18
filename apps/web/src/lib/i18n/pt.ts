@@ -137,6 +137,7 @@ const pt: Dict = {
   'top.allInstitutions': '🌐 Todas as instituições',
   'top.superadmin': 'SUPERADMIN',
   'top.platform': 'Plataforma',
+  'top.manual': 'Manual do usuário',
   'top.logout': 'Sair',
   'top.language': 'Idioma',
   'top.theme': 'Tema',
