@@ -41,6 +41,9 @@ interface Resumen {
     MONEDA: string;
     METODO_PAGO: string | null;
     ULTIMOS_4: string | null;
+    PAGADOR_NOMBRE: string | null;
+    PAGADOR_APELLIDO: string | null;
+    PAGADOR_EMAIL: string | null;
     FECHA: string | null;
   }>;
 }
@@ -162,6 +165,8 @@ export default function FinancieroPage() {
     }));
     const pagos = datos.ultimosPagos.map((p) => ({
       [t('ev.event')]: p.TITULO ?? '',
+      [t('fin.payer')]: [p.PAGADOR_NOMBRE, p.PAGADOR_APELLIDO].filter(Boolean).join(' '),
+      [t('fin.payerEmail')]: p.PAGADOR_EMAIL?.toLowerCase() ?? '',
       [t('fin.amount')]: p.MONTO,
       [t('fin.method')]: `${p.METODO_PAGO ?? ''}${p.ULTIMOS_4 ? ` ••••${p.ULTIMOS_4}` : ''}`.trim(),
       [t('fin.date')]: p.FECHA ? new Date(p.FECHA).toLocaleDateString(locale) : '',
@@ -370,18 +375,27 @@ export default function FinancieroPage() {
           <thead>
             <tr className="border-b border-border-app text-left text-xs uppercase tracking-wide text-text-muted">
               <th className="px-4 py-3">{t('ev.event')}</th>
+              <th className="px-4 py-3">{t('fin.payer')}</th>
               <th className="px-4 py-3">{t('fin.amount')}</th>
               <th className="px-4 py-3">{t('fin.method')}</th>
               <th className="px-4 py-3">{t('fin.date')}</th>
             </tr>
           </thead>
           <tbody>
-            {cargando && <FilasSkeleton cols={4} />}
+            {cargando && <FilasSkeleton cols={5} />}
             {!cargando &&
               datos?.ultimosPagos.map((p) => (
                 <tr key={p.ID_PAGO} className="border-b border-border-app/60">
                   <td className="px-4 py-3 font-medium text-text">
                     {p.TITULO ?? '—'}
+                  </td>
+                  <td className="px-4 py-3 text-text-2">
+                    {[p.PAGADOR_NOMBRE, p.PAGADOR_APELLIDO].filter(Boolean).join(' ') || '—'}
+                    {p.PAGADOR_EMAIL ? (
+                      <span className="block text-xs normal-case text-text-muted">
+                        {p.PAGADOR_EMAIL.toLowerCase()}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 text-success">
                     {money(p.MONTO)}

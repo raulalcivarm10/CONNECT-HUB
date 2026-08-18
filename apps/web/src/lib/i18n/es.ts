@@ -882,6 +882,8 @@ const es: Dict = {
   'fin.lastPayments': 'Últimos pagos',
   'fin.amount': 'Monto',
   'fin.method': 'Método',
+  'fin.payer': 'Asistente',
+  'fin.payerEmail': 'Correo del asistente',
   'fin.date': 'Fecha',
   'fin.noPayments': 'Sin pagos registrados',
   'fin.collectedSeries': 'Recaudado',
