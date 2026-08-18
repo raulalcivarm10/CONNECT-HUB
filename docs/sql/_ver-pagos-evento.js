@@ -27,7 +27,7 @@ const filtro = process.argv[2] || 'DYNAMIND';
     console.log(`\n=== ${ev.TITULO} (id ${ev.ID_EVENTO}, precio $${ev.PRECIO}) ===`);
 
     const pagos = await c.execute(
-      `SELECT p.ID_PAGO, p.VALOR_PAGO, p.ESTADO, p.METODO_PAGO,
+      `SELECT p.ID_PAGO, p.MONTO, p.ESTADO, p.DETALLE_ESTADO, p.ORIGEN_PAGO, p.TIPO_PAGO, p.ULTIMOS_4,
               TO_CHAR(p.FECHA_PAGO, 'YYYY-MM-DD HH24:MI') AS FECHA,
               SUBSTR(p.REFERENCIA, 1, 40) AS REFERENCIA,
               u.NOMBRE, u.APELLIDO, u.EMAIL
@@ -52,7 +52,7 @@ const filtro = process.argv[2] || 'DYNAMIND';
     if (pagos) {
       for (const p of pagos.rows) {
         console.log(
-          `  $${String(p.VALOR_PAGO).padEnd(7)} ${p.ESTADO ?? '-'}  ${p.FECHA ?? '-'}  ` +
+          `  ${String(p.MONTO).padEnd(7)} ${p.ESTADO ?? '-'}/${p.DETALLE_ESTADO ?? '-'}  ${p.ORIGEN_PAGO ?? '-'}  ${p.FECHA ?? '-'}  ` +
             `${[p.NOMBRE, p.APELLIDO].filter(Boolean).join(' ') || '(sin nombre)'}  ` +
             `<${p.EMAIL ?? '-'}>  ref=${p.REFERENCIA ?? '-'}`,
         );
