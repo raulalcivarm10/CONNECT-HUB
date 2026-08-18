@@ -18,6 +18,7 @@ import {
   iniciarCheckout,
   confirmarCheckout,
   validarCupon,
+  inscribirConCupon,
   enviarConfirmacionCorreo,
 } from '@/api/pagos';
 import { CheckoutWidget } from '@/features/pagos/checkout-widget';
@@ -183,6 +184,47 @@ export default function Checkout() {
     }
   }
 
+  // Registro directo con cupón del 100%: nada que cobrar → sin pasarela.
+  // Nuestro backend revalida el cupón (la app nunca decide que es gratis),
+  // lo consume y emite la MISMA entrada que un pago aprobado. Aquí no hay
+  // Modal de widget de por medio, así que el diálogo de éxito va directo.
+  async function registrarConCupon() {
+    if (!idUsuario) return;
+    if (resumen?.padreRequerido) {
+      aviso(tr('event.parentFirst'), `${resumen.padreRequerido.titulo} · $${resumen.padreRequerido.precio.toFixed(2)}`);
+      return;
+    }
+    setPaying(true);
+    try {
+      const r = await inscribirConCupon(evId, cupon.trim());
+      setPaying(false);
+      if (!r.aprobado) {
+        aviso(tr('pay.errorTitle'), tr('pay.errorBody'), true);
+        return;
+      }
+      // correo de confirmación (best-effort): monto 0, referencia del cupón
+      void enviarConfirmacionCorreo(evId, `CUPON-${r.idEventoUsuario ?? 0}`, 0).catch(() => {});
+      await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
+      await qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
+      void confirm({
+        title: tr('pay.successTitle'),
+        message: tr('pay.successBody'),
+        confirmText: tr('event.viewTicket'),
+        icon: 'checkmark-circle-outline',
+      }).then(() => router.replace('/(tabs)/entradas'));
+    } catch (err) {
+      setPaying(false);
+      if (errorCode(err) === 'PROFILE_INCOMPLETE') {
+        await pedirCompletarPerfil();
+        return;
+      }
+      // el cupón pudo agotarse entre validar y registrar → refresca el estado
+      setCuponInfo(null);
+      const msg = err instanceof ApiError ? err.message : tr('pay.errorBody');
+      aviso(tr('pay.errorTitle'), msg, true);
+    }
+  }
+
   // Muestra un diálogo DESPUÉS de que el Modal del widget termine de cerrarse.
   // Llamarlo en caliente lo pierde bajo el teardown del Modal en Android; y
   // encadenar Modales congelaba iOS — por eso iOS conserva su flujo original.
@@ -292,6 +334,11 @@ export default function Checkout() {
 
   const money = (n: number) => `$${n.toFixed(2)}`;
   const cuponAplicado = cuponInfo?.valido === true; // cupón válido → código congelado
+  // Cupón que cubre el 100% del total → NO se pasa por la pasarela: el botón
+  // cambia a "Registrarse" y la inscripción la hace nuestro backend, que
+  // revalida y consume el cupón. (El servicio de pagos externo ignora el
+  // cupón al generar la referencia y cobraría el precio completo.)
+  const esGratisConCupon = cuponAplicado && (cuponInfo?.totalConDescuento ?? 1) <= 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.bg }}>
@@ -410,16 +457,28 @@ export default function Checkout() {
             ) : (
               /* Checkout Paymentez (método PRINCIPAL) */
               <View style={{ gap: spacing.sm }}>
+                {/* Cupón del 100% → "Registrarse" (sin monto, sin pasarela).
+                    Cupón parcial → el botón muestra el TOTAL CON DESCUENTO
+                    (decisión del cliente). OJO: el monto real lo fija el
+                    servicio de pagos externo al generar la referencia; si ese
+                    servicio no aplica el cupón, la pasarela abrirá con otro
+                    valor y es SU lado el que hay que corregir. */}
                 <Button
-                  title={`${tr('pay.pay')} ${money(resumen.total)}`}
-                  onPress={pagarConCheckout}
+                  title={
+                    esGratisConCupon
+                      ? tr('pay.register')
+                      : `${tr('pay.pay')} ${money(cuponAplicado ? (cuponInfo?.totalConDescuento ?? resumen.total) : resumen.total)}`
+                  }
+                  onPress={esGratisConCupon ? registrarConCupon : pagarConCheckout}
                   loading={paying}
                   disabled={!idUsuario}
                 />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center' }}>
-                  <Ionicons name="card-outline" size={13} color={t.colors.textFaint} />
-                  <AppText muted variant="caption">{tr('pay.checkoutHint')}</AppText>
-                </View>
+                {!esGratisConCupon ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center' }}>
+                    <Ionicons name="card-outline" size={13} color={t.colors.textFaint} />
+                    <AppText muted variant="caption">{tr('pay.checkoutHint')}</AppText>
+                  </View>
+                ) : null}
               </View>
             )}
 

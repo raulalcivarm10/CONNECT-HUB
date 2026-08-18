@@ -438,6 +438,10 @@ export interface ResumenPago {
 /** Resultado de un cobro directo con tarjeta guardada. */
 export interface PagoResult {
   aprobado: boolean;
+  /** true si la entrada salió sin cobro por un cupón del 100%. */
+  gratis?: boolean;
+  /** código del cupón consumido (solo en el flujo gratis). */
+  cupon?: string;
   yaAdquirido?: boolean;
   pendiente?: boolean;
   idEventoUsuario?: number;

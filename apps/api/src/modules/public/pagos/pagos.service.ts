@@ -479,6 +479,80 @@ export class PagosService {
     };
   }
 
+  /**
+   * Inscripción con cupón del 100%: si el cupón cubre TODO el total, no hay
+   * nada que cobrar y el flujo NO debe pasar por la pasarela (el servicio de
+   * pagos externo ignora el cupón y cobraría el precio completo).
+   *
+   * El descuento se revalida AQUÍ, en el servidor, contra EVENTO_CUPONES: la
+   * app solo manda el código, nunca "esto es gratis". El cupón se consume de
+   * forma atómica (respetando MAX_USOS bajo concurrencia) y la inscripción
+   * queda marcada con el código en EVENTOS_USUARIOS.CUPON_CODIGO para que
+   * conste que esa entrada salió con descuento del 100%.
+   */
+  async inscribirConCupon(idCliente: string, idEvento: number, codigo: string) {
+    const ev = await this.eventoParaPago(idEvento);
+    await this.exigirMembresia(idCliente, ev.ID_INSTITUCION!);
+
+    // idempotencia: si ya tiene la entrada, no consume el cupón otra vez
+    const ya = await this.yaTieneEntrada(idCliente, idEvento);
+    if (ya) {
+      return {
+        aprobado: true,
+        yaAdquirido: true,
+        idEventoUsuario: ya.ID_EVENTO_USUARIO,
+        qrToken: ya.QR_TOKEN,
+      };
+    }
+    await this.exigirPadre(idCliente, ev);
+    // mismos requisitos de perfil que un pago (nombre+apellido → certificado)
+    await this.datosPago(idCliente, '');
+
+    // misma aritmética que ve la app (IVA incluido), nada recalculado a mano
+    const val = await this.validarCupon(idCliente, idEvento, codigo);
+    if (!val.valido) {
+      throw new BadRequestException(
+        val.motivo === 'exhausted' ? 'Coupon exhausted' : 'Invalid coupon',
+      );
+    }
+    if (val.totalConDescuento > 0) {
+      // cubre solo una parte: ese camino sigue siendo el checkout de pago
+      throw new BadRequestException('Coupon does not cover the full amount');
+    }
+
+    // Consumo ATÓMICO: el WHERE repite las condiciones para que dos peticiones
+    // simultáneas no gasten el mismo último uso (rowsAffected decide).
+    const consumo = await this.oracle.execute(
+      `UPDATE EVENTO_CUPONES
+          SET USOS = NVL(USOS, 0) + 1
+        WHERE ID_EVENTO = :e
+          AND UPPER(CODIGO) = :c
+          AND NVL(ACTIVO, 'S') = 'S'
+          AND (MAX_USOS IS NULL OR NVL(USOS, 0) < MAX_USOS)`,
+      { e: idEvento, c: (codigo ?? '').trim().toUpperCase() },
+    );
+    if (!consumo.rowsAffected) {
+      throw new BadRequestException('Coupon exhausted');
+    }
+
+    // misma entrada que un pago aprobado (QR, Mis Entradas, check-in, certificados)
+    const entrada = await this.entradas.emitirPorPago(idCliente, idEvento);
+    await this.oracle.execute(
+      `UPDATE EVENTOS_USUARIOS
+          SET CUPON_CODIGO = :cup
+        WHERE ID_EVENTO_USUARIO = :id AND CUPON_CODIGO IS NULL`,
+      { cup: val.codigo, id: entrada.idEventoUsuario },
+    );
+
+    return {
+      aprobado: true,
+      gratis: true,
+      cupon: val.codigo,
+      idEventoUsuario: entrada.idEventoUsuario,
+      qrToken: entrada.qrToken,
+    };
+  }
+
   /* ---------- pago directo (tarjeta tokenizada) ---------- */
 
   async pagarDirecto(idCliente: string, email: string, idEvento: number, idTarjeta: number) {

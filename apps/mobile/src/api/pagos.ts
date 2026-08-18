@@ -107,6 +107,18 @@ export function validarCupon(idEvento: number, codigo: string) {
   return apiPost<CuponValidacion>(`/public/pagos/cupon/${idEvento}`, { codigo }, true);
 }
 
+/**
+ * Inscripción SIN pasarela cuando el cupón cubre el 100% del total. Va contra
+ * NUESTRO backend, que revalida el cupón, lo consume (respetando MAX_USOS) y
+ * emite la entrada. La app solo manda el código: nunca decide por sí sola que
+ * algo es gratis. El servicio de pagos externo no interviene — no hay monto
+ * que cobrar, así que no se le pide referencia (que era donde ignoraba el
+ * cupón y cobraba el precio completo).
+ */
+export function inscribirConCupon(idEvento: number, codigo: string) {
+  return apiPost<PagoResult>(`/public/pagos/inscripcion-cupon/${idEvento}`, { codigo }, true);
+}
+
 /** Desglose de precio de un evento de pago. */
 export function useResumenPago(idEvento: number) {
   return useQuery({

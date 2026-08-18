@@ -32,6 +32,8 @@ function accionDe(metodo: string, ruta: string, fallo: boolean): string {
   if (/^\/eventos\/\d+\/destacar$/.test(ruta)) return 'DESTACAR';
   if (/^\/eventos\/\d+\/asistencia$/.test(ruta)) return 'ASISTENCIA';
   if (/^\/eventos\/\d+\/suspender$/.test(ruta)) return 'SUSPENDER_EVENTO';
+  // inscripción sin pasarela con cupón del 100% (queda auditada por sí misma)
+  if (/^\/public\/pagos\/inscripcion-cupon\/\d+$/.test(ruta)) return 'INSC_CUPON100';
   if (/^\/eventos\/\d+\/republicar$/.test(ruta)) return 'REPUBLICAR';
   if (/^\/usuarios\/[^/]+\/roles$/.test(ruta)) return 'CAMBIO_ROLES';
   if (/^\/usuarios\/[^/]+\/estado$/.test(ruta)) return 'USUARIO_ESTADO';

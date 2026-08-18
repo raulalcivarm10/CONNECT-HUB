@@ -159,6 +159,21 @@ export class PagosController {
     return this.pagos.validarCupon(u.sub, idEvento, dto.codigo);
   }
 
+  @Post('inscripcion-cupon/:idEvento')
+  @UseGuards(AsistenteJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Inscripción SIN pasar por la pasarela cuando el cupón cubre el 100% del total (se revalida y consume en el servidor)',
+  })
+  inscripcionCupon(
+    @Asistente() u: AsistenteUser,
+    @Param('idEvento', ParseIntPipe) idEvento: number,
+    @Body() dto: ValidarCuponDto,
+  ) {
+    return this.pagos.inscribirConCupon(u.sub, idEvento, dto.codigo);
+  }
+
   @Post('confirmacion-email')
   @UseGuards(AsistenteJwtGuard)
   @ApiBearerAuth()
