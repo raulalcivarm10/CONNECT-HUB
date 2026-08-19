@@ -128,11 +128,15 @@ export class ArchivosProxyController {
     // imagen sin optimizar es mucho mejor que un error.
     if (ancho) {
       try {
-        buffer = await sharp(buffer)
+        // `Buffer.from(...)` reenvuelve la salida de sharp: su tipo declarado
+        // (Buffer<ArrayBufferLike>) no encaja con el de la variable
+        // (Buffer<ArrayBuffer>) y TypeScript lo rechaza.
+        const reducido = await sharp(buffer)
           .rotate() // respeta la orientación EXIF de fotos de móvil
           .resize({ width: ancho, withoutEnlargement: true })
           .webp({ quality: 82 })
           .toBuffer();
+        buffer = Buffer.from(reducido);
         mime = 'image/webp';
       } catch {
         // se queda el original
