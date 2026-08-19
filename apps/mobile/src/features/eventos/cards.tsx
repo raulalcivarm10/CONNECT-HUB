@@ -1,19 +1,17 @@
 import { memo } from 'react';
 import { Pressable, View } from 'react-native';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import type { EventoResumen } from '@connecthub/shared-types';
 import { AppText, Chip } from '@/design-system/components';
+import { AppImage, IMAGE_PLACEHOLDER } from '@/design-system/image';
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, shadow, fontSize, fontWeight } from '@/design-system/tokens';
 import { useAgenda, SavedEvent } from '@/store/agenda';
 import { useI18n } from '@/i18n';
 import { resumenDias } from '@/lib/fecha';
-
-const BLURHASH = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 function toSaved(e: EventoResumen): SavedEvent {
   return {
@@ -76,11 +74,15 @@ function FeaturedCardBase({ evento }: { evento: EventoResumen }) {
           shadow.floating,
         ]}
       >
-        <Image
+        <AppImage
           source={{ uri: evento.portadaUrl }}
-          placeholder={{ blurhash: BLURHASH }}
+          placeholder={IMAGE_PLACEHOLDER}
+          placeholderContentFit="cover"
           contentFit="cover"
           transition={300}
+          // Carrusel horizontal: las tarjetas se reciclan al deslizar.
+          recyclingKey={String(evento.id)}
+          priority="high"
           style={{ width: '100%', height: '100%', backgroundColor: palette.slate800 }}
         />
         <LinearGradient
@@ -131,11 +133,15 @@ function EventCardBase({ evento }: { evento: EventoResumen }) {
         shadow.card,
       ]}
     >
-      <Image
+      <AppImage
         source={{ uri: evento.portadaUrl }}
-        placeholder={{ blurhash: BLURHASH }}
+        placeholder={IMAGE_PLACEHOLDER}
+        placeholderContentFit="cover"
         contentFit="cover"
         transition={250}
+        // Filas de FlatList: sin recyclingKey se ve un instante la portada de
+        // la fila anterior al reciclar la vista.
+        recyclingKey={String(evento.id)}
         style={{ width: 108, height: 118, backgroundColor: palette.slate800 }}
       />
       <View style={{ flex: 1, padding: spacing.md, justifyContent: 'space-between' }}>

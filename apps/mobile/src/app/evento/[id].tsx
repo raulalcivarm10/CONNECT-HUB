@@ -1,7 +1,6 @@
 import { ReactNode, useCallback, useState } from 'react';
 import { Alert, Linking, Modal, Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { DiaEvento, Expositor, WorkshopResumen } from '@connecthub/shared-types';
 import { AppText, Button, Chip, Skeleton } from '@/design-system/components';
+import { AppImage, IMAGE_PLACEHOLDER } from '@/design-system/image';
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, shadow, fontWeight } from '@/design-system/tokens';
 import { useI18n, Lang } from '@/i18n';
@@ -131,10 +131,13 @@ function SpeakerCard({ exp, onPress }: { exp: Expositor; onPress: () => void }) 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ width: 150, gap: spacing.sm, opacity: pressed ? 0.85 : 1 })}>
       <View>
-        <Image
+        <AppImage
           source={{ uri: exp.fotoUrl }}
           contentFit="cover"
           transition={250}
+          // Carrusel horizontal de expositores: sin recyclingKey se ve un
+          // instante la foto del expositor anterior.
+          recyclingKey={exp.fotoUrl}
           style={{ width: 150, height: 150, borderRadius: radius.lg, backgroundColor: t.colors.surfaceAlt }}
         />
         {exp.esDestacado ? (
@@ -194,9 +197,10 @@ function ExpositorSheet({ exp, onClose }: { exp: Expositor | null; onClose: () =
             <Animated.ScrollView contentContainerStyle={{ padding: spacing.xl, paddingTop: spacing.lg, gap: spacing.md }} showsVerticalScrollIndicator={false}>
               <View style={{ alignItems: 'center', gap: spacing.sm }}>
                 <Pressable onPress={() => setZoom(exp.fotoUrl)}>
-                  <Image
+                  <AppImage
                     source={{ uri: exp.fotoUrl }}
                     contentFit="cover"
+                    recyclingKey={exp.fotoUrl}
                     style={{ width: 110, height: 110, borderRadius: radius.full, backgroundColor: t.colors.surfaceAlt }}
                   />
                 </Pressable>
@@ -339,7 +343,7 @@ export default function EventoDetalle() {
       if (res.requierePago) {
         router.push({ pathname: '/checkout/[idEvento]', params: { idEvento: eventoId } });
       } else {
-        await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
+        void qc.invalidateQueries({ queryKey: ['mis-entradas'] });
         if (res.idEventoUsuario) {
           router.push({ pathname: '/entrada/[id]', params: { id: res.idEventoUsuario } });
         }
@@ -453,10 +457,16 @@ export default function EventoDetalle() {
         {/* Hero */}
         <View style={{ height: HERO_H, overflow: 'hidden' }}>
           <Animated.View style={[{ height: HERO_H }, heroStyle]}>
-            <Image
+            <AppImage
               source={{ uri: e.portadaUrl }}
+              placeholder={IMAGE_PLACEHOLDER}
+              placeholderContentFit="cover"
               contentFit="cover"
               transition={300}
+              // Misma URL que la portada de la tarjeta del Home: con
+              // cachePolicy 'memory-disk' entra directo desde memoria.
+              recyclingKey={String(eventoId)}
+              priority="high"
               style={{ width: '100%', height: '100%', backgroundColor: palette.slate800 }}
             />
           </Animated.View>

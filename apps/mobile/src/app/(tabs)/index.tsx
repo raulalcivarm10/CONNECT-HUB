@@ -7,7 +7,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -15,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { EventoResumen } from '@connecthub/shared-types';
 import { AppText, Skeleton, Button, Chip } from '@/design-system/components';
+import { AppImage, IMAGE_PLACEHOLDER, prefetchImages } from '@/design-system/image';
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, shadow, fontSize, fontWeight } from '@/design-system/tokens';
 import { useI18n, LANGS } from '@/i18n';
@@ -26,6 +26,12 @@ import { EventCard } from '@/features/eventos/cards';
 import { resumenDias } from '@/lib/fecha';
 
 type Filtro = 'all' | 'featured' | 'free';
+
+// Cuántas portadas del carrusel se montan de entrada. Cada hero es una imagen
+// de ancho completo: montar las 10 que trae FlatList por defecto obliga a
+// decodificar 10 JPEG antes del primer frame útil del Home. El resto se
+// precarga en segundo plano (ver HeroCarousel).
+const HERO_INITIAL = 2;
 
 /* ---------- Top bar ---------- */
 function TopBar() {
@@ -63,10 +69,11 @@ function TopBar() {
         style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
       >
         {logoUrl ? (
-          <Image
+          <AppImage
             source={{ uri: absoluteUrl(logoUrl) }}
             style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt }}
             contentFit="cover"
+            recyclingKey={logoUrl}
           />
         ) : (
           <View
@@ -125,7 +132,15 @@ function TopBar() {
 }
 
 /* ---------- Hero carousel ---------- */
-function HeroCard({ evento, width }: { evento: EventoResumen; width: number }) {
+function HeroCard({
+  evento,
+  width,
+  priority = 'normal',
+}: {
+  evento: EventoResumen;
+  width: number;
+  priority?: 'low' | 'normal' | 'high';
+}) {
   const router = useRouter();
   const { t: tr, lang } = useI18n();
   return (
@@ -133,10 +148,16 @@ function HeroCard({ evento, width }: { evento: EventoResumen; width: number }) {
       onPress={() => router.push({ pathname: '/evento/[id]', params: { id: evento.id } })}
       style={[{ width, height: 200, borderRadius: radius.xl, overflow: 'hidden' }, shadow.card]}
     >
-      <Image
+      <AppImage
         source={{ uri: evento.portadaUrl }}
+        placeholder={IMAGE_PLACEHOLDER}
+        placeholderContentFit="cover"
         contentFit="cover"
         transition={300}
+        // El carrusel recicla las tarjetas al deslizar: sin recyclingKey se ve
+        // un instante la portada anterior dentro de la tarjeta nueva.
+        recyclingKey={String(evento.id)}
+        priority={priority}
         style={{ width: '100%', height: '100%', backgroundColor: palette.slate800 }}
       />
       <LinearGradient
@@ -168,6 +189,18 @@ function HeroCarousel({ items, loading }: { items: EventoResumen[]; loading: boo
   );
   const t = useTheme();
 
+  // Las portadas que NO se montan de entrada se precargan (acotado) para que el
+  // swipe las saque de caché en vez de la red. La dependencia es la lista de
+  // URLs, no el array: al paginar el Home, `items` cambia de identidad aunque
+  // los destacados sigan siendo los mismos.
+  const heroPrefetchUrls = useMemo(
+    () => items.slice(HERO_INITIAL).map((e) => e.portadaUrl).join('|'),
+    [items],
+  );
+  useEffect(() => {
+    prefetchImages(heroPrefetchUrls.split('|'));
+  }, [heroPrefetchUrls]);
+
   if (loading) return <Skeleton height={200} radius={radius.xl} />;
   if (!items.length) return null;
 
@@ -182,7 +215,11 @@ function HeroCarousel({ items, loading }: { items: EventoResumen[]; loading: boo
         snapToInterval={cardW + spacing.md}
         decelerationRate="fast"
         onViewableItemsChanged={viewRef.current}
-        renderItem={({ item }) => <HeroCard evento={item} width={cardW} />}
+        initialNumToRender={HERO_INITIAL}
+        windowSize={3}
+        renderItem={({ item, index }) => (
+          <HeroCard evento={item} width={cardW} priority={index === 0 ? 'high' : 'normal'} />
+        )}
         ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
       />
       {items.length > 1 ? (

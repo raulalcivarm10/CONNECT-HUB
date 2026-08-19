@@ -1,6 +1,6 @@
 import { View } from 'react-native';
-import { Image } from 'expo-image';
 import { AppText } from './components';
+import { AppImage } from './image';
 import { useTheme } from './theme';
 import { radius, fontWeight } from './tokens';
 import { absoluteUrl } from '@/api/client';
@@ -18,8 +18,13 @@ export function Avatar({
   const t = useTheme();
   if (fotoUrl) {
     return (
-      <Image
+      <AppImage
         source={{ uri: absoluteUrl(fotoUrl) }}
+        contentFit="cover"
+        // En listas (comunidad, conexiones) las filas se reciclan: sin
+        // recyclingKey se ve un instante la foto de OTRA persona.
+        recyclingKey={fotoUrl}
+        transition={150}
         style={{ width: size, height: size, borderRadius: radius.full, backgroundColor: t.colors.surfaceAlt }}
       />
     );

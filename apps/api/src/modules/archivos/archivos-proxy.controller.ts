@@ -10,6 +10,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { RedisService } from '../../redis/redis.service';
+import sharp from 'sharp';
 import { NasService, TipoEntidad } from './nas.service';
 
 const ENTIDADES: TipoEntidad[] = [
@@ -22,6 +23,15 @@ const ENTIDADES: TipoEntidad[] = [
   'USUARIO',
 ];
 const TIPOS_ARCHIVO = ['PORTADA', 'BANNER', 'GALERIA', 'LOGO', 'CROQUIS', 'FOTO', 'PERFIL'];
+/**
+ * Anchos permitidos para `?w=`. Lista CERRADA a propósito: si se aceptara
+ * cualquier numero, cada valor generaria su propia entrada en Redis y bastaria
+ * pedir w=1..2000 para llenar la cache. Cubren los usos reales de la app:
+ * avatar/miniatura de fila, tarjeta de lista y portada a ancho completo (x2
+ * para pantallas de alta densidad).
+ */
+const ANCHOS = [96, 200, 400, 800, 1200];
+
 const CACHE_TTL = 600; // 10 min
 
 // Las tablas montan una imagen por fila, así que el caché del navegador es lo
@@ -56,6 +66,7 @@ export class ArchivosProxyController {
     @Query('id') id?: string,
     @Query('tipoArchivo') tipoArchivo?: string,
     @Query('v') v?: string,
+    @Query('w') w?: string,
   ) {
     if (!tipoEntidad || !ENTIDADES.includes(tipoEntidad as TipoEntidad)) {
       throw new BadRequestException('Invalid tipoEntidad');
@@ -67,9 +78,17 @@ export class ArchivosProxyController {
       throw new BadRequestException('Invalid id');
     }
 
+    // Ancho pedido: solo de la lista cerrada; cualquier otro valor se ignora y
+    // se sirve el original (no se falla, para no romper URLs ya existentes).
+    const ancho = w && ANCHOS.includes(Number(w)) ? Number(w) : null;
+
     // La versión (v = timestamp de la última carga) forma parte de la clave:
     // subir una imagen nueva cambia la URL → clave nueva → sin caché rancio.
-    const key = `nasimg:${tipoEntidad}:${id}:${tipoArchivo}:${v ?? '0'}`;
+    // El ancho TAMBIÉN va en la clave: cada tamaño se cachea por separado, si
+    // no la miniatura y la portada grande se pisarían entre sí.
+    const key =
+      `nasimg:${tipoEntidad}:${id}:${tipoArchivo}:${v ?? '0'}` +
+      (ancho ? `:w${ancho}` : '');
     const [cached, mimeCached] = await Promise.all([
       this.redis.client.getBuffer(key),
       this.redis.client.get(`${key}:mime`),
@@ -98,8 +117,27 @@ export class ArchivosProxyController {
     if (!upstream.ok) {
       throw new BadGatewayException(`The file server answered ${upstream.status}`);
     }
-    const mime = upstream.headers.get('content-type') ?? 'image/jpeg';
-    const buffer = Buffer.from(await upstream.arrayBuffer());
+    let mime = upstream.headers.get('content-type') ?? 'image/jpeg';
+    let buffer = Buffer.from(await upstream.arrayBuffer());
+
+    // Redimensionado. Sin esto, una miniatura de fila descargaba y decodificaba
+    // la foto a resolución completa tal como la subió el admin: era el mayor
+    // coste real en datos móviles y en tiempo de pintado de la app.
+    // `withoutEnlargement` evita estirar una imagen ya pequeña, y se convierte a
+    // WebP por peso. Si sharp falla (formato raro), se sirve el original: una
+    // imagen sin optimizar es mucho mejor que un error.
+    if (ancho) {
+      try {
+        buffer = await sharp(buffer)
+          .rotate() // respeta la orientación EXIF de fotos de móvil
+          .resize({ width: ancho, withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toBuffer();
+        mime = 'image/webp';
+      } catch {
+        // se queda el original
+      }
+    }
 
     await Promise.all([
       this.redis.client.set(key, buffer, 'EX', CACHE_TTL),

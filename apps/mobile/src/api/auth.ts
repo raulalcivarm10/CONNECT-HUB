@@ -1,6 +1,6 @@
 /** Endpoints tipados del auth de asistente (/public/auth/*). */
 import type { AsistenteProfile, AuthResponse } from '@connecthub/shared-types';
-import { apiDelete, apiGet, apiPatch, apiPost } from './client';
+import { TIMEOUT, apiDelete, apiGet, apiPatch, apiPost } from './client';
 
 export interface AppleBody {
   identityToken: string;
@@ -27,17 +27,17 @@ export interface OnboardingBody {
 }
 
 export const registerReq = (b: RegisterBody) =>
-  apiPost<AuthResponse>('/public/auth/register', b);
+  apiPost<AuthResponse>('/public/auth/register', b, false, TIMEOUT.AUTH);
 
 export const loginReq = (b: LoginBody) =>
-  apiPost<AuthResponse>('/public/auth/login', b);
+  apiPost<AuthResponse>('/public/auth/login', b, false, TIMEOUT.AUTH);
 
 export const googleReq = (idToken: string) =>
-  apiPost<AuthResponse>('/public/auth/google', { idToken });
+  apiPost<AuthResponse>('/public/auth/google', { idToken }, false, TIMEOUT.AUTH);
 
 /** Sign in with Apple (nativo ConnectHub): canjea el identityToken por una sesión. */
 export const appleReq = (b: AppleBody) =>
-  apiPost<AuthResponse>('/public/auth/apple', b);
+  apiPost<AuthResponse>('/public/auth/apple', b, false, TIMEOUT.AUTH);
 
 /** Elimina la cuenta del asistente (anonimiza + retiene finanzas). Requiere sesión. */
 export const deleteAccountReq = () =>
@@ -47,11 +47,11 @@ export const verifyReq = (token: string) =>
   apiPost<{ verified: boolean }>('/public/auth/verify', { token });
 
 export const refreshReq = (refreshToken: string) =>
-  apiPost<AuthResponse>('/public/auth/refresh', { refreshToken });
+  apiPost<AuthResponse>('/public/auth/refresh', { refreshToken }, false, TIMEOUT.AUTH);
 
 /** Canjea el token del servicio de pagos por una sesión ConnectHub. */
 export const pagosExchangeReq = (pagosToken: string) =>
-  apiPost<AuthResponse>('/public/auth/pagos-exchange', { pagosToken });
+  apiPost<AuthResponse>('/public/auth/pagos-exchange', { pagosToken }, false, TIMEOUT.AUTH);
 
 export const meReq = () =>
   apiGet<AsistenteProfile>('/public/auth/me', undefined, true);

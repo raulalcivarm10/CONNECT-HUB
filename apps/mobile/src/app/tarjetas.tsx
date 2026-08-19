@@ -128,7 +128,7 @@ export default function Tarjetas() {
     setSaving(true);
     try {
       await agregarTarjeta({ idInstitucion: idInst, numero: num, holderName: holder.trim(), expiryMonth: mm, expiryYear: yy, cvc });
-      await qc.invalidateQueries({ queryKey: ['tarjetas', idInst] });
+      void qc.invalidateQueries({ queryKey: ['tarjetas', idInst] });
       resetForm();
     } catch (err) {
       Alert.alert(tr('cards.addError'), err instanceof ApiError ? err.message : '');
@@ -149,7 +149,7 @@ export default function Tarjetas() {
     if (!ok) return;
     try {
       await eliminarTarjeta(c.id);
-      await qc.invalidateQueries({ queryKey: ['tarjetas', idInst] });
+      void qc.invalidateQueries({ queryKey: ['tarjetas', idInst] });
     } catch {
       Alert.alert(tr('common.error'), '');
     }

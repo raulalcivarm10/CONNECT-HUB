@@ -5,7 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/api/query-client';
 import { useThemeMode } from '@/design-system/theme';
 import { ConfirmProvider } from '@/design-system/confirm';
 import { I18nProvider } from '@/i18n';
@@ -15,15 +16,8 @@ import { usePushRegistration } from '@/features/notifications/usePushRegistratio
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// La configuración del QueryClient (reintentos, staleTime, recuperación al
+// volver a primer plano) vive en `src/api/query-client.ts`, junto al cliente HTTP.
 
 export default function RootLayout() {
   const mode = useThemeMode();

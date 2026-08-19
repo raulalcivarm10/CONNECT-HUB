@@ -93,8 +93,8 @@ export default function EditarPerfil() {
   }, [data]);
 
   async function invalidarPerfil() {
-    await qc.invalidateQueries({ queryKey: ['mi-perfil'] });
-    if (data?.idCliente) await qc.invalidateQueries({ queryKey: ['perfil', data.idCliente] });
+    void qc.invalidateQueries({ queryKey: ['mi-perfil'] });
+    if (data?.idCliente) void qc.invalidateQueries({ queryKey: ['perfil', data.idCliente] });
   }
 
   async function guardar() {

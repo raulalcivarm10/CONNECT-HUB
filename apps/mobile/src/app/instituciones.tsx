@@ -1,4 +1,6 @@
+import { useCallback } from 'react';
 import { FlatList, Platform, Pressable, View } from 'react-native';
+import type { ListRenderItem } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -76,6 +78,13 @@ function Row({ inst, active, onPress }: { inst: InstitucionResumen; active: bool
   );
 }
 
+// Fuera del componente: el separador en línea (`() => <View/>`) era un
+// componente NUEVO en cada render, así que React desmontaba y remontaba todos
+// los separadores de la lista.
+const instKey = (i: InstitucionResumen) => String(i.idInstitucion);
+const Separador = () => <View style={{ height: spacing.sm }} />;
+const LISTA_PAD = { paddingBottom: spacing.xl };
+
 export default function Instituciones() {
   const t = useTheme();
   const { t: tr } = useI18n();
@@ -84,6 +93,20 @@ export default function Instituciones() {
   const setFiltro = useInstitucion((s) => s.setFiltro);
   const { data, isLoading } = useMisInstituciones();
   const multiple = (data?.length ?? 0) > 1;
+
+  const renderItem = useCallback<ListRenderItem<InstitucionResumen>>(
+    ({ item }) => (
+      <Row
+        inst={item}
+        active={filtro === item.idInstitucion}
+        onPress={() => {
+          setFiltro(item.idInstitucion);
+          router.replace('/(tabs)');
+        }}
+      />
+    ),
+    [filtro, setFiltro, router],
+  );
 
   // Android edge-to-edge (targetSdk 36): el botón fijo "＋ agregar" del fondo
   // quedaba detrás de la barra de navegación del sistema. iOS queda intacto.
@@ -102,9 +125,9 @@ export default function Instituciones() {
 
         <FlatList
           data={data ?? []}
-          keyExtractor={(i) => String(i.idInstitucion)}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          contentContainerStyle={{ paddingBottom: spacing.xl }}
+          keyExtractor={instKey}
+          ItemSeparatorComponent={Separador}
+          contentContainerStyle={LISTA_PAD}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             multiple ? (
@@ -146,16 +169,7 @@ export default function Instituciones() {
               </Pressable>
             ) : null
           }
-          renderItem={({ item }) => (
-            <Row
-              inst={item}
-              active={filtro === item.idInstitucion}
-              onPress={() => {
-                setFiltro(item.idInstitucion);
-                router.replace('/(tabs)');
-              }}
-            />
-          )}
+          renderItem={renderItem}
           ListEmptyComponent={
             isLoading ? (
               <View style={{ gap: spacing.sm }}>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -28,7 +28,9 @@ function hora(fecha: string): string {
   return fecha.includes('T') ? fecha.split('T')[1] : '';
 }
 
-function Burbuja({ m, onAutor }: { m: ComunidadMensaje; onAutor?: () => void }) {
+// onAutor recibe el id del autor (no un closure por burbuja) para que el padre
+// pase una función estable y el memo de abajo funcione de verdad.
+function BurbujaBase({ m, onAutor }: { m: ComunidadMensaje; onAutor: (idCliente: string) => void }) {
   const t = useTheme();
   const inicial = (m.autor || '?').trim().charAt(0).toUpperCase();
   if (m.esMio) {
@@ -52,7 +54,7 @@ function Burbuja({ m, onAutor }: { m: ComunidadMensaje; onAutor?: () => void }) 
   }
   return (
     <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, maxWidth: '90%' }}>
-      <Pressable onPress={onAutor} hitSlop={6}>
+      <Pressable onPress={() => onAutor(m.idCliente)} hitSlop={6}>
         {m.fotoUrl ? (
           <Image source={{ uri: absoluteUrl(m.fotoUrl) }} style={{ width: 32, height: 32, borderRadius: radius.full, marginTop: 16 }} />
         ) : (
@@ -67,7 +69,7 @@ function Burbuja({ m, onAutor }: { m: ComunidadMensaje; onAutor?: () => void }) 
         )}
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Pressable onPress={onAutor} hitSlop={6}>
+        <Pressable onPress={() => onAutor(m.idCliente)} hitSlop={6}>
           <AppText variant="caption" color={t.colors.brandText} style={{ fontWeight: fontWeight.semibold, marginLeft: 4, marginBottom: 2 }}>
             {m.autor}
           </AppText>
@@ -89,6 +91,17 @@ function Burbuja({ m, onAutor }: { m: ComunidadMensaje; onAutor?: () => void }) 
     </View>
   );
 }
+// Memoizada (igual que en el chat 1-a-1): teclear en el composer re-renderiza
+// la pantalla entera, y sin esto se repintaban TODAS las burbujas visibles con
+// cada letra — era el tirón más notorio del muro.
+const Burbuja = memo(BurbujaBase);
+const muroKey = (m: ComunidadMensaje) => String(m.id);
+const LISTA_PAD = {
+  paddingHorizontal: spacing.lg,
+  paddingTop: spacing.md,
+  paddingBottom: spacing.sm,
+  flexGrow: 1,
+};
 
 export default function ComunidadEvento() {
   const t = useTheme();
@@ -100,7 +113,17 @@ export default function ComunidadEvento() {
   const evId = Number(idEvento);
 
   const { data, isLoading, refetch, isRefetching } = useComunidad(evId);
-  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+  // Al ENTRAR, useQuery ya pide el muro: el refetch de foco duplicaba la
+  // petición. Ahora solo refresca al VOLVER (perfil, miembros) y como mucho
+  // cada 10 s.
+  const ultimoRefresco = useRef(Date.now());
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - ultimoRefresco.current < 10_000) return;
+      ultimoRefresco.current = Date.now();
+      refetch();
+    }, [refetch]),
+  );
 
   // Orden natural (WhatsApp): antiguos arriba, recientes abajo.
   const mensajes = useMemo(() => [...(data?.items ?? [])].reverse(), [data?.items]);
@@ -128,6 +151,15 @@ export default function ComunidadEvento() {
     }
   }, [mensajes.length]);
 
+  const abrirAutor = useCallback(
+    (idCliente: string) => router.push({ pathname: '/asistente/[idCliente]', params: { idCliente } }),
+    [router],
+  );
+  const renderMensaje = useCallback(
+    ({ item }: { item: ComunidadMensaje }) => <Burbuja m={item} onAutor={abrirAutor} />,
+    [abrirAutor],
+  );
+
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -135,8 +167,8 @@ export default function ComunidadEvento() {
   const soyMiembro = data?.soyMiembro !== false;
 
   async function invalidar() {
-    await qc.invalidateQueries({ queryKey: ['comunidad', evId] });
-    await qc.invalidateQueries({ queryKey: ['mis-comunidades'] });
+    void qc.invalidateQueries({ queryKey: ['comunidad', evId] });
+    void qc.invalidateQueries({ queryKey: ['mis-comunidades'] });
   }
 
   async function enviar() {
@@ -233,19 +265,14 @@ export default function ComunidadEvento() {
           <FlatList
             ref={listRef}
             data={mensajes}
-            keyExtractor={(m) => String(m.id)}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, flexGrow: 1 }}
+            keyExtractor={muroKey}
+            contentContainerStyle={LISTA_PAD}
             showsVerticalScrollIndicator={false}
             onScroll={onScroll}
             scrollEventThrottle={100}
             onContentSizeChange={maybeScroll}
             refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />}
-            renderItem={({ item }) => (
-              <Burbuja
-                m={item}
-                onAutor={() => router.push({ pathname: '/asistente/[idCliente]', params: { idCliente: item.idCliente } })}
-              />
-            )}
+            renderItem={renderMensaje}
             ListEmptyComponent={
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing['4xl'] }}>
                 <Ionicons name="chatbubbles-outline" size={44} color={t.colors.textFaint} />

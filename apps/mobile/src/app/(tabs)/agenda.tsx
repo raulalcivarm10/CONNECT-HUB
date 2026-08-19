@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, SectionList, View } from 'react-native';
+import type { SectionListRenderItem } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import type { MiEntrada } from '@connecthub/shared-types';
@@ -12,6 +13,15 @@ import { weekday, dayNum, shortDate, todayKey } from '@/lib/fecha';
 import { AgendaCalendario, EntradaCard } from '@/features/agenda/AgendaCalendario';
 
 type Vista = 'lista' | 'calendario';
+type Seccion = { title: string; data: MiEntrada[]; past: boolean };
+
+// Fuera del componente: identidades estables → la SectionList no rehace sus
+// celdas en cada render del padre.
+// (se mantiene el sufijo de índice del original: una entrada puede repetirse
+// dentro de un día si el backend devuelve la fecha duplicada en `dias`)
+const agendaKey = (item: MiEntrada, i: number) => `${item.idEventoUsuario}-${i}`;
+const LISTA_PAD = { paddingBottom: spacing['3xl'] };
+const SANGRIA = { marginLeft: 58 };
 
 export default function Agenda() {
   const t = useTheme();
@@ -19,14 +29,32 @@ export default function Agenda() {
   const router = useRouter();
   const [vista, setVista] = useState<Vista>('lista');
   const { data, isLoading, isError, refetch, isRefetching } = useMisEntradas();
-  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
 
-  const onEvento = (id: number) => router.push({ pathname: '/evento/[id]', params: { id } });
-  const onQr = (id: number) => router.push({ pathname: '/entrada/[id]', params: { id } });
+  // Refresco al enfocar la tab, PERO no en el montaje (useQuery ya trae los
+  // datos) ni si se refrescó hace poco: antes cada toque en la tab disparaba
+  // red + el spinner de RefreshControl + un re-render completo de la lista
+  // (JSON nuevo ⇒ referencias nuevas), y eso es lo que se sentía como tirón.
+  const ultimoRefresco = useRef(Date.now());
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - ultimoRefresco.current < 30_000) return;
+      ultimoRefresco.current = Date.now();
+      refetch();
+    }, [refetch]),
+  );
+
+  const onEvento = useCallback(
+    (id: number) => router.push({ pathname: '/evento/[id]', params: { id } }),
+    [router],
+  );
+  const onQr = useCallback(
+    (id: number) => router.push({ pathname: '/entrada/[id]', params: { id } }),
+    [router],
+  );
 
   // Lista agrupada por día: dentro de cada día ordena por hora; los días PRÓXIMOS
   // (>= hoy) primero en ascendente, luego los PASADOS en descendente.
-  const sections = useMemo(() => {
+  const sections = useMemo<Seccion[]>(() => {
     const byDay: Record<string, MiEntrada[]> = {};
     for (const e of data ?? []) for (const d of e.dias) (byDay[d] ??= []).push(e);
     for (const k of Object.keys(byDay)) {
@@ -40,6 +68,35 @@ export default function Agenda() {
   }, [data]);
 
   const vacio = !isLoading && !isError && (data?.length ?? 0) === 0;
+
+  // renderItem / renderSectionHeader estables: si se declaran en línea, la
+  // SectionList vuelve a renderizar TODAS las celdas en cada render del padre.
+  const renderItem = useCallback<SectionListRenderItem<MiEntrada, Seccion>>(
+    ({ item }) => (
+      <View style={SANGRIA}>
+        <EntradaCard item={item} onEvento={onEvento} onQr={onQr} />
+      </View>
+    ),
+    [onEvento, onQr],
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: Seccion }) => (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.sm, backgroundColor: t.colors.bg, opacity: section.past ? 0.55 : 1 }}>
+        <View style={{ width: 46, height: 46, borderRadius: radius.md, backgroundColor: t.colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <AppText variant="label" color={t.colors.brandText} style={{ textTransform: 'uppercase' }}>
+            {weekday(section.title, lang)}
+          </AppText>
+          <AppText variant="subtitle" color={t.colors.brandText}>{dayNum(section.title)}</AppText>
+        </View>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <AppText variant="bodyStrong">{shortDate(section.title, lang)}</AppText>
+          {section.past ? <AppText muted variant="caption">· {tr('agenda.past')}</AppText> : null}
+        </View>
+      </View>
+    ),
+    [t, lang, tr],
+  );
 
   return (
     <Screen padded>
@@ -88,34 +145,15 @@ export default function Agenda() {
       ) : vista === 'calendario' ? (
         <AgendaCalendario entradas={data ?? []} onEvento={onEvento} onQr={onQr} />
       ) : (
-        <SectionList
+        <SectionList<MiEntrada, Seccion>
           sections={sections}
-          keyExtractor={(item, i) => `${item.idEventoUsuario}-${i}`}
+          keyExtractor={agendaKey}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: spacing['3xl'] }}
+          contentContainerStyle={LISTA_PAD}
           stickySectionHeadersEnabled={false}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />}
-          renderSectionHeader={({ section }) => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.sm, backgroundColor: t.colors.bg, opacity: (section as { past: boolean }).past ? 0.55 : 1 }}>
-              <View style={{ width: 46, height: 46, borderRadius: radius.md, backgroundColor: t.colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <AppText variant="label" color={t.colors.brandText} style={{ textTransform: 'uppercase' }}>
-                  {weekday(section.title, lang)}
-                </AppText>
-                <AppText variant="subtitle" color={t.colors.brandText}>{dayNum(section.title)}</AppText>
-              </View>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <AppText variant="bodyStrong">{shortDate(section.title, lang)}</AppText>
-                {(section as { past: boolean }).past ? (
-                  <AppText muted variant="caption">· {tr('agenda.past')}</AppText>
-                ) : null}
-              </View>
-            </View>
-          )}
-          renderItem={({ item }) => (
-            <View style={{ marginLeft: 58 }}>
-              <EntradaCard item={item} onEvento={onEvento} onQr={onQr} />
-            </View>
-          )}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
         />
       )}
     </Screen>

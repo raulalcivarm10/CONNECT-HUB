@@ -9,7 +9,7 @@ import type {
   EstadoPago,
   CuponValidacion,
 } from '@connecthub/shared-types';
-import { apiGet, apiPost, apiDelete, ApiError } from './client';
+import { apiGet, apiPost, apiDelete, ApiError, TIMEOUT, fetchExterno } from './client';
 import { getPagosToken, refreshPagos, ensurePagosSession, pagosUrl } from './pagos-session';
 import { dlog, tokenBrief } from '@/lib/debuglog';
 
@@ -39,11 +39,17 @@ export interface CheckoutConfirmacion {
  * vez de forma transparente; si el refresh falla, la sesión de pagos se elimina
  * y el error llega al llamador. Si aún no hay sesión de pagos, cae al token de
  * ConnectHub como último recurso.
+ *
+ * `timeoutMs` es el techo anti-cuelgue: SIEMPRE hay uno (una petición sin
+ * respuesta dejaba la pantalla de pago girando indefinidamente), pero se elige
+ * por operación — generar la referencia puede abortarse sin consecuencias,
+ * confirmar un cobro no. Ver la nota de TIMEOUT en client.ts.
  */
-async function pagosPost<T>(path: string, body: unknown): Promise<T> {
-  const send = async (token: string | null) => {
-    try {
-      return await fetch(pagosUrl(path), {
+async function pagosPost<T>(path: string, body: unknown, timeoutMs: number): Promise<T> {
+  const send = (token: string | null) =>
+    fetchExterno(
+      pagosUrl(path),
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,11 +57,9 @@ async function pagosPost<T>(path: string, body: unknown): Promise<T> {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body),
-      });
-    } catch {
-      throw new ApiError(0, 'network');
-    }
-  };
+      },
+      timeoutMs,
+    );
 
   // El servicio externo SOLO acepta SU token (el emitido por su login de pagos).
   // NUNCA se manda el token de ConnectHub como fallback: el externo lo rechaza (401).
@@ -166,6 +170,8 @@ export async function iniciarCheckout(
   const r = await pagosPost<{ reference?: string; envMode?: string; data?: { reference?: string; envMode?: string } }>(
     `/evento-usuario/eventos/${idEvento}/checkout`,
     body,
+    // todavía no hay cargo en la tarjeta: abortar aquí es seguro
+    TIMEOUT.PAGO_INICIO,
   );
   const reference = r.reference ?? r.data?.reference;
   const envRaw = (r.envMode ?? r.data?.envMode ?? 'prod').toLowerCase();
@@ -177,6 +183,12 @@ export async function iniciarCheckout(
  * Confirma el pago en el SERVICIO DE PAGOS EXTERNO (procesa e inscribe).
  * POST /evento-usuario/eventos/{idEvento}/checkout/confirmar
  * body: { idUsuario, transactionId, checkoutResponse }
+ *
+ * PUNTO DELICADO: cuando se llega aquí la pasarela YA aprobó el cargo. El techo
+ * de espera es deliberadamente alto (PAGO_CONFIRMACION, 2 min) porque cortar
+ * antes de tiempo no cancela nada en el servidor: solo haría que la app diera
+ * el pago por fallido cuando en realidad se registró. Es un seguro contra la
+ * espera infinita, no un timeout "de UX". Tampoco se reintenta sola.
  */
 export function confirmarCheckout(
   idEvento: number,
@@ -187,6 +199,7 @@ export function confirmarCheckout(
   return pagosPost<CheckoutConfirmacion>(
     `/evento-usuario/eventos/${idEvento}/checkout/confirmar`,
     { idUsuario, transactionId, checkoutResponse },
+    TIMEOUT.PAGO_CONFIRMACION,
   );
 }
 

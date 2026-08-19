@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -10,6 +11,51 @@ import { spacing } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
 import { useMiembrosComunidad } from '@/api/comunidad';
 
+/* Identidades ESTABLES a nivel de módulo. Declaradas dentro del componente se
+ * recreaban en cada render: el separador anónimo era un componente NUEVO cada
+ * vez (React desmontaba y remontaba todos), y el `renderItem` en línea obligaba
+ * a la FlatList a rehacer todas las celdas. Mismo criterio que en el resto de
+ * listas de la app. */
+const listaKey = (p: PersonaResumen) => p.idCliente;
+const LISTA_PAD = { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl };
+
+function Separador() {
+  const t = useTheme();
+  return <View style={{ height: 1, backgroundColor: t.colors.border, marginLeft: 62 }} />;
+}
+
+/** onAbrir recibe el id (no un closure por fila) para que el padre pase una
+ *  función estable y el memo sirva de verdad. */
+function MiembroBase({
+  p,
+  onAbrir,
+}: {
+  p: PersonaResumen;
+  onAbrir: (idCliente: string) => void;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={() => onAbrir(p.idCliente)}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        paddingVertical: spacing.md,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Avatar nombre={p.nombre} fotoUrl={p.fotoUrl} size={46} />
+      <View style={{ flex: 1 }}>
+        <AppText variant="bodyStrong" numberOfLines={1}>{p.nombre}</AppText>
+        {p.profesion ? <AppText muted variant="caption" numberOfLines={1}>{p.profesion}</AppText> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={t.colors.textFaint} />
+    </Pressable>
+  );
+}
+const Miembro = memo(MiembroBase);
+
 export default function MiembrosComunidad() {
   const t = useTheme();
   const { t: tr } = useI18n();
@@ -17,6 +63,16 @@ export default function MiembrosComunidad() {
   const { idEvento } = useLocalSearchParams<{ idEvento: string }>();
   const evId = Number(idEvento);
   const { data, isLoading, refetch, isRefetching } = useMiembrosComunidad(evId);
+
+  const abrir = useCallback(
+    (idCliente: string) => router.push({ pathname: '/asistente/[idCliente]', params: { idCliente } }),
+    [router],
+  );
+  const renderMiembro = useCallback(
+    ({ item }: { item: PersonaResumen }) => <Miembro p={item} onAbrir={abrir} />,
+    [abrir],
+  );
+  const onRefresh = useCallback(() => { void refetch(); }, [refetch]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.bg }}>
@@ -46,23 +102,11 @@ export default function MiembrosComunidad() {
       ) : (
         <FlatList
           data={data ?? []}
-          keyExtractor={(p) => p.idCliente}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />}
-          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: t.colors.border, marginLeft: 62 }} />}
-          renderItem={({ item }: { item: PersonaResumen }) => (
-            <Pressable
-              onPress={() => router.push({ pathname: '/asistente/[idCliente]', params: { idCliente: item.idCliente } })}
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, opacity: pressed ? 0.6 : 1 })}
-            >
-              <Avatar nombre={item.nombre} fotoUrl={item.fotoUrl} size={46} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong" numberOfLines={1}>{item.nombre}</AppText>
-                {item.profesion ? <AppText muted variant="caption" numberOfLines={1}>{item.profesion}</AppText> : null}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={t.colors.textFaint} />
-            </Pressable>
-          )}
+          keyExtractor={listaKey}
+          contentContainerStyle={LISTA_PAD}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={t.colors.brand} />}
+          ItemSeparatorComponent={Separador}
+          renderItem={renderMiembro}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', paddingTop: spacing['3xl'], gap: spacing.sm }}>
               <Ionicons name="people-outline" size={48} color={t.colors.textFaint} />

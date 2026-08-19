@@ -15,6 +15,7 @@
  *  - Single-flight: N peticiones con 401 comparten UNA sola llamada a /refresh.
  */
 import * as Crypto from 'expo-crypto';
+import { TIMEOUT, fetchExterno } from './client';
 import { getStoredItem, removeStoredItem, setStoredItem } from '@/lib/tokenStorage';
 import { dlog, jwtInfo, tokenBrief } from '@/lib/debuglog';
 
@@ -126,11 +127,16 @@ async function guardarSesion(res: Response): Promise<boolean> {
 async function loginPagosConSha(email: string, sha: string): Promise<boolean> {
   try {
     dlog('pagos:login →', { url: pagosUrl(LOGIN_PATH), body: { email, password: `${sha.slice(0, 12)}… (sha256, len ${sha.length})` } });
-    const res = await fetch(pagosUrl(LOGIN_PATH), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email, password: sha }),
-    });
+    // con techo de espera: un login colgado bloqueaba la pantalla de acceso
+    const res = await fetchExterno(
+      pagosUrl(LOGIN_PATH),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email, password: sha }),
+      },
+      TIMEOUT.AUTH,
+    );
     return await guardarSesion(res);
   } catch (e) {
     dlog('pagos:login ERROR RED', { error: e instanceof Error ? e.message : String(e) });
@@ -189,11 +195,15 @@ export function ensurePagosSession(): Promise<string | null> {
 /** Login Google en el servicio de pagos (con los tokens de Google OAuth). */
 export async function loginPagosGoogle(idToken: string, accessToken: string): Promise<boolean> {
   try {
-    const res = await fetch(pagosUrl(GOOGLE_PATH), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ idToken, accessToken, tipoUsuario: 'GOOGLE' }),
-    });
+    const res = await fetchExterno(
+      pagosUrl(GOOGLE_PATH),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ idToken, accessToken, tipoUsuario: 'GOOGLE' }),
+      },
+      TIMEOUT.AUTH,
+    );
     return await guardarSesion(res);
   } catch {
     return false;
@@ -212,11 +222,15 @@ export async function loginPagosApple(
   apellido?: string,
 ): Promise<boolean> {
   try {
-    const res = await fetch(pagosUrl(APPLE_PATH), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ identityToken, email, nombre, apellido, tipoUsuario: 'APPLE' }),
-    });
+    const res = await fetchExterno(
+      pagosUrl(APPLE_PATH),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ identityToken, email, nombre, apellido, tipoUsuario: 'APPLE' }),
+      },
+      TIMEOUT.AUTH,
+    );
     return await guardarSesion(res);
   } catch {
     return false;
@@ -237,11 +251,18 @@ export function refreshPagos(): Promise<string | null> {
   _refreshing = (async () => {
     try {
       if (!_refresh) return null;
-      const res = await fetch(pagosUrl(REFRESH_PATH), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ refreshToken: _refresh }),
-      });
+      // el refresh va DENTRO del camino crítico del checkout: si se cuelga, el
+      // pago se queda esperando. Techo AUTH y, si vence, se trata como error de
+      // red (no borra la sesión: se podrá reintentar).
+      const res = await fetchExterno(
+        pagosUrl(REFRESH_PATH),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ refreshToken: _refresh }),
+        },
+        TIMEOUT.AUTH,
+      );
       if (!res.ok) {
         // Solo un refresh DEFINITIVAMENTE inválido (401/403) cierra la sesión.
         // Errores transitorios (5xx, etc.) conservan el refresh para reintentar luego.

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AsistenteProfile, AuthResponse } from '@connecthub/shared-types';
+import type { AsistenteProfile, AuthResponse, InstitucionResumen } from '@connecthub/shared-types';
 import { setAccessToken, setRefreshHandler } from '@/api/client';
 import {
   meReq,
@@ -53,9 +53,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   bootstrapped: false,
 
   bootstrap: async () => {
-    // restaura también la sesión del servicio de pagos (si existía)
-    await loadPagosToken();
-    const tokens = await loadTokens();
+    // restaura también la sesión del servicio de pagos (si existía). Las dos
+    // lecturas van al almacén seguro (keychain/keystore, lento en Android) y
+    // NO dependen una de otra → en paralelo, no encadenadas.
+    const [, tokens] = await Promise.all([loadPagosToken(), loadTokens()]);
     if (!tokens) {
       set({ bootstrapped: true });
       return;
@@ -63,9 +64,16 @@ export const useAuth = create<AuthState>((set, get) => ({
     setAccessToken(tokens.accessToken);
     set({ refreshToken: tokens.refreshToken });
     try {
-      const user = await meReq();
+      // `me` y `mis instituciones` solo dependen del token, no una de la otra:
+      // en serie el arranque costaba DOS viajes completos al servidor antes de
+      // soltar el splash. En paralelo cuesta uno. Si la lista falla (red), se
+      // pasa null y syncInstitucion la vuelve a pedir como antes.
+      const [user, lista] = await Promise.all([
+        meReq(),
+        misInstituciones().catch(() => null),
+      ]);
       set({ user, status: 'authed' });
-      await syncInstitucion();
+      await syncInstitucion(lista);
     } catch {
       // access vencido → intenta refresh; si falla, sesión limpia
       const newAccess = await get().refresh();
@@ -133,9 +141,9 @@ export const useAuth = create<AuthState>((set, get) => ({
     const ok = await loginPagosApple(b.identityToken, b.email, b.nombre, b.apellido);
     const res = ok ? await pagosExchangeReq(getPagosToken()!) : await appleReq(b);
     await persist(set, res);
-    // Guarda el nombre que Apple entregó (solo el primer login) si el perfil no lo tiene.
-    await completarNombreApple(set, b, res.user);
-    await syncInstitucion();
+    // Guarda el nombre que Apple entregó (solo el primer login) si el perfil no
+    // lo tiene. No depende de la sincronización de institución → en paralelo.
+    await Promise.all([completarNombreApple(set, b, res.user), syncInstitucion()]);
     return res;
   },
 
@@ -143,9 +151,9 @@ export const useAuth = create<AuthState>((set, get) => ({
     // La sesión de Google vive en el dispositivo, aparte de la nuestra: si no
     // se cierra, al volver a entrar el SDK reutiliza la última cuenta sin
     // mostrar el selector. No bloquea el cierre de sesión si falla.
-    await cerrarSesionGoogle();
-    await clearTokens();
-    await clearPagosSession();
+    // Las tres son independientes (SDK de Google + dos borrados del almacén
+    // seguro): en serie el botón de salir se quedaba pensando varios segundos.
+    await Promise.all([cerrarSesionGoogle(), clearTokens(), clearPagosSession()]);
     setAccessToken(null);
     useInstitucion.getState().clear();
     set({ user: null, refreshToken: null, status: 'idle' });
@@ -209,10 +217,13 @@ async function completarNombreApple(
  *  - sin instituciones → limpia (evita heredar la de otro usuario);
  *  - activa inválida (no pertenece al usuario) → usa la primera válida;
  *  - activa válida → se mantiene.
+ *
+ * `precargada` evita repetir la petición cuando el llamador ya la pidió en
+ * paralelo (arranque); si viene null/undefined se pide aquí, como siempre.
  */
-async function syncInstitucion() {
+async function syncInstitucion(precargada?: InstitucionResumen[] | null) {
   try {
-    const list = await misInstituciones();
+    const list = precargada ?? (await misInstituciones());
     const store = useInstitucion.getState();
     const current = store.institucion;
     if (list.length === 0) {

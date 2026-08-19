@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MiEntrada } from '@connecthub/shared-types';
@@ -16,7 +16,7 @@ import {
 } from '@/lib/fecha';
 
 /** Tarjeta de una entrada (compartida por la lista y el calendario). */
-export function EntradaCard({
+function EntradaCardBase({
   item,
   onEvento,
   onQr,
@@ -66,6 +66,10 @@ export function EntradaCard({
     </Pressable>
   );
 }
+// Memoizada: la SectionList de la agenda se re-renderiza al refrescar y al
+// cambiar de vista; las filas cuya entrada no cambió ya no se vuelven a pintar.
+// Requiere que onEvento/onQr lleguen estables (useCallback en el padre).
+export const EntradaCard = memo(EntradaCardBase);
 
 export function AgendaCalendario({
   entradas,

@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { Pressable, RefreshControl, SectionList, View } from 'react-native';
+import type { SectionListRenderItem } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -20,11 +21,13 @@ function hora(fecha: string | null): string {
   return d === hoy ? (t ?? '') : d.slice(5);
 }
 
-function ChatRow({ c, onPress }: { c: ChatResumen; onPress: () => void }) {
+// onPress recibe el id (en vez de ser un closure por fila): así el padre puede
+// pasar UNA función estable y el memo de la fila realmente sirve.
+function ChatRowBase({ c, onPress }: { c: ChatResumen; onPress: (idChat: number) => void }) {
   const t = useTheme();
   const { t: tr } = useI18n();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, opacity: pressed ? 0.6 : 1 })}>
+    <Pressable onPress={() => onPress(c.idChat)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, opacity: pressed ? 0.6 : 1 })}>
       <Avatar nombre={c.nombre} fotoUrl={c.fotoUrl} size={52} />
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -41,12 +44,13 @@ function ChatRow({ c, onPress }: { c: ChatResumen; onPress: () => void }) {
     </Pressable>
   );
 }
+const ChatRow = memo(ChatRowBase);
 
-function CommRow({ c, onPress }: { c: ComunidadResumen; onPress: () => void }) {
+function CommRowBase({ c, onPress }: { c: ComunidadResumen; onPress: (idEvento: number) => void }) {
   const t = useTheme();
   const { t: tr } = useI18n();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, opacity: pressed ? 0.6 : 1 })}>
+    <Pressable onPress={() => onPress(c.idEvento)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, opacity: pressed ? 0.6 : 1 })}>
       <Image source={{ uri: c.portadaUrl }} style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt }} />
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -64,6 +68,15 @@ function CommRow({ c, onPress }: { c: ComunidadResumen; onPress: () => void }) {
     </Pressable>
   );
 }
+// Memoizadas: el hub se re-renderiza con cada refresco de las DOS queries; sin
+// memo se repintaban todas las filas (con sus avatares/portadas) cada vez.
+const CommRow = memo(CommRowBase);
+
+type Item = ChatResumen | ComunidadResumen;
+type Sec = { kind: 'chat' | 'comm'; title: string; data: Item[] };
+
+const hubKey = (item: Item) => ('idChat' in item ? 'chat-' + item.idChat : 'comm-' + item.idEvento);
+const LISTA_PAD = { paddingBottom: spacing.xl };
 
 export default function Hub() {
   const t = useTheme();
@@ -71,16 +84,59 @@ export default function Hub() {
   const router = useRouter();
   const { data: comunidades, isLoading: l1, refetch: r1, isRefetching: rf1 } = useMisComunidades();
   const { data: chats, isLoading: l2, refetch: r2, isRefetching: rf2 } = useChats();
-  useFocusEffect(useCallback(() => { r1(); r2(); }, [r1, r2]));
+  // Dos queries: al enfocar la tab se lanzaban SIEMPRE las dos peticiones (y en
+  // el montaje se duplicaban con las de useQuery). Ahora solo si pasaron 10 s.
+  const onRefresh = useCallback(() => { r1(); r2(); }, [r1, r2]);
+  const ultimoRefresco = useRef(Date.now());
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - ultimoRefresco.current < 10_000) return;
+      ultimoRefresco.current = Date.now();
+      r1();
+      r2();
+    }, [r1, r2]),
+  );
 
-  type Item = ChatResumen | ComunidadResumen;
-  type Sec = { kind: 'chat' | 'comm'; title: string; data: Item[] };
-  const sections: Sec[] = [
-    ...((chats?.length ?? 0) > 0 ? [{ kind: 'chat' as const, title: tr('community.sectionChats'), data: chats! }] : []),
-    { kind: 'comm' as const, title: tr('community.sectionCommunities'), data: comunidades ?? [] },
-  ];
+  // Antes se construía en cada render: array y objetos nuevos ⇒ la SectionList
+  // consideraba que TODO había cambiado.
+  const sections = useMemo<Sec[]>(
+    () => [
+      ...((chats?.length ?? 0) > 0 ? [{ kind: 'chat' as const, title: tr('community.sectionChats'), data: chats! }] : []),
+      { kind: 'comm' as const, title: tr('community.sectionCommunities'), data: comunidades ?? [] },
+    ],
+    [chats, comunidades, tr],
+  );
   const loading = l1 || l2;
   const vacio = !loading && (chats?.length ?? 0) === 0 && (comunidades?.length ?? 0) === 0;
+
+  const abrirChat = useCallback(
+    (idChat: number) => router.push({ pathname: '/chat/[idChat]', params: { idChat } }),
+    [router],
+  );
+  const abrirMuro = useCallback(
+    (idEvento: number) => router.push({ pathname: '/muro/[idEvento]', params: { idEvento } }),
+    [router],
+  );
+
+  const renderItem = useCallback<SectionListRenderItem<Item, Sec>>(
+    ({ item, section }) =>
+      section.kind === 'chat' ? (
+        <ChatRow c={item as ChatResumen} onPress={abrirChat} />
+      ) : (
+        <CommRow c={item as ComunidadResumen} onPress={abrirMuro} />
+      ),
+    [abrirChat, abrirMuro],
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: Sec }) =>
+      section.data.length ? (
+        <AppText muted variant="label" style={{ textTransform: 'uppercase', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs }}>
+          {section.title}
+        </AppText>
+      ) : null,
+    [],
+  );
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: t.colors.bg }}>
@@ -102,24 +158,12 @@ export default function Hub() {
       ) : (
         <SectionList<Item, Sec>
           sections={sections}
-          keyExtractor={(item) => ('idChat' in item ? 'chat-' + item.idChat : 'comm-' + item.idEvento)}
+          keyExtractor={hubKey}
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={{ paddingBottom: spacing.xl }}
-          refreshControl={<RefreshControl refreshing={rf1 || rf2} onRefresh={() => { r1(); r2(); }} tintColor={t.colors.brand} />}
-          renderSectionHeader={({ section }) =>
-            section.data.length ? (
-              <AppText muted variant="label" style={{ textTransform: 'uppercase', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs }}>
-                {section.title}
-              </AppText>
-            ) : null
-          }
-          renderItem={({ item, section }) =>
-            section.kind === 'chat' ? (
-              <ChatRow c={item as ChatResumen} onPress={() => router.push({ pathname: '/chat/[idChat]', params: { idChat: (item as ChatResumen).idChat } })} />
-            ) : (
-              <CommRow c={item as ComunidadResumen} onPress={() => router.push({ pathname: '/muro/[idEvento]', params: { idEvento: (item as ComunidadResumen).idEvento } })} />
-            )
-          }
+          contentContainerStyle={LISTA_PAD}
+          refreshControl={<RefreshControl refreshing={rf1 || rf2} onRefresh={onRefresh} tintColor={t.colors.brand} />}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
         />
       )}
     </SafeAreaView>

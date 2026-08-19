@@ -1,5 +1,6 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import type { ListRenderItem } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -75,13 +76,40 @@ function TicketCardBase({ entrada }: { entrada: MiEntrada }) {
 // Memoizada: no re-renderiza cada fila cuando el padre refresca (isRefetching).
 const TicketCard = memo(TicketCardBase);
 
+// Todo esto vivía en línea dentro del JSX de la FlatList. El separador era el
+// peor caso: al ser una función anónima nueva en cada render, React lo trataba
+// como un componente distinto y DESMONTABA/remontaba todos los separadores.
+const entradaKey = (e: MiEntrada) => String(e.idEventoUsuario);
+const Separador = () => <View style={{ height: spacing.md }} />;
+const LISTA_PAD = { paddingBottom: spacing['3xl'] };
+const renderEntrada: ListRenderItem<MiEntrada> = ({ item, index }) =>
+  // Solo las primeras filas animan la entrada (evita el parpadeo al
+  // reciclarse en scroll).
+  index < 8 ? (
+    <Animated.View entering={FadeInDown.delay(index * 40)}>
+      <TicketCard entrada={item} />
+    </Animated.View>
+  ) : (
+    <TicketCard entrada={item} />
+  );
+
 export default function Entradas() {
   const t = useTheme();
   const { t: tr } = useI18n();
   const { data, isLoading, isError, refetch, isRefetching } = useMisEntradas();
 
-  // refresca al enfocar la tab (las tabs no se re-montan al cambiar)
-  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+  // Refresca al enfocar la tab (las tabs no se re-montan al cambiar), pero se
+  // salta el montaje —useQuery ya trae los datos— y no repite si acaba de
+  // refrescar: antes cada toque en la tab lanzaba red, mostraba el spinner de
+  // RefreshControl y re-renderizaba la lista entera con objetos nuevos.
+  const ultimoRefresco = useRef(Date.now());
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - ultimoRefresco.current < 30_000) return;
+      ultimoRefresco.current = Date.now();
+      refetch();
+    }, [refetch]),
+  );
 
   return (
     <Screen padded>
@@ -91,24 +119,14 @@ export default function Entradas() {
 
       <FlatList
         data={data ?? []}
-        keyExtractor={(e) => String(e.idEventoUsuario)}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        contentContainerStyle={{ paddingBottom: spacing['3xl'] }}
+        keyExtractor={entradaKey}
+        ItemSeparatorComponent={Separador}
+        contentContainerStyle={LISTA_PAD}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />
         }
-        renderItem={({ item, index }) =>
-          // Solo las primeras filas animan la entrada (evita el parpadeo al
-          // reciclarse en scroll).
-          index < 8 ? (
-            <Animated.View entering={FadeInDown.delay(index * 40)}>
-              <TicketCard entrada={item} />
-            </Animated.View>
-          ) : (
-            <TicketCard entrada={item} />
-          )
-        }
+        renderItem={renderEntrada}
         ListEmptyComponent={
           isLoading ? (
             <View style={{ gap: spacing.md }}>
