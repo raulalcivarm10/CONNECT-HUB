@@ -204,8 +204,8 @@ export default function Checkout() {
       }
       // correo de confirmación (best-effort): monto 0, referencia del cupón
       void enviarConfirmacionCorreo(evId, `CUPON-${r.idEventoUsuario ?? 0}`, 0).catch(() => {});
-      await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
-      await qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
+      void qc.invalidateQueries({ queryKey: ['mis-entradas'] });
+      void qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
       void confirm({
         title: tr('pay.successTitle'),
         message: tr('pay.successBody'),
@@ -258,8 +258,8 @@ export default function Checkout() {
             : (resumen?.total ?? 0);
           void enviarConfirmacionCorreo(evId, r.transactionId, montoCobrado).catch(() => {});
           // el servicio de pagos ya registró la inscripción
-          await qc.invalidateQueries({ queryKey: ['mis-entradas'] });
-          await qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
+          void qc.invalidateQueries({ queryKey: ['mis-entradas'] });
+          void qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
           if (esIOS) {
             // iOS: sin diálogo encima del Modal que se cierra (congelaba la
             // pantalla). Navegar a Mis Entradas es la confirmación visible.

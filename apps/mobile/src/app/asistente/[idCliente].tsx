@@ -29,8 +29,8 @@ export default function VerPerfil() {
     setBusy(true);
     try {
       await solicitarConexion(idCliente);
-      await qc.invalidateQueries({ queryKey: ['perfil', idCliente] });
-      await qc.invalidateQueries({ queryKey: ['conexiones'] });
+      void qc.invalidateQueries({ queryKey: ['perfil', idCliente] });
+      void qc.invalidateQueries({ queryKey: ['conexiones'] });
     } catch (err) {
       Alert.alert(tr('common.error'), err instanceof ApiError ? err.message : '');
     } finally {
@@ -43,7 +43,7 @@ export default function VerPerfil() {
     setBusy(true);
     try {
       const { idChat } = await abrirChat(idCliente);
-      await qc.invalidateQueries({ queryKey: ['chats'] });
+      void qc.invalidateQueries({ queryKey: ['chats'] });
       router.push({ pathname: '/chat/[idChat]', params: { idChat } });
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {

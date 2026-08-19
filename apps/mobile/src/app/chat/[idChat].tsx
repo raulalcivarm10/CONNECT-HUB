@@ -90,8 +90,8 @@ export default function ChatPrivado() {
     setText('');
     try {
       await enviarPrivado(chatId, m);
-      await qc.invalidateQueries({ queryKey: ['chat', chatId] });
-      await qc.invalidateQueries({ queryKey: ['chats'] });
+      void qc.invalidateQueries({ queryKey: ['chat', chatId] });
+      void qc.invalidateQueries({ queryKey: ['chats'] });
       atBottom.current = true;
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     } catch {

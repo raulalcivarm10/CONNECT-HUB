@@ -45,8 +45,8 @@ export default function Conexiones() {
     setBusyId(s.idConexion);
     try {
       await responderConexion(s.idConexion, aceptar);
-      await qc.invalidateQueries({ queryKey: ['solicitudes'] });
-      await qc.invalidateQueries({ queryKey: ['conexiones'] });
+      void qc.invalidateQueries({ queryKey: ['solicitudes'] });
+      void qc.invalidateQueries({ queryKey: ['conexiones'] });
     } catch (err) {
       Alert.alert(tr('common.error'), err instanceof ApiError ? err.message : '');
     } finally {
