@@ -26,7 +26,7 @@ if (!termino) {
             p.VISIBILIDAD, p.PROFESION, p.EMPRESA,
             CASE WHEN p.BIO IS NULL THEN 'sin bio'
                  ELSE 'bio de ' || LENGTH(p.BIO) || ' caracteres' END AS BIO,
-            p.LINKEDIN_URL, p.FOTO_URL
+            p.LINKEDIN_URL, u.FOTO_URL
        FROM USUARIOS u
        LEFT JOIN PERFIL_ASISTENTE p ON p.ID_CLIENTE = u.ID_CLIENTE
       WHERE UPPER(u.NOMBRE || ' ' || u.APELLIDO) LIKE '%' || UPPER(:t) || '%'
