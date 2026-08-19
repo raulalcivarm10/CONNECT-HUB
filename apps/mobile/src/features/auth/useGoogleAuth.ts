@@ -20,6 +20,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { ResponseType, makeRedirectUri } from 'expo-auth-session';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { dlog } from '@/lib/debuglog';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -91,16 +92,43 @@ export function useGoogleAuth(onIdToken: (idToken: string, accessToken: string) 
 
   /** Flujo nativo Android: sin navegador ni redirect; entrega idToken+accessToken. */
   async function nativeSignIn() {
-    // Si había una sesión previa a medias, se limpia para forzar el selector de cuenta.
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      // BUG QUE ESTO ARREGLA: el usuario entraba con Google, actualizaba la app
+      // y ya no podía volver a entrar (el botón no hacía nada). Causa: el SDK
+      // guarda la sesión de Google en el dispositivo y `signIn()` la reutiliza
+      // sin pedir cuenta; tras reinstalar/actualizar esa sesión queda huérfana
+      // y `getTokens()` devuelve un token vencido o falla. El comentario
+      // anterior decía que se limpiaba la sesión previa, pero NO se limpiaba.
+      // `signOut()` solo cierra la sesión local de Google (no toca la sesión de
+      // ConnectHub ni la cuenta del teléfono) y fuerza el selector de cuenta.
+      await GoogleSignin.signOut().catch(() => undefined);
+
       const res = await GoogleSignin.signIn();
       if (res.type !== 'success') return; // 'cancelled' → sin error, igual que antes
-      const { idToken, accessToken } = await GoogleSignin.getTokens();
-      if (idToken) onIdToken(idToken, accessToken ?? '');
-    } catch {
-      // Errores del SDK (sin Play Services, red, etc.): el botón simplemente no
-      // avanza, igual que el comportamiento anterior ante un fallo del navegador.
+
+      let { idToken, accessToken } = await GoogleSignin.getTokens();
+      // Segundo cinturón: si el token viene vencido del caché del SDK, se
+      // invalida y se pide de nuevo. Sin esto el backend responde 401 y el
+      // usuario vuelve a ver el login vacío sin saber por qué.
+      if (!idToken && accessToken) {
+        await GoogleSignin.clearCachedAccessToken(accessToken).catch(() => undefined);
+        ({ idToken, accessToken } = await GoogleSignin.getTokens());
+      }
+      if (idToken) {
+        onIdToken(idToken, accessToken ?? '');
+        return;
+      }
+      throw new Error('Google no devolvió idToken');
+    } catch (e) {
+      // Antes este catch estaba VACÍO: cualquier fallo dejaba el botón mudo y
+      // el usuario veía el login vacío sin explicación (así se reportó el bug).
+      // Ahora al menos queda registrado en el log de diagnóstico de la app.
+      dlog('google:signIn ERROR', {
+        mensaje: e instanceof Error ? e.message : String(e),
+        codigo: (e as { code?: string })?.code ?? null,
+      });
     }
   }
 
