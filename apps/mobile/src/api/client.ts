@@ -174,6 +174,29 @@ export function absoluteUrl(path: string): string {
   return `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
+/**
+ * Anchos que acepta el proxy de imágenes (`?w=`). Es una lista CERRADA en el
+ * servidor: cualquier otro valor se ignora y devuelve el original.
+ */
+export type AnchoImagen = 96 | 200 | 400 | 800 | 1200;
+
+/**
+ * Añade el ancho a una URL del proxy de imágenes para que el servidor la
+ * redimensione y la devuelva en WebP.
+ *
+ * POR QUÉ IMPORTA: sin esto se descarga la imagen tal como la subió el
+ * administrador. Medido en producción, una portada real pesa 1,4 MB; a 96 px
+ * son 3 KB. Multiplicado por cada fila de cada lista, era la causa principal
+ * de que las imágenes tardaran en aparecer.
+ *
+ * Solo actúa sobre URLs de nuestro proxy: cualquier otra (o vacía) se devuelve
+ * intacta, así que es seguro envolver cualquier `fotoUrl`.
+ */
+export function imagenAncho(url: string | null | undefined, w: AnchoImagen): string {
+  if (!url || !url.includes('/archivos/proxy')) return url ?? '';
+  return url.includes('w=') ? url : `${url}&w=${w}`;
+}
+
 function buildUrl(path: string, query?: Record<string, unknown>): string {
   const url = new URL(`${API_BASE}${path}`);
   if (query) {

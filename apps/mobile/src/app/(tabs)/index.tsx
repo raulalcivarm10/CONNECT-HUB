@@ -21,7 +21,7 @@ import { useI18n, LANGS } from '@/i18n';
 import { useSettings } from '@/store/settings';
 import { useInstitucion } from '@/store/institucion';
 import { useDestacados, useEventos, useMisEventos, useMisInstituciones } from '@/api/catalogo';
-import { absoluteUrl } from '@/api/client';
+import { absoluteUrl, imagenAncho } from '@/api/client';
 import { EventCard } from '@/features/eventos/cards';
 import { resumenDias } from '@/lib/fecha';
 
@@ -70,7 +70,7 @@ function TopBar() {
       >
         {logoUrl ? (
           <AppImage
-            source={{ uri: absoluteUrl(logoUrl) }}
+            source={{ uri: imagenAncho(absoluteUrl(logoUrl), 200) }}
             style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: t.colors.surfaceAlt }}
             contentFit="cover"
             recyclingKey={logoUrl}
@@ -149,7 +149,7 @@ function HeroCard({
       style={[{ width, height: 200, borderRadius: radius.xl, overflow: 'hidden' }, shadow.card]}
     >
       <AppImage
-        source={{ uri: evento.portadaUrl }}
+        source={{ uri: imagenAncho(evento.portadaUrl, 1200) }}
         placeholder={IMAGE_PLACEHOLDER}
         placeholderContentFit="cover"
         contentFit="cover"

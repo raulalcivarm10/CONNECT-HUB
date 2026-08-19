@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import type { EventoResumen } from '@connecthub/shared-types';
+import { imagenAncho } from '@/api/client';
 import { AppText, Chip } from '@/design-system/components';
 import { AppImage, IMAGE_PLACEHOLDER } from '@/design-system/image';
 import { useTheme, palette } from '@/design-system/theme';
@@ -75,7 +76,7 @@ function FeaturedCardBase({ evento }: { evento: EventoResumen }) {
         ]}
       >
         <AppImage
-          source={{ uri: evento.portadaUrl }}
+          source={{ uri: imagenAncho(evento.portadaUrl, 800) }}
           placeholder={IMAGE_PLACEHOLDER}
           placeholderContentFit="cover"
           contentFit="cover"
@@ -134,7 +135,7 @@ function EventCardBase({ evento }: { evento: EventoResumen }) {
       ]}
     >
       <AppImage
-        source={{ uri: evento.portadaUrl }}
+        source={{ uri: imagenAncho(evento.portadaUrl, 800) }}
         placeholder={IMAGE_PLACEHOLDER}
         placeholderContentFit="cover"
         contentFit="cover"
