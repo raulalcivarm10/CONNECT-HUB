@@ -46,6 +46,28 @@ if (esAndroid && WEB) {
   }
 }
 
+/**
+ * Cierra la sesión de Google en el dispositivo. Se llama al cerrar sesión (y al
+ * eliminar la cuenta) de ConnectHub.
+ *
+ * BUG QUE ESTO ARREGLA: al salir de la app, la sesión de Google seguía viva en
+ * el teléfono, así que al volver a entrar el SDK reutilizaba la última cuenta y
+ * NO mostraba el selector — imposible entrar con otra. En iOS no pasaba porque
+ * ahí el acceso con Google no usa este SDK nativo.
+ *
+ * Solo cierra la sesión LOCAL de la app con Google: no toca la cuenta de Google
+ * del teléfono ni revoca permisos. Nunca lanza: cerrar sesión de ConnectHub no
+ * puede fallar porque Google se queje.
+ */
+export async function cerrarSesionGoogle(): Promise<void> {
+  if (!esAndroid || !WEB) return;
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // sin módulo nativo (Expo Go) o sin sesión previa: nada que cerrar
+  }
+}
+
 function genNonce(): string {
   let s = '';
   while (s.length < 32) s += Math.random().toString(36).slice(2);

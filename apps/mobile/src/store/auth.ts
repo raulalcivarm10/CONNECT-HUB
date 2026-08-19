@@ -26,6 +26,7 @@ import {
 } from '@/api/pagos-session';
 import { clearTokens, loadTokens, saveTokens } from '@/lib/tokenStorage';
 import { dlog, jwtInfo, tokenBrief } from '@/lib/debuglog';
+import { cerrarSesionGoogle } from '@/features/auth/useGoogleAuth';
 import { useInstitucion } from './institucion';
 
 interface AuthState {
@@ -139,6 +140,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // La sesión de Google vive en el dispositivo, aparte de la nuestra: si no
+    // se cierra, al volver a entrar el SDK reutiliza la última cuenta sin
+    // mostrar el selector. No bloquea el cierre de sesión si falla.
+    await cerrarSesionGoogle();
     await clearTokens();
     await clearPagosSession();
     setAccessToken(null);
