@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, ReactNode } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { InteractionManager, Modal, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from './components';
 import { useTheme, palette } from './theme';
@@ -37,10 +37,25 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /**
+   * Cierra el diálogo y SOLO DESPUÉS resuelve la promesa.
+   *
+   * El orden importa y era la causa de un cuelgue real: si se resolvía primero,
+   * el llamador seguía (típicamente `.then(() => router.replace(...))`) con el
+   * Modal todavía montado. Al ser transparente y a pantalla completa, quedaba
+   * ENCIMA de la pantalla nueva tragándose todos los toques: se veía bien pero
+   * no respondía a nada — ni volver, ni cambiar de pestaña. Había que cerrar y
+   * reabrir la app.
+   *
+   * `runAfterInteractions` espera a que termine la animación de cierre, así que
+   * cuando el llamador continúa el Modal ya no existe. Esto vale para TODAS las
+   * pantallas que usan confirm(), no solo la que lo destapó.
+   */
   const finish = useCallback((v: boolean) => {
-    resolver.current?.(v);
+    const resolve = resolver.current;
     resolver.current = null;
     setOpts(null);
+    InteractionManager.runAfterInteractions(() => resolve?.(v));
   }, []);
 
   const danger = !!opts?.destructive;
