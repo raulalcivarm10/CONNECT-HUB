@@ -184,8 +184,13 @@ export default function ComunidadEvento() {
     try { inited.current = false; await ingresarComunidad(evId); await invalidar(); } finally { setBusy(false); }
   }
 
+  // Mismo arreglo que el chat 1-a-1: en Android borde a borde el composer del
+  // muro quedaba detrás de la barra de navegación del sistema.
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: t.colors.bg }}>
+    <SafeAreaView
+      edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']}
+      style={{ flex: 1, backgroundColor: t.colors.bg }}
+    >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* Cabecera */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: t.colors.border }}>

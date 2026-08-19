@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import type { Certificado } from '@connecthub/shared-types';
 import { AppText, Button } from '@/design-system/components';
@@ -22,6 +22,10 @@ export default function CertificadoView() {
   const router = useRouter();
   const { codigo } = useLocalSearchParams<{ codigo: string }>();
   const { data, isLoading, isError } = useCertificado(codigo);
+  // Android edge-to-edge: el final del scroll (botón "descargar") quedaba justo
+  // contra la barra de navegación del sistema; se suma el inset SOLO en Android
+  // (el scroll sigue dibujándose detrás de la barra al desplazar). iOS intacto.
+  const insets = useSafeAreaInsets();
   const [imgError, setImgError] = useState(false);
   const [aspect, setAspect] = useState(1.414);
 
@@ -66,7 +70,12 @@ export default function CertificadoView() {
             <AppText variant="subtitle">{tr('common.error')}</AppText>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
+          <ScrollView
+            contentContainerStyle={{
+              padding: spacing.lg,
+              paddingBottom: spacing['3xl'] + (Platform.OS === 'android' ? insets.bottom : 0),
+            }}
+          >
             {!imgError ? (
               // Imagen renderizada del certificado (plantilla + overlay). Fallback a la
               // tarjeta dibujada si el evento no tiene plantilla configurada (404).

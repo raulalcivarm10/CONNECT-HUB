@@ -1,4 +1,4 @@
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, Platform, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -85,8 +85,13 @@ export default function Instituciones() {
   const { data, isLoading } = useMisInstituciones();
   const multiple = (data?.length ?? 0) > 1;
 
+  // Android edge-to-edge (targetSdk 36): el botón fijo "＋ agregar" del fondo
+  // quedaba detrás de la barra de navegación del sistema. iOS queda intacto.
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: t.colors.bg }}>
+    <SafeAreaView
+      edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']}
+      style={{ flex: 1, backgroundColor: t.colors.bg }}
+    >
       <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md }}>
           <AppText variant="title">{tr('inst.title')}</AppText>

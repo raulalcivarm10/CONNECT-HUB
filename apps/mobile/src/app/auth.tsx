@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -66,6 +67,10 @@ export default function Auth() {
   const { t: tr } = useI18n();
   const confirm = useConfirm();
   const router = useRouter();
+  // Android edge-to-edge: el final del scroll (enlace "crear cuenta") quedaba
+  // detrás de la barra de navegación del sistema. Con el teclado abierto el
+  // inset llega en 0 (adjustResize), así que no crea hueco. iOS intacto.
+  const insets = useSafeAreaInsets();
   const register = useAuth((s) => s.register);
   const login = useAuth((s) => s.login);
   const googleSignIn = useAuth((s) => s.google);
@@ -210,7 +215,11 @@ export default function Auth() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: spacing.xl, gap: spacing.md }}
+          contentContainerStyle={{
+            padding: spacing.xl,
+            paddingBottom: spacing.xl + (Platform.OS === 'android' ? insets.bottom : 0),
+            gap: spacing.md,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           <AppText variant="title">{isRegister ? tr('auth.signUp') : tr('auth.signIn')}</AppText>

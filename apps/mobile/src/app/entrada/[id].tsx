@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,7 +19,10 @@ export default function EntradaQr() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+      {/* Android edge-to-edge (targetSdk 36): en pantallas bajas el pie del
+          contenido centrado (token del QR) quedaba tras la barra del sistema.
+          iOS queda intacto. */}
+      <SafeAreaView edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']} style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: spacing.lg }}>
           <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/entradas'))} hitSlop={10}>
             <Ionicons name="close" size={28} color={t.colors.textMuted} />

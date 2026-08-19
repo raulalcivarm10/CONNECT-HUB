@@ -101,8 +101,15 @@ export default function ChatPrivado() {
     }
   }
 
+  // Android va borde a borde (targetSdk 36): sin el edge inferior, la caja de
+  // escribir queda DETRÁS de los botones del sistema (||| O <) hasta que sale
+  // el teclado. Solo Android: iOS ya está bien y no se toca. Con el teclado
+  // abierto el inset inferior pasa a 0, así que no se duplica el hueco.
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: t.colors.bg }}>
+    <SafeAreaView
+      edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']}
+      style={{ flex: 1, backgroundColor: t.colors.bg }}
+    >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* Cabecera */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: t.colors.border }}>
