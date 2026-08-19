@@ -894,7 +894,7 @@ const fr: Dict = {
   'pay.APPROVED': 'Approuvé',
   'pay.PENDIENTE': 'En attente',
   'pay.GRATUITO': 'Gratuit',
-  'img.legend': 'PNG, JPG/JPEG ou WebP · max. {mb} Mo',
+  'img.legend': 'PNG, JPG/JPEG ou WebP · max. {mb} Mo · idéal 1200-2000 px',
   'img.badType': "Le fichier « {file} » n'est pas un format autorisé. Utilisez une image PNG, JPG/JPEG ou WebP.",
   'img.tooBig': "L'image pèse {size} Mo et le maximum est {mb} Mo. Compressez-la ou réduisez la résolution.",
   'img.updated': '✓ Image mise à jour',

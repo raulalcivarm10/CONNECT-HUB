@@ -906,7 +906,7 @@ const en: Dict = {
   'pay.PENDIENTE': 'Pending',
   'pay.GRATUITO': 'Free',
   // imágenes
-  'img.legend': 'PNG, JPG/JPEG or WebP · max. {mb} MB',
+  'img.legend': 'PNG, JPG/JPEG or WebP · max. {mb} MB · ideal 1200-2000 px',
   'img.badType': 'The file "{file}" is not an allowed format. Use a PNG, JPG/JPEG or WebP image.',
   'img.tooBig': 'The image weighs {size} MB and the maximum is {mb} MB. Compress it or use a lower resolution.',
   'img.updated': '✓ Image updated',

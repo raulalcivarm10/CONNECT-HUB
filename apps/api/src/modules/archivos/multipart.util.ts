@@ -1,6 +1,53 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
+import sharp from 'sharp';
 import '@fastify/multipart';
+
+const log = new Logger('ImagenSubida');
+
+/**
+ * Lado mayor máximo que se guarda en el NAS.
+ *
+ * POR QUÉ: no había ningún límite de DIMENSIONES (solo de peso), y entró una
+ * portada real de 11384x11384 px y 1,4 MB. Ninguna pantalla de la app ni del
+ * panel muestra una imagen a más de ~1200 px, así que todo lo que exceda es
+ * peso muerto: ocupa NAS, y la primera petición de cada tamaño tiene que
+ * bajarla entera para reducirla.
+ *
+ * 2000 deja margen de sobra para pantallas de alta densidad y para recortes
+ * futuros, sin guardar barbaridades.
+ */
+const LADO_MAX = 2000;
+
+/**
+ * Normaliza la imagen recibida ANTES de guardarla: reduce el lado mayor si hace
+ * falta, respeta la orientación EXIF (fotos de móvil salían giradas) y mantiene
+ * la proporción — nunca recorta.
+ *
+ * Si sharp no puede procesarla se devuelve tal cual: es preferible guardar una
+ * imagen sin optimizar a rechazarle la subida al organizador.
+ */
+async function normalizar(archivo: ArchivoSubido): Promise<ArchivoSubido> {
+  try {
+    const img = sharp(archivo.buffer);
+    const { width = 0, height = 0 } = await img.metadata();
+    if (width <= LADO_MAX && height <= LADO_MAX) return archivo;
+
+    const buffer = Buffer.from(
+      await img
+        .rotate()
+        .resize({ width: LADO_MAX, height: LADO_MAX, fit: 'inside', withoutEnlargement: true })
+        .toBuffer(),
+    );
+    log.log(
+      `${archivo.filename}: ${width}x${height} -> max ${LADO_MAX} ` +
+        `(${Math.round(archivo.buffer.length / 1024)} KB -> ${Math.round(buffer.length / 1024)} KB)`,
+    );
+    return { ...archivo, buffer };
+  } catch {
+    return archivo; // formato que sharp no entiende: se guarda el original
+  }
+}
 
 export interface ArchivoSubido {
   buffer: Buffer;
@@ -55,5 +102,7 @@ export async function leerImagenMultipart(req: FastifyRequest): Promise<{
         `Use a PNG, JPG/JPEG or WebP image.`,
     );
   }
-  return { archivo, campos };
+  // Se normaliza aquí, en un único punto: así vale para portadas, logos,
+  // croquis, fotos de expositor y de perfil sin tocar cada controlador.
+  return { archivo: await normalizar(archivo), campos };
 }
