@@ -1125,6 +1125,16 @@ const es: Dict = {
   'ag.tplNat1': 'Canadá',
   'ag.tplNat2': 'México',
   'ag.tplNat3': 'Brasil',
+
+  // --- Web pública (sin login: código de institución + invitado) ---
+  'pub.welcome': "Eventos",
+  'pub.welcomeSub': "Ingresa el código de tu institución para ver su cartelera.",
+  'pub.codeLabel': "Código de institución",
+  'pub.codePlaceholder': "EJEMPLO",
+  'pub.codeSubmit': "Ver eventos",
+  'pub.codeHint': "Te lo entrega la institución organizadora.",
+  'pub.codeInvalid': "No encontramos ninguna institución con ese código.",
+  'pub.codeError': "No pudimos verificar el código. Inténtalo de nuevo.",
 };
 
 export default es;
