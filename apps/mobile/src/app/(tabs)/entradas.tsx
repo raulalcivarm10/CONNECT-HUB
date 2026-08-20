@@ -10,6 +10,7 @@ import { Screen, AppText, Chip, Skeleton, Button } from '@/design-system/compone
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, shadow, fontWeight } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { usePullToRefresh } from '@/lib/pull-to-refresh';
 import { useMisEntradas } from '@/api/entradas';
 import { resumenDias } from '@/lib/fecha';
 
@@ -96,7 +97,8 @@ const renderEntrada: ListRenderItem<MiEntrada> = ({ item, index }) =>
 export default function Entradas() {
   const t = useTheme();
   const { t: tr } = useI18n();
-  const { data, isLoading, isError, refetch, isRefetching } = useMisEntradas();
+  const { data, isLoading, isError, refetch } = useMisEntradas();
+  const { refrescando, onRefresh } = usePullToRefresh(refetch);
 
   // Refresca al enfocar la tab (las tabs no se re-montan al cambiar), pero se
   // salta el montaje —useQuery ya trae los datos— y no repite si acaba de
@@ -124,7 +126,7 @@ export default function Entradas() {
         contentContainerStyle={LISTA_PAD}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />
+          <RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={t.colors.brand} />
         }
         renderItem={renderEntrada}
         ListEmptyComponent={

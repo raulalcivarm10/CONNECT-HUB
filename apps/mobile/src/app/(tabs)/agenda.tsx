@@ -8,6 +8,7 @@ import { Screen, AppText, Skeleton, Button } from '@/design-system/components';
 import { useTheme } from '@/design-system/theme';
 import { radius, spacing } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { usePullToRefresh } from '@/lib/pull-to-refresh';
 import { useMisEntradas } from '@/api/entradas';
 import { weekday, dayNum, shortDate, todayKey } from '@/lib/fecha';
 import { AgendaCalendario, EntradaCard } from '@/features/agenda/AgendaCalendario';
@@ -28,7 +29,8 @@ export default function Agenda() {
   const { t: tr, lang } = useI18n();
   const router = useRouter();
   const [vista, setVista] = useState<Vista>('lista');
-  const { data, isLoading, isError, refetch, isRefetching } = useMisEntradas();
+  const { data, isLoading, isError, refetch } = useMisEntradas();
+  const { refrescando, onRefresh } = usePullToRefresh(refetch);
 
   // Refresco al enfocar la tab, PERO no en el montaje (useQuery ya trae los
   // datos) ni si se refrescó hace poco: antes cada toque en la tab disparaba
@@ -151,7 +153,7 @@ export default function Agenda() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={LISTA_PAD}
           stickySectionHeadersEnabled={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />}
+          refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={t.colors.brand} />}
           renderSectionHeader={renderSectionHeader}
           renderItem={renderItem}
         />

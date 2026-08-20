@@ -53,42 +53,57 @@ export const useAuth = create<AuthState>((set, get) => ({
   bootstrapped: false,
 
   bootstrap: async () => {
-    // restaura también la sesión del servicio de pagos (si existía). Las dos
-    // lecturas van al almacén seguro (keychain/keystore, lento en Android) y
-    // NO dependen una de otra → en paralelo, no encadenadas.
-    const [, tokens] = await Promise.all([loadPagosToken(), loadTokens()]);
-    if (!tokens) {
-      set({ bootstrapped: true });
-      return;
-    }
-    setAccessToken(tokens.accessToken);
-    set({ refreshToken: tokens.refreshToken });
+    // TODO el cuerpo va en try/finally, y `bootstrapped` se levanta en el
+    // `finally`, PASE LO QUE PASE.
+    //
+    // POR QUÉ: la pantalla de arranque (src/app/index.tsx) muestra un indicador
+    // giratorio mientras `bootstrapped` sea false, y no tiene salida. Antes
+    // había dos formas de dejarlo en false para siempre y con ello la app
+    // colgada en ese indicador hasta cerrarla y volver a abrirla:
+    //   1) la lectura del almacén seguro de abajo estaba FUERA de todo try, y
+    //      expo-secure-store sí puede rechazar (llave del keystore invalidada
+    //      tras restaurar el teléfono desde una copia de seguridad);
+    //   2) el `await get().refresh()` del catch puede lanzar, y lanzar DENTRO
+    //      de un catch no se auto-captura.
+    // Ahora cualquiera de esas dos cosas cae al login en vez de colgar.
     try {
-      // `me` y `mis instituciones` solo dependen del token, no una de la otra:
-      // en serie el arranque costaba DOS viajes completos al servidor antes de
-      // soltar el splash. En paralelo cuesta uno. Si la lista falla (red), se
-      // pasa null y syncInstitucion la vuelve a pedir como antes.
-      const [user, lista] = await Promise.all([
-        meReq(),
-        misInstituciones().catch(() => null),
-      ]);
-      set({ user, status: 'authed' });
-      await syncInstitucion(lista);
-    } catch {
-      // access vencido → intenta refresh; si falla, sesión limpia
-      const newAccess = await get().refresh();
-      if (newAccess) {
-        try {
-          const user = await meReq();
-          set({ user, status: 'authed' });
-          await syncInstitucion();
-        } catch {
-          /* deja idle */
+      // restaura también la sesión del servicio de pagos (si existía). Las dos
+      // lecturas van al almacén seguro (keychain/keystore, lento en Android) y
+      // NO dependen una de otra → en paralelo, no encadenadas.
+      const [, tokens] = await Promise.all([loadPagosToken(), loadTokens()]);
+      if (!tokens) return;
+      setAccessToken(tokens.accessToken);
+      set({ refreshToken: tokens.refreshToken });
+      try {
+        // `me` y `mis instituciones` solo dependen del token, no una de la otra:
+        // en serie el arranque costaba DOS viajes completos al servidor antes de
+        // soltar el splash. En paralelo cuesta uno. Si la lista falla (red), se
+        // pasa null y syncInstitucion la vuelve a pedir como antes.
+        const [user, lista] = await Promise.all([
+          meReq(),
+          misInstituciones().catch(() => null),
+        ]);
+        set({ user, status: 'authed' });
+        await syncInstitucion(lista);
+      } catch {
+        // access vencido → intenta refresh; si falla, sesión limpia
+        const newAccess = await get().refresh();
+        if (newAccess) {
+          try {
+            const user = await meReq();
+            set({ user, status: 'authed' });
+            await syncInstitucion();
+          } catch {
+            /* deja idle */
+          }
         }
       }
+    } catch {
+      /* almacén seguro ilegible o refresh roto: se arranca sin sesión */
+    } finally {
+      // al FINAL: el gate espera a que la institución esté sincronizada
+      set({ bootstrapped: true });
     }
-    // bootstrapped al FINAL: el gate espera a que la institución esté sincronizada
-    set({ bootstrapped: true });
   },
 
   register: async (b) => {

@@ -21,6 +21,7 @@ import { useConfirm } from '@/design-system/confirm';
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, fontWeight, fontSize } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { usePullToRefresh } from '@/lib/pull-to-refresh';
 import { useComunidad, publicarMensaje, salirComunidad, ingresarComunidad } from '@/api/comunidad';
 import { absoluteUrl } from '@/api/client';
 
@@ -112,7 +113,8 @@ export default function ComunidadEvento() {
   const { idEvento } = useLocalSearchParams<{ idEvento: string }>();
   const evId = Number(idEvento);
 
-  const { data, isLoading, refetch, isRefetching } = useComunidad(evId);
+  const { data, isLoading, refetch } = useComunidad(evId);
+  const { refrescando, onRefresh } = usePullToRefresh(refetch);
   // Al ENTRAR, useQuery ya pide el muro: el refetch de foco duplicaba la
   // petición. Ahora solo refresca al VOLVER (perfil, miembros) y como mucho
   // cada 10 s.
@@ -271,7 +273,7 @@ export default function ComunidadEvento() {
             onScroll={onScroll}
             scrollEventThrottle={100}
             onContentSizeChange={maybeScroll}
-            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.colors.brand} />}
+            refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={t.colors.brand} />}
             renderItem={renderMensaje}
             ListEmptyComponent={
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing['4xl'] }}>

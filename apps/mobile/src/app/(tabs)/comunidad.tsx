@@ -11,6 +11,7 @@ import { Avatar } from '@/design-system/avatar';
 import { useTheme, palette } from '@/design-system/theme';
 import { radius, spacing, fontWeight } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { usePullToRefresh } from '@/lib/pull-to-refresh';
 import { useMisComunidades } from '@/api/comunidad';
 import { useChats } from '@/api/chats';
 
@@ -82,11 +83,11 @@ export default function Hub() {
   const t = useTheme();
   const { t: tr } = useI18n();
   const router = useRouter();
-  const { data: comunidades, isLoading: l1, refetch: r1, isRefetching: rf1 } = useMisComunidades();
-  const { data: chats, isLoading: l2, refetch: r2, isRefetching: rf2 } = useChats();
+  const { data: comunidades, isLoading: l1, refetch: r1 } = useMisComunidades();
+  const { data: chats, isLoading: l2, refetch: r2 } = useChats();
   // Dos queries: al enfocar la tab se lanzaban SIEMPRE las dos peticiones (y en
   // el montaje se duplicaban con las de useQuery). Ahora solo si pasaron 10 s.
-  const onRefresh = useCallback(() => { r1(); r2(); }, [r1, r2]);
+  const { refrescando, onRefresh } = usePullToRefresh(() => Promise.all([r1(), r2()]));
   const ultimoRefresco = useRef(Date.now());
   useFocusEffect(
     useCallback(() => {
@@ -161,7 +162,7 @@ export default function Hub() {
           keyExtractor={hubKey}
           stickySectionHeadersEnabled={false}
           contentContainerStyle={LISTA_PAD}
-          refreshControl={<RefreshControl refreshing={rf1 || rf2} onRefresh={onRefresh} tintColor={t.colors.brand} />}
+          refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={t.colors.brand} />}
           renderSectionHeader={renderSectionHeader}
           renderItem={renderItem}
         />

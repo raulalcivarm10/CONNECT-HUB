@@ -6,13 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppText, Button, Skeleton, Chip } from '@/design-system/components';
 import { Avatar } from '@/design-system/avatar';
+import { ImageViewer } from '@/design-system/image-viewer';
 import { useTheme } from '@/design-system/theme';
 import { radius, spacing } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
 import { usePerfil } from '@/api/perfil';
 import { solicitarConexion } from '@/api/conexiones';
 import { abrirChat } from '@/api/chats';
-import { ApiError } from '@/api/client';
+import { ApiError, absoluteUrl, imagenAncho } from '@/api/client';
 
 export default function VerPerfil() {
   const t = useTheme();
@@ -22,6 +23,7 @@ export default function VerPerfil() {
   const { idCliente } = useLocalSearchParams<{ idCliente: string }>();
   const { data: p, isLoading, isError, refetch } = usePerfil(idCliente ?? null);
   const [busy, setBusy] = useState(false);
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
   useFocusEffect(useCallback(() => { if (idCliente) refetch(); }, [idCliente, refetch]));
 
   async function conectar() {
@@ -94,7 +96,16 @@ export default function VerPerfil() {
       {header}
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing['4xl'] }}>
         <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}>
-          <Avatar nombre={p.nombre} fotoUrl={p.fotoUrl} size={96} />
+          {p.fotoUrl ? (
+            // Solo se amplia si HAY foto: tocar unas iniciales y que se abra un
+            // visor negro vacio se siente roto. Se pide w=1200 (no el 200 del
+            // avatar) para que a pantalla completa no se vea pixelada.
+            <Pressable onPress={() => setFotoAmpliada(imagenAncho(absoluteUrl(p.fotoUrl!), 1200))} hitSlop={8}>
+              <Avatar nombre={p.nombre} fotoUrl={p.fotoUrl} size={96} />
+            </Pressable>
+          ) : (
+            <Avatar nombre={p.nombre} fotoUrl={p.fotoUrl} size={96} />
+          )}
           <AppText variant="title" style={{ textAlign: 'center' }}>{p.nombre}</AppText>
           {p.profesion ? <AppText color={t.colors.brandText} variant="bodyStrong">{p.profesion}</AppText> : null}
           {p.empresa ? <AppText muted>{p.empresa}</AppText> : null}
@@ -151,6 +162,7 @@ export default function VerPerfil() {
           </View>
         )}
       </ScrollView>
+      <ImageViewer uri={fotoAmpliada} onClose={() => setFotoAmpliada(null)} />
     </SafeAreaView>
   );
 }

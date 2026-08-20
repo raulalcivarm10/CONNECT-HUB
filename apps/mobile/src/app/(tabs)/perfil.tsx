@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { Screen, AppText, Card } from '@/design-system/components';
 import { useConfirm } from '@/design-system/confirm';
 import { Avatar } from '@/design-system/avatar';
+import { ImageViewer } from '@/design-system/image-viewer';
+import { absoluteUrl, imagenAncho } from '@/api/client';
 import { useTheme } from '@/design-system/theme';
 import { radius, spacing } from '@/design-system/tokens';
 import { useI18n, LANGS, StringKey } from '@/i18n';
@@ -70,6 +72,7 @@ export default function Perfil() {
   const deleteAccount = useAuth((s) => s.deleteAccount);
   const confirm = useConfirm();
   const [deleting, setDeleting] = useState(false);
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
 
   const authed = status === 'authed' && !!user;
 
@@ -108,7 +111,15 @@ export default function Perfil() {
       {authed ? (
         <Card style={{ padding: spacing.lg, marginBottom: spacing.lg, gap: spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <Avatar nombre={displayName || user!.email} fotoUrl={user!.fotoUrl} size={56} />
+            {user!.fotoUrl ? (
+              // Igual que en el perfil de otra persona: solo se amplia si hay
+              // foto, y se pide w=1200 para que no se vea pixelada en grande.
+              <Pressable onPress={() => setFotoAmpliada(imagenAncho(absoluteUrl(user!.fotoUrl!), 1200))} hitSlop={8}>
+                <Avatar nombre={displayName || user!.email} fotoUrl={user!.fotoUrl} size={56} />
+              </Pressable>
+            ) : (
+              <Avatar nombre={displayName || user!.email} fotoUrl={user!.fotoUrl} size={56} />
+            )}
             <View style={{ flex: 1 }}>
               <AppText variant="subtitle" numberOfLines={1}>{displayName}</AppText>
               <AppText muted variant="caption" numberOfLines={1}>{user!.email}</AppText>
@@ -259,6 +270,7 @@ export default function Perfil() {
       >
         <AppText muted variant="caption">ConnectHub v1.0.0</AppText>
       </Pressable>
+      <ImageViewer uri={fotoAmpliada} onClose={() => setFotoAmpliada(null)} />
     </Screen>
   );
 }

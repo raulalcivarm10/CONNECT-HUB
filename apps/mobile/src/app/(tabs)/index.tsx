@@ -21,6 +21,7 @@ import { useI18n, LANGS } from '@/i18n';
 import { useSettings } from '@/store/settings';
 import { useInstitucion } from '@/store/institucion';
 import { useDestacados, useEventos, useMisEventos, useMisInstituciones } from '@/api/catalogo';
+import { usePullToRefresh } from '@/lib/pull-to-refresh';
 import { absoluteUrl, imagenAncho } from '@/api/client';
 import { EventCard } from '@/features/eventos/cards';
 import { resumenDias } from '@/lib/fecha';
@@ -330,6 +331,12 @@ export default function Home() {
   const eventos = useEventos(selectedCodigo, '');
   const aggregated = useMisEventos('', showAggregated);
   const source = showAggregated ? aggregated : eventos;
+  // Un solo refresco que cubre LAS DOS consultas de la pantalla: antes el
+  // indicador solo miraba `source`, asi que podia apagarse con la peticion de
+  // destacados todavia en vuelo.
+  const { refrescando, onRefresh } = usePullToRefresh(() =>
+    Promise.all([source.refetch(), showAggregated ? null : destacados.refetch()]),
+  );
 
   // refetch estable al enfocar el Home (los refetch de React Query son estables)
   const aggRefetch = aggregated.refetch;
@@ -486,11 +493,8 @@ export default function Home() {
         }}
         refreshControl={
           <RefreshControl
-            refreshing={source.isRefetching && !source.isFetchingNextPage}
-            onRefresh={() => {
-              source.refetch();
-              if (!showAggregated) destacados.refetch();
-            }}
+            refreshing={refrescando}
+            onRefresh={onRefresh}
             tintColor={t.colors.brand}
           />
         }

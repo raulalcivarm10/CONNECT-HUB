@@ -9,6 +9,7 @@ import { Avatar } from '@/design-system/avatar';
 import { useTheme } from '@/design-system/theme';
 import { spacing } from '@/design-system/tokens';
 import { useI18n } from '@/i18n';
+import { usePullToRefresh } from '@/lib/pull-to-refresh';
 import { useMiembrosComunidad } from '@/api/comunidad';
 
 /* Identidades ESTABLES a nivel de módulo. Declaradas dentro del componente se
@@ -62,7 +63,7 @@ export default function MiembrosComunidad() {
   const router = useRouter();
   const { idEvento } = useLocalSearchParams<{ idEvento: string }>();
   const evId = Number(idEvento);
-  const { data, isLoading, refetch, isRefetching } = useMiembrosComunidad(evId);
+  const { data, isLoading, refetch } = useMiembrosComunidad(evId);
 
   const abrir = useCallback(
     (idCliente: string) => router.push({ pathname: '/asistente/[idCliente]', params: { idCliente } }),
@@ -72,7 +73,7 @@ export default function MiembrosComunidad() {
     ({ item }: { item: PersonaResumen }) => <Miembro p={item} onAbrir={abrir} />,
     [abrir],
   );
-  const onRefresh = useCallback(() => { void refetch(); }, [refetch]);
+  const { refrescando, onRefresh } = usePullToRefresh(refetch);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.bg }}>
@@ -104,7 +105,7 @@ export default function MiembrosComunidad() {
           data={data ?? []}
           keyExtractor={listaKey}
           contentContainerStyle={LISTA_PAD}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={t.colors.brand} />}
+          refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={t.colors.brand} />}
           ItemSeparatorComponent={Separador}
           renderItem={renderMiembro}
           ListEmptyComponent={
