@@ -61,10 +61,10 @@ const corto = (v) => {
   // Los precios viven aparte: son lo que decide si hay cobro.
   for (const [et, ev] of [['A', evA], ['B', evB]]) {
     const { rows } = await c.execute(
-      `SELECT * FROM EVENTO_PRECIOS WHERE ID_EVENTO = :id ORDER BY 1`,
+      `SELECT * FROM ENTRADAS_EVENTO WHERE ID_EVENTO = :id ORDER BY 1`,
       { id: ev.ID_EVENTO }, { outFormat: oracledb.OUT_FORMAT_OBJECT },
     );
-    console.log(`\n  === EVENTO_PRECIOS de ${et} [${ev.ID_EVENTO}] (${rows.length} fila(s)) ===`);
+    console.log(`\n  === ENTRADAS_EVENTO de ${et} [${ev.ID_EVENTO}] (${rows.length} fila(s)) ===`);
     for (const r of rows) {
       console.log('    ' + Object.entries(r).map(([k, v]) => `${k}=${corto(v)}`).join('  '));
     }
