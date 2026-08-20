@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OracleService } from '../../../database/oracle.service';
 import { PerfilService } from '../perfil/perfil.service';
+import { PushService } from '../../push/push.service';
 
 /**
  * Chats privados 1-a-1 entre asistentes. Puedes iniciar chat con un perfil
@@ -11,6 +12,7 @@ import { PerfilService } from '../perfil/perfil.service';
 export class ChatsService {
   constructor(
     private readonly oracle: OracleService,
+    private readonly push: PushService,
     private readonly perfil: PerfilService,
   ) {}
 
@@ -153,11 +155,67 @@ export class ChatsService {
       { id: idChat, me, m: mensaje.trim(), out: { dir: this.oracle.BIND_OUT, type: this.oracle.NUMBER } },
     );
     const idMensaje = Number(res.outBinds?.out?.[0]);
+
+    // Aviso al destinatario. Va SIN await a propósito: el mensaje ya está
+    // guardado, así que si el servicio de notificaciones tarda o falla no debe
+    // retrasar ni tumbar el envío — quien escribe vería un error por un mensaje
+    // que sí llegó. Los fallos se tragan igual que en el resto de avisos.
+    void this.avisarMensaje(me, chat.OTRO_ID, idChat, mensaje.trim()).catch(
+      () => undefined,
+    );
+
     return {
       id: idMensaje,
       idRemitente: me,
       mensaje: mensaje.trim(),
       esMio: true,
     };
+  }
+
+  /**
+   * Avisa por notificación al destinatario de un mensaje privado.
+   *
+   * El token se busca aquí dentro (y no antes de insertar) para no añadir
+   * consultas al camino crítico del envío: si la otra persona nunca dio permiso
+   * de notificaciones simplemente no se avisa, y quien escribe no espera de más.
+   *
+   * `data.idChat` es lo que usa la app para abrir la conversación correcta al
+   * tocar la notificación, en vez de caer en la pantalla de inicio.
+   */
+  private async avisarMensaje(
+    me: string,
+    destino: string,
+    idChat: number,
+    mensaje: string,
+  ) {
+    const tokens = await this.oracle.query<{ EXPO_TOKEN: string }>(
+      `SELECT DISTINCT EXPO_TOKEN
+         FROM USUARIO_PUSH_TOKENS
+        WHERE ID_CLIENTE = :c AND ESTADO = 'ACTIVO'`,
+      { c: destino },
+    );
+    if (!tokens.length) return;
+
+    const quien = await this.oracle.query<Record<string, unknown>>(
+      `SELECT NOMBRE, APELLIDO, EMAIL FROM USUARIOS WHERE ID_CLIENTE = :id`,
+      { id: me },
+    );
+    const r = quien[0] ?? {};
+    const nombre =
+      [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ').trim() ||
+      String(r.EMAIL ?? '').split('@')[0] ||
+      'Nuevo mensaje';
+
+    // La vista previa se recorta: una notificación larga la trunca igual el
+    // sistema, y así no se vuelca una conversación entera en la pantalla de
+    // bloqueo de la otra persona.
+    const previo = mensaje.length > 120 ? `${mensaje.slice(0, 117)}...` : mensaje;
+
+    await this.push.enviarPush(
+      tokens.map((t) => t.EXPO_TOKEN),
+      nombre,
+      previo,
+      { tipo: 'mensaje_chat', idChat, idRemitente: me },
+    );
   }
 }
