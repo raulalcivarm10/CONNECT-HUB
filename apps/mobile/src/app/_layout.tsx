@@ -13,6 +13,7 @@ import { I18nProvider } from '@/i18n';
 import { useInstitucion } from '@/store/institucion';
 import { useAuth } from '@/store/auth';
 import { usePushRegistration } from '@/features/notifications/usePushRegistration';
+import { usePushNavigation } from '@/features/notifications/usePushNavigation';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -28,6 +29,7 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   usePushRegistration();
+  usePushNavigation();
 
   useEffect(() => {
     bootstrap();

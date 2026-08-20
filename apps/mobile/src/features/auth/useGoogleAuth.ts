@@ -6,7 +6,9 @@
  * ANDROID → librería NATIVA (@react-native-google-signin). El flujo de navegador
  * (expo-auth-session) fallaba en release: el redirect connecthub://oauthredirect
  * volvía a la app como "Unmatched Route" y el id_token se perdía. El SDK nativo
- * no usa redirects (Credential Manager / Play Services) y emite el idToken con
+ * no usa redirects (usa el SDK antiguo de Google Sign-In, GoogleSignInClient de
+ * Play Services; la versión gratuita de la librería no trae Credential Manager)
+ * y emite el idToken con
  * audiencia = WEB client ID, que es la que aceptan los backends (register-google
  * del servicio de pagos y /public/auth/google nuestro). accessToken sale de
  * getTokens() — el servicio de pagos lo necesita para la People API.
@@ -47,24 +49,60 @@ if (esAndroid && WEB) {
 }
 
 /**
- * Cierra la sesión de Google en el dispositivo. Se llama al cerrar sesión (y al
- * eliminar la cuenta) de ConnectHub.
+ * Tiempo máximo que se espera a que Google confirme la revocación del permiso.
  *
- * BUG QUE ESTO ARREGLA: al salir de la app, la sesión de Google seguía viva en
- * el teléfono, así que al volver a entrar el SDK reutilizaba la última cuenta y
- * NO mostraba el selector — imposible entrar con otra. En iOS no pasaba porque
- * ahí el acceso con Google no usa este SDK nativo.
+ * `revokeAccess()` sale a la RED y el módulo nativo no le pone ningún límite.
+ * Sin este tope, cerrar sesión sin cobertura dejaba el botón "Salir" colgado
+ * esperando a Google — justo lo que se había evitado paralelizando las tareas
+ * del cierre de sesión. Si se agota, la revocación sigue por detrás; lo único
+ * que se pierde es la confirmación.
+ */
+const MAX_ESPERA_REVOCAR = 2500;
+
+/**
+ * Cierra la sesión de Google en el dispositivo. Se llama al cerrar sesión, al
+ * eliminar la cuenta y cuando la sesión caduca sola.
  *
- * Solo cierra la sesión LOCAL de la app con Google: no toca la cuenta de Google
- * del teléfono ni revoca permisos. Nunca lanza: cerrar sesión de ConnectHub no
- * puede fallar porque Google se queje.
+ * POR QUÉ NO BASTA `signOut()` (el intento anterior, que no funcionó): en el
+ * SDK antiguo `signOut()` solo borra la cuenta que la app tenía guardada. NO
+ * retira el permiso que la persona concedió a ConnectHub, y mientras ese
+ * permiso siga vivo Play Services puede completar el acceso sin preguntar nada.
+ * Por eso seguía entrando directo con la última cuenta aunque `signOut()` se
+ * llamara dos veces (aquí y antes de cada acceso).
+ *
+ * `revokeAccess()` es lo único en esta versión de la librería que retira ese
+ * permiso, y por tanto lo único que obliga a Google a volver a preguntar. Va
+ * ANTES de `signOut()`: después ya no hay cuenta activa que revocar.
+ *
+ * OJO CON LO QUE IMPLICA: al retirar el permiso, el siguiente acceso vuelve a
+ * mostrar la pantalla de consentimiento, no solo el selector. En un teléfono
+ * con UNA SOLA cuenta de Google no hay selector que mostrar: lo que se verá es
+ * esa pantalla de consentimiento.
+ *
+ * En iOS no aplica (allí el acceso con Google va por navegador, sin este SDK).
+ * Nunca lanza: cerrar sesión de ConnectHub no puede fallar porque Google se
+ * queje.
  */
 export async function cerrarSesionGoogle(): Promise<void> {
   if (!esAndroid || !WEB) return;
+
+  await Promise.race([
+    GoogleSignin.revokeAccess().catch((e) => {
+      // Sin red, sin módulo nativo (Expo Go) o sin cuenta activa. No es fatal
+      // (se sale igual), pero SÍ importa saberlo: es el caso en el que el
+      // siguiente acceso volverá a entrar sin preguntar.
+      dlog('google:revokeAccess falló', {
+        mensaje: e instanceof Error ? e.message : String(e),
+        codigo: (e as { code?: string })?.code ?? null,
+      });
+    }),
+    new Promise<void>((listo) => setTimeout(listo, MAX_ESPERA_REVOCAR)),
+  ]);
+
   try {
     await GoogleSignin.signOut();
   } catch {
-    // sin módulo nativo (Expo Go) o sin sesión previa: nada que cerrar
+    // sin módulo nativo o sin sesión previa: nada que cerrar
   }
 }
 
@@ -128,7 +166,14 @@ export function useGoogleAuth(onIdToken: (idToken: string, accessToken: string) 
       await GoogleSignin.signOut().catch(() => undefined);
 
       const res = await GoogleSignin.signIn();
-      if (res.type !== 'success') return; // 'cancelled' → sin error, igual que antes
+      if (res.type !== 'success') {
+        // Antes esto era un return pelado. Al retirar el permiso al salir, el
+        // acceso vuelve a pasar por la pantalla de consentimiento, así que hay
+        // MÁS ocasiones de cancelar — y cancelar se veía como "el botón no hace
+        // nada". Queda en el log de diagnóstico para no volver a perseguirlo.
+        dlog('google:signIn cancelado por el usuario', { tipo: res.type });
+        return;
+      }
 
       let { idToken, accessToken } = await GoogleSignin.getTokens();
       // Segundo cinturón: si el token viene vencido del caché del SDK, se

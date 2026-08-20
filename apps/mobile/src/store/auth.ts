@@ -188,7 +188,11 @@ export const useAuth = create<AuthState>((set, get) => ({
       await persist(set, res);
       return res.accessToken;
     } catch {
-      await clearTokens();
+      // También aquí se cierra la sesión de Google: este catch es el que
+      // devuelve al login cuando caduca la sesión (lo dispara un 401 desde el
+      // cliente de API). Sin esto, ese camino se quedaba con el permiso vivo y
+      // volvía a entrar sin preguntar, igual que antes del arreglo.
+      await Promise.all([cerrarSesionGoogle(), clearTokens()]);
       setAccessToken(null);
       set({ user: null, refreshToken: null, status: 'idle' });
       return null;

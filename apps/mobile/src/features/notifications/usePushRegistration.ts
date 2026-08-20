@@ -34,6 +34,18 @@ export function usePushRegistration() {
     if (status !== 'authed' || Platform.OS === 'web' || !Device.isDevice) return;
     (async () => {
       try {
+        if (Platform.OS === 'android') {
+          // Android 13+ NO llega a mostrar el diálogo de permiso mientras no
+          // exista al menos un canal, y el canal de reserva de expo solo se
+          // crea al PRESENTAR una notificación — o sea, nunca en el arranque.
+          // Sin esto, en Android ni se pide permiso ni suena nada.
+          await Notifications.setNotificationChannelAsync('mensajes', {
+            name: 'Mensajes',
+            importance: Notifications.AndroidImportance.HIGH,
+            sound: 'default',
+            vibrationPattern: [0, 250, 250, 250],
+          }).catch(() => undefined);
+        }
         let granted = (await Notifications.getPermissionsAsync()).status === 'granted';
         if (!granted) {
           granted = (await Notifications.requestPermissionsAsync()).status === 'granted';
