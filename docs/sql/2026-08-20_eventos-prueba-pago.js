@@ -63,7 +63,7 @@ const EVENTOS = [
           NO_PUBLICAR, INCLUYE_IVA, MONTO_IVA,
           CREADO_POR, ESTADO_APROBACION, PUBLICADO_POR, FECHA_PUBLICADO)
        VALUES
-         (:titulo, :desc, TO_DATE(:fecha,'YYYY-MM-DD'), TO_DATE(:fecha,'YYYY-MM-DD'),
+         (:titulo, :descripcion, TO_DATE(:fecha,'YYYY-MM-DD'), TO_DATE(:fecha,'YYYY-MM-DD'),
           '09:00', '13:00',
           :idLocal, :idSalon, :precio, 50,
           0, 0, :codItem,
@@ -72,7 +72,7 @@ const EVENTOS = [
        RETURNING ID_EVENTO INTO :out`,
       {
         titulo: ev.titulo,
-        desc: `Evento de prueba para validar el cobro de $${ev.precio}.`,
+        descripcion: `Evento de prueba para validar el cobro de $${ev.precio}.`,
         fecha: ev.fecha,
         idLocal: ID_LOCAL,
         idSalon: ID_SALON,
