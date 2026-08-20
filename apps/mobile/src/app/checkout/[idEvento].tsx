@@ -232,11 +232,17 @@ export default function Checkout() {
   }
 
   // Muestra un diálogo DESPUÉS de que el Modal del widget termine de cerrarse.
-  // Llamarlo en caliente lo pierde bajo el teardown del Modal en Android; y
-  // encadenar Modales congelaba iOS — por eso iOS conserva su flujo original.
+  // Llamarlo en caliente lo pierde bajo el teardown del Modal.
+  //
+  // ANTES iOS SE SALTABA ESTOS DIÁLOGOS. La razón era que el checkout se
+  // presentaba como 'modal' y iOS solo admite UNA presentación modal a la vez:
+  // encima de ella ningún diálogo llegaba a pintarse. El éxito se resolvía
+  // navegando directo a Mis Entradas, pero los ERRORES quedaban en silencio —
+  // el pago fallaba y no se veía nada. Desde que el checkout va como 'card' en
+  // iOS (ver src/app/_layout.tsx) esa limitación no existe, así que las tres
+  // plataformas siguen el mismo camino y todo fallo es visible.
   const trasWidget = (fn: () => void) =>
     InteractionManager.runAfterInteractions(() => setTimeout(fn, 350));
-  const esIOS = Platform.OS === 'ios';
 
   // onResponse del SDK → confirma en el SERVICIO DE PAGOS (procesa e inscribe):
   //   POST /evento-usuario/eventos/{id}/checkout/confirmar
@@ -260,13 +266,8 @@ export default function Checkout() {
           // el servicio de pagos ya registró la inscripción
           void qc.invalidateQueries({ queryKey: ['mis-entradas'] });
           void qc.invalidateQueries({ queryKey: ['resumen-pago', evId] });
-          if (esIOS) {
-            // iOS: sin diálogo encima del Modal que se cierra (congelaba la
-            // pantalla). Navegar a Mis Entradas es la confirmación visible.
-            InteractionManager.runAfterInteractions(() => router.replace('/(tabs)/entradas'));
-            return;
-          }
-          // Android/web: diálogo de ÉXITO (diferido) y al cerrarlo → Mis Entradas.
+          // Diálogo de ÉXITO (diferido) y al cerrarlo → Mis Entradas. Mismo
+          // camino en las tres plataformas.
           trasWidget(() => {
             void confirm({
               title: tr('pay.successTitle'),
@@ -279,24 +280,20 @@ export default function Checkout() {
         }
         // el SDK aprobó pero la verificación del servicio no confirmó → error de pago
         const msgFallo = res.message ?? tr('pay.errorBody');
-        if (esIOS) aviso(tr('pay.errorTitle'), msgFallo, true);
-        else trasWidget(() => aviso(tr('pay.errorTitle'), msgFallo, true));
+        trasWidget(() => aviso(tr('pay.errorTitle'), msgFallo, true));
       } catch (err) {
         setPaying(false);
         const msgErr = err instanceof ApiError ? err.message : tr('pay.errorBody');
-        if (esIOS) aviso(tr('pay.errorTitle'), msgErr, true);
-        else trasWidget(() => aviso(tr('pay.errorTitle'), msgErr, true));
+        trasWidget(() => aviso(tr('pay.errorTitle'), msgErr, true));
       }
       return;
     }
     setPaying(false);
     if (r.status === 'pending') {
-      if (esIOS) aviso(tr('pay.pendingTitle'), tr('pay.pendingBody'));
-      else trasWidget(() => aviso(tr('pay.pendingTitle'), tr('pay.pendingBody')));
+      trasWidget(() => aviso(tr('pay.pendingTitle'), tr('pay.pendingBody')));
     } else {
       // failure o error del SDK → hubo un error en el pago
-      if (esIOS) aviso(tr('pay.errorTitle'), tr('pay.errorBody'), true);
-      else trasWidget(() => aviso(tr('pay.errorTitle'), tr('pay.errorBody'), true));
+      trasWidget(() => aviso(tr('pay.errorTitle'), tr('pay.errorBody'), true));
     }
   }
 
