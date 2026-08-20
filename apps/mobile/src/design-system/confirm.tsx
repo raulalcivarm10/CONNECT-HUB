@@ -47,9 +47,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
    * no respondía a nada — ni volver, ni cambiar de pestaña. Había que cerrar y
    * reabrir la app.
    *
-   * `runAfterInteractions` espera a que termine la animación de cierre, así que
-   * cuando el llamador continúa el Modal ya no existe. Esto vale para TODAS las
-   * pantallas que usan confirm(), no solo la que lo destapó.
+   * OJO CON `runAfterInteractions`: en React Native 0.86 InteractionManager es
+   * un stub y `runAfterInteractions` equivale a `setImmediate` — NO espera a
+   * ninguna animación, al contrario de lo que decía este comentario antes. Lo
+   * que sí garantiza el orden es que `setOpts(null)` va primero, así que React
+   * desmonta el Modal antes de que el llamador continúe. Si vuelve a aparecer un
+   * cuelgue de esta familia, aquí hace falta una espera REAL (un setTimeout de
+   * ~350 ms, como el que ya usa `trasWidget` en el checkout), no este stub.
    */
   const finish = useCallback((v: boolean) => {
     const resolve = resolver.current;

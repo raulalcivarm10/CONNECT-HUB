@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -78,7 +79,33 @@ export default function RootLayout() {
               />
               <Stack.Screen
                 name="checkout/[idEvento]"
-                options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+                // EN iOS VA COMO 'card', NO COMO 'modal'. Se ve casi igual
+                // (sigue entrando desde abajo, como evento/[id]) pero cambia algo
+                // decisivo por debajo.
+                //
+                // EL BUG QUE ESTO ARREGLA (solo pasaba en iOS): al terminar de
+                // registrarse la pantalla quedaba pintada pero SIN RESPONDER —
+                // ni pestañas, ni atrás — y había que cerrar y reabrir la app.
+                // Dos causas, las dos por lo mismo:
+                //
+                //  1. iOS solo admite UNA presentación modal a la vez desde el
+                //     controlador raíz. Con el checkout ocupándola, el diálogo
+                //     de "Payment successful!" NO llegaba a mostrarse: su
+                //     promesa no se resolvía nunca y el diálogo quedaba abierto
+                //     para React. En Android sí sale, y por eso ahí no fallaba.
+                //  2. Al navegar desde dentro del modal, react-native-screens
+                //     empuja la pantalla nueva ANTES de bajar el modal
+                //     (RNSScreenStack.mm: primero setPushViewControllers y
+                //     luego setModalViewControllers). Son dos transiciones de
+                //     UIKit solapadas sobre el mismo controlador, y las vistas
+                //     de transición se tragan los toques.
+                //
+                // Como 'card' no hay presentación modal: desaparecen las dos.
+                // Android se deja EXACTAMENTE como estaba, que ahí funciona.
+                options={{
+                  presentation: Platform.OS === 'ios' ? 'card' : 'modal',
+                  animation: 'slide_from_bottom',
+                }}
               />
               <Stack.Screen
                 name="tarjetas"
