@@ -32,6 +32,20 @@
 const oracledb = require('oracledb');
 const fs = require('fs');
 
+// Los CLOB (BIO, REDES_SOCIALES, respuestas del checkout) llegan como objetos Lob
+// que JSON.stringify no puede recorrer: se piden como texto desde el driver.
+oracledb.fetchAsString = [oracledb.CLOB];
+
+/** Cualquier valor que no sea JSON plano se guarda como texto, no rompe el respaldo. */
+function saneador(_clave, valor) {
+  if (valor instanceof Date) return valor.toISOString();
+  if (Buffer.isBuffer(valor)) return '(binario ' + valor.length + ' bytes)';
+  if (valor && typeof valor === 'object' && valor.constructor && valor.constructor.name === 'Lob') {
+    return '(lob no leido)';
+  }
+  return valor;
+}
+
 const A_BORRAR = [
   'CERTIFICADOS',
   'LOG_PARTICIPANTES_EVENTO',
@@ -63,7 +77,7 @@ const DIR_RESPALDO = '/app/respaldos';
   respaldo.EVENTO_CUPONES_USOS = cup.rows;
 
   const ruta = `${DIR_RESPALDO}/participacion-${marca}.json`;
-  fs.writeFileSync(ruta, JSON.stringify(respaldo, null, 1), 'utf8');
+  fs.writeFileSync(ruta, JSON.stringify(respaldo, saneador, 1), 'utf8');
   console.log(`\n  Respaldo en ${ruta}\n`);
 
   // ── 2. Borrado ─────────────────────────────────────────────────────────────
