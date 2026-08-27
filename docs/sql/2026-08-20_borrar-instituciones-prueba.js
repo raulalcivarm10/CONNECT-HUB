@@ -1,12 +1,15 @@
 /**
- * Borra instituciones de prueba con TODO lo suyo: eventos y sus dependencias,
- * espacios y vínculos de usuario.
+ * Borra instituciones de prueba con TODO lo suyo: eventos, espacios y vínculos.
  *
  * NO borra cuentas de USUARIOS: solo el vínculo con la institución. Una persona
  * puede pertenecer a varias, y aquí no se decide sobre su cuenta.
  *
- * Las instituciones a borrar se pasan por argumento, para no dejar ids fijos en
- * un script que borra:
+ * POR QUÉ LEE EL GRAFO DE CLAVES FORÁNEAS: la primera versión llevaba una lista
+ * de tablas escrita a mano y falló tres veces seguidas, cada una destapando una
+ * dependencia distinta (FEEDBACK sin ID_EVENTO, ARCHIVOS colgando del salón,
+ * los subsalones con su configuración). Mantener esa lista es perder siempre:
+ * la base ya sabe quién depende de quién, así que se le pregunta y se borra de
+ * abajo hacia arriba.
  *
  *   docker compose run --rm -v /root/app/docs/sql:/app/migraciones \
  *     -v /root/app/respaldos:/app/respaldos \
@@ -29,27 +32,10 @@ if (!IDS.length) {
   console.error('Uso: node ...borrar-instituciones-prueba.js <id> [<id> …]');
   process.exit(1);
 }
-
-/**
- * Las tablas hijas NO van escritas a mano: se descubren preguntándole a la base
- * quién tiene una columna ID_EVENTO. Una lista fija se queda vieja en cuanto
- * alguien añade una tabla, y el primer intento de este script se estrelló justo
- * por eso (FEEDBACK no tiene ID_EVENTO, y en cambio faltaban COMUNIDAD_MENSAJES,
- * COMUNIDAD_MIEMBROS y EVENTO_SUBSALONES).
- */
-async function tablasCon(q, columna, excluir = []) {
-  const filas = await q(
-    `SELECT c.TABLE_NAME
-       FROM USER_TAB_COLUMNS c
-       JOIN USER_TABLES t ON t.TABLE_NAME = c.TABLE_NAME
-      WHERE c.COLUMN_NAME = :col
-      ORDER BY c.TABLE_NAME`,
-    { col: columna },
-  );
-  return filas.map((f) => f.TABLE_NAME).filter((n) => !excluir.includes(n));
+if (IDS.includes(101)) {
+  console.error('La institución 101 (UEES real) no se borra desde aquí.');
+  process.exit(1);
 }
-
-const tablasHijasDeEvento = (q) => tablasCon(q, 'ID_EVENTO', ['EVENTOS']);
 
 (async () => {
   const c = await oracledb.getConnection({
@@ -60,39 +46,73 @@ const tablasHijasDeEvento = (q) => tablasCon(q, 'ID_EVENTO', ['EVENTOS']);
 
   const q = async (sql, bind = {}) =>
     (await c.execute(sql, bind, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
+  const exec = (sql, bind = {}) => c.execute(sql, bind, { autoCommit: false });
 
-  // Comprobación dura: nunca tocar la 101 aunque venga por argumento.
-  if (IDS.includes(101)) throw new Error('La institución 101 no se borra desde aquí.');
+  /** Quién apunta a esta tabla, según las claves foráneas declaradas. */
+  const hijosDe = (tabla) =>
+    q(
+      `SELECT cc.TABLE_NAME AS TABLA, cc.COLUMN_NAME AS COLUMNA, pc.COLUMN_NAME AS COLUMNA_PADRE
+         FROM USER_CONSTRAINTS h
+         JOIN USER_CONS_COLUMNS cc ON cc.CONSTRAINT_NAME = h.CONSTRAINT_NAME
+         JOIN USER_CONSTRAINTS p   ON p.CONSTRAINT_NAME  = h.R_CONSTRAINT_NAME
+         JOIN USER_CONS_COLUMNS pc ON pc.CONSTRAINT_NAME = p.CONSTRAINT_NAME
+        WHERE h.CONSTRAINT_TYPE = 'R' AND p.TABLE_NAME = :t`,
+      { t: tabla },
+    );
+
+  /**
+   * Borra `tabla` donde se cumpla `donde`, vaciando antes a todos sus
+   * descendientes. `visitadas` corta los ciclos (EVENTOS.ID_EVENTO_PADRE apunta
+   * a la propia EVENTOS).
+   */
+  async function borrarEnCascada(tabla, donde, bind, sangria = '    ', visitadas = new Set()) {
+    const marca = `${tabla}|${donde}`;
+    if (visitadas.has(marca)) return;
+    visitadas.add(marca);
+
+    for (const hijo of await hijosDe(tabla)) {
+      if (hijo.TABLA === tabla) {
+        // auto-referencia: se suelta el vínculo en vez de borrar en cadena
+        await exec(
+          `UPDATE ${tabla} SET ${hijo.COLUMNA} = NULL
+            WHERE ${hijo.COLUMNA} IN (SELECT ${hijo.COLUMNA_PADRE} FROM ${tabla} WHERE ${donde})`,
+          bind,
+        );
+        continue;
+      }
+      const sub = `${hijo.COLUMNA} IN (SELECT ${hijo.COLUMNA_PADRE} FROM ${tabla} WHERE ${donde})`;
+      await borrarEnCascada(hijo.TABLA, sub, bind, sangria, visitadas);
+    }
+
+    const r = await exec(`DELETE FROM ${tabla} WHERE ${donde}`, bind);
+    if (r.rowsAffected) console.log(`${sangria}${tabla}: ${r.rowsAffected}`);
+  }
 
   const insts = await q(
     `SELECT ID_INSTITUCION, NOMBRE, CODIGO_CONEXION FROM INSTITUCIONES
       WHERE ID_INSTITUCION IN (${IDS.join(',')})`,
   );
   if (!insts.length) throw new Error('Ninguna de esas instituciones existe.');
+
   console.log('A BORRAR:');
   for (const i of insts) {
     console.log(`  [${i.ID_INSTITUCION}] ${i.NOMBRE}  (código ${i.CODIGO_CONEXION ?? '-'})`);
   }
 
-  const HIJAS_EVENTO = await tablasHijasDeEvento(q);
-  console.log(`
-Tablas hijas detectadas: ${HIJAS_EVENTO.length}`);
-
+  // ── Respaldo antes de tocar nada ──────────────────────────────────────────
   const respaldo = { instituciones: insts, eventos: [], locales: [], salones: [], vinculos: [] };
-  let totalEventos = 0;
-
   for (const inst of insts) {
     const id = inst.ID_INSTITUCION;
-
-    const eventos = await q(
-      `SELECT e.* FROM EVENTOS e
-         LEFT JOIN LOCALES l  ON l.ID_LOCAL  = e.ID_LOCAL
-         LEFT JOIN SALONES s  ON s.ID_SALON  = e.ID_SALON
-         LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
-        WHERE COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) = :id`,
-      { id },
+    respaldo.eventos.push(
+      ...(await q(
+        `SELECT e.* FROM EVENTOS e
+           LEFT JOIN LOCALES l  ON l.ID_LOCAL  = e.ID_LOCAL
+           LEFT JOIN SALONES s  ON s.ID_SALON  = e.ID_SALON
+           LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
+          WHERE COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) = :id`,
+        { id },
+      )),
     );
-    respaldo.eventos.push(...eventos);
     respaldo.locales.push(...(await q(`SELECT * FROM LOCALES WHERE ID_INSTITUCION = :id`, { id })));
     respaldo.salones.push(
       ...(await q(
@@ -104,78 +124,40 @@ Tablas hijas detectadas: ${HIJAS_EVENTO.length}`);
     respaldo.vinculos.push(
       ...(await q(`SELECT * FROM USUARIO_INSTITUCIONES WHERE ID_INSTITUCION = :id`, { id })),
     );
-
-    console.log(`\n[${id}] ${inst.NOMBRE}: ${eventos.length} evento(s)`);
-
-    for (const ev of eventos) {
-      const idEv = ev.ID_EVENTO;
-      for (const tabla of HIJAS_EVENTO) {
-        try {
-          const r = await c.execute(
-            `DELETE FROM ${tabla} WHERE ID_EVENTO = :e`,
-            { e: idEv },
-            { autoCommit: false },
-          );
-          if (r.rowsAffected) console.log(`    ${tabla}: ${r.rowsAffected}`);
-        } catch (e) {
-          if (!String(e.message).includes('ORA-00942')) throw e; // tabla que no existe: se ignora
-        }
-      }
-      // los talleres cuelgan del evento: se sueltan antes de borrar el padre
-      await c.execute(
-        `UPDATE EVENTOS SET ID_EVENTO_PADRE = NULL WHERE ID_EVENTO_PADRE = :e`,
-        { e: idEv },
-        { autoCommit: false },
-      );
-    }
-
-    if (eventos.length) {
-      const r = await c.execute(
-        `DELETE FROM EVENTOS WHERE ID_EVENTO IN (${eventos.map((e) => e.ID_EVENTO).join(',')})`,
-        {}, { autoCommit: false },
-      );
-      console.log(`    EVENTOS: ${r.rowsAffected}`);
-      totalEventos += r.rowsAffected;
-    }
-
-    // Los espacios también tienen hijos (p. ej. ARCHIVOS cuelga del salón por
-    // FK_ARCHIVOS_SALON: el croquis). Mismo criterio que con los eventos —
-    // se le pregunta a la base quién apunta a ID_SALON y a ID_LOCAL en vez de
-    // mantener una lista que se queda vieja.
-    const subSalones = `SELECT ID_SALON FROM SALONES WHERE ID_LOCAL IN
-        (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`;
-    for (const tabla of await tablasCon(q, 'ID_SALON', ['SALONES', 'EVENTOS'])) {
-      const r = await c.execute(
-        `DELETE FROM ${tabla} WHERE ID_SALON IN (${subSalones})`,
-        { id }, { autoCommit: false },
-      );
-      if (r.rowsAffected) console.log(`    ${tabla} (por salón): ${r.rowsAffected}`);
-    }
-
-    const rs = await c.execute(
-      `DELETE FROM SALONES WHERE ID_LOCAL IN (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`,
-      { id }, { autoCommit: false },
-    );
-
-    for (const tabla of await tablasCon(q, 'ID_LOCAL', ['LOCALES', 'SALONES', 'EVENTOS'])) {
-      const r = await c.execute(
-        `DELETE FROM ${tabla} WHERE ID_LOCAL IN
-           (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`,
-        { id }, { autoCommit: false },
-      );
-      if (r.rowsAffected) console.log(`    ${tabla} (por local): ${r.rowsAffected}`);
-    }
-
-    const rl = await c.execute(`DELETE FROM LOCALES WHERE ID_INSTITUCION = :id`, { id }, { autoCommit: false });
-    const rv = await c.execute(`DELETE FROM USUARIO_INSTITUCIONES WHERE ID_INSTITUCION = :id`, { id }, { autoCommit: false });
-    const ri = await c.execute(`DELETE FROM INSTITUCIONES WHERE ID_INSTITUCION = :id`, { id }, { autoCommit: false });
-    console.log(`    SALONES: ${rs.rowsAffected} · LOCALES: ${rl.rowsAffected} · vínculos: ${rv.rowsAffected} · INSTITUCIONES: ${ri.rowsAffected}`);
   }
-
   const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const ruta = `/app/respaldos/instituciones-${marca}.json`;
   fs.writeFileSync(ruta, JSON.stringify(respaldo, saneador, 1), 'utf8');
   console.log(`\nRespaldo en ${ruta}`);
+
+  // ── Borrado ───────────────────────────────────────────────────────────────
+  for (const inst of insts) {
+    const id = inst.ID_INSTITUCION;
+    console.log(`\n[${id}] ${inst.NOMBRE}`);
+
+    // Los eventos se localizan por su espacio (local directo o vía salón).
+    const delEsta = (
+      await q(
+        `SELECT e.ID_EVENTO FROM EVENTOS e
+           LEFT JOIN LOCALES l  ON l.ID_LOCAL  = e.ID_LOCAL
+           LEFT JOIN SALONES s  ON s.ID_SALON  = e.ID_SALON
+           LEFT JOIN LOCALES l2 ON l2.ID_LOCAL = s.ID_LOCAL
+          WHERE COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) = :id`,
+        { id },
+      )
+    ).map((r) => r.ID_EVENTO);
+
+    if (delEsta.length) {
+      await borrarEnCascada('EVENTOS', `ID_EVENTO IN (${delEsta.join(',')})`, {});
+    }
+    await borrarEnCascada(
+      'SALONES',
+      `ID_LOCAL IN (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`,
+      { id },
+    );
+    await borrarEnCascada('LOCALES', `ID_INSTITUCION = :id`, { id });
+    await borrarEnCascada('INSTITUCIONES', `ID_INSTITUCION = :id`, { id });
+  }
 
   await c.commit();
 
@@ -183,7 +165,9 @@ Tablas hijas detectadas: ${HIJAS_EVENTO.length}`);
   for (const i of await q(`SELECT ID_INSTITUCION, NOMBRE, ESTADO FROM INSTITUCIONES ORDER BY 1`)) {
     console.log(`  [${i.ID_INSTITUCION}] ${String(i.ESTADO ?? '-').padEnd(11)} ${i.NOMBRE}`);
   }
-  console.log(`\nEventos borrados: ${totalEventos}`);
+  const u = await q(`SELECT COUNT(*) AS N FROM USUARIOS`);
+  console.log(`\nCuentas de usuario intactas: ${u[0].N}`);
+
   await c.close();
 })().catch((e) => {
   console.error('ERROR:', e.message);
