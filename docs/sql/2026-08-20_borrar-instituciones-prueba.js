@@ -30,20 +30,19 @@ if (!IDS.length) {
   process.exit(1);
 }
 
-/** Tablas hijas de EVENTOS, en orden de borrado (primero las que dependen). */
-const HIJAS_EVENTO = [
-  'EVENTO_AGENDA',
-  'EVENTO_EXPOSITORES',
-  'EVENTO_CUPONES',
-  'EVENTO_HORAS',
-  'EVENTO_DETALLE',
-  'EVENTO_CERT_PLANTILLA',
-  'EVENTO_ESPACIO_HISTORIAL',
-  'ENTRADAS_EVENTO',
-  'FEEDBACK',
-  'ARCHIVOS',
-];
-
+/**
+ * Las tablas hijas NO van escritas a mano: se descubren preguntándole a la base
+ * quién tiene una columna ID_EVENTO. Una lista fija se queda vieja en cuanto
+ * alguien añade una tabla, y el primer intento de este script se estrelló justo
+ * por eso (FEEDBACK no tiene ID_EVENTO, y en cambio faltaban COMUNIDAD_MENSAJES,
+ * COMUNIDAD_MIEMBROS y EVENTO_SUBSALONES).
+ */
+async function tablasHijasDeEvento(q) {
+  const filas = await q(
+    ,
+  );
+  return filas.map((f) => f.TABLE_NAME);
+}
 (async () => {
   const c = await oracledb.getConnection({
     user: process.env.ORACLE_USER,
@@ -66,6 +65,10 @@ const HIJAS_EVENTO = [
   for (const i of insts) {
     console.log(`  [${i.ID_INSTITUCION}] ${i.NOMBRE}  (código ${i.CODIGO_CONEXION ?? '-'})`);
   }
+
+  const HIJAS_EVENTO = await tablasHijasDeEvento(q);
+  console.log(`
+Tablas hijas detectadas: ${HIJAS_EVENTO.length}`);
 
   const respaldo = { instituciones: insts, eventos: [], locales: [], salones: [], vinculos: [] };
   let totalEventos = 0;
