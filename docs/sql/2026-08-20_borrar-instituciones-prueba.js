@@ -39,10 +39,15 @@ if (!IDS.length) {
  */
 async function tablasHijasDeEvento(q) {
   const filas = await q(
-    ,
+    `SELECT c.TABLE_NAME
+       FROM USER_TAB_COLUMNS c
+       JOIN USER_TABLES t ON t.TABLE_NAME = c.TABLE_NAME
+      WHERE c.COLUMN_NAME = 'ID_EVENTO' AND c.TABLE_NAME <> 'EVENTOS'
+      ORDER BY c.TABLE_NAME`,
   );
   return filas.map((f) => f.TABLE_NAME);
 }
+
 (async () => {
   const c = await oracledb.getConnection({
     user: process.env.ORACLE_USER,
