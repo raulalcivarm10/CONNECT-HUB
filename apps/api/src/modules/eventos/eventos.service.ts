@@ -1875,6 +1875,12 @@ export class EventosService {
     }
     // La agenda pudo cambiar desde que se creó el borrador → revalidar choques
     // con las horas REALES de cada día (EVENTO_HORAS), excluyéndose a sí mismo.
+    //
+    // …PERO SOLO SI ES UN EVENTO PRINCIPAL. Un taller comparte espacio y horario
+    // con su evento padre A PROPÓSITO, así que revalidarlo aquí lo hacía chocar
+    // SIEMPRE contra su propio congreso y NINGÚN taller podía aprobarse nunca.
+    // Crear y editar ya se saltaban la comprobación en ese caso (`idEventoPadre
+    // == null`); esta tercera llamada se había quedado sin la misma guarda.
     const horas = await this.oracle.query<{
       FECHA: string;
       HORA_INICIO: string;
@@ -1884,7 +1890,7 @@ export class EventosService {
          FROM EVENTO_HORAS WHERE ID_EVENTO = :id ORDER BY FECHA`,
       { id: idEvento },
     );
-    if (ev.ID_LOCAL && horas.length) {
+    if (ev.ID_EVENTO_PADRE == null && ev.ID_LOCAL && horas.length) {
       await this.validarDisponibilidad({
         idLocal: ev.ID_LOCAL,
         idSalon: ev.ID_SALON ?? null,
