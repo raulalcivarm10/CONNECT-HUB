@@ -37,16 +37,19 @@ if (!IDS.length) {
  * por eso (FEEDBACK no tiene ID_EVENTO, y en cambio faltaban COMUNIDAD_MENSAJES,
  * COMUNIDAD_MIEMBROS y EVENTO_SUBSALONES).
  */
-async function tablasHijasDeEvento(q) {
+async function tablasCon(q, columna, excluir = []) {
   const filas = await q(
     `SELECT c.TABLE_NAME
        FROM USER_TAB_COLUMNS c
        JOIN USER_TABLES t ON t.TABLE_NAME = c.TABLE_NAME
-      WHERE c.COLUMN_NAME = 'ID_EVENTO' AND c.TABLE_NAME <> 'EVENTOS'
+      WHERE c.COLUMN_NAME = :col
       ORDER BY c.TABLE_NAME`,
+    { col: columna },
   );
-  return filas.map((f) => f.TABLE_NAME);
+  return filas.map((f) => f.TABLE_NAME).filter((n) => !excluir.includes(n));
 }
+
+const tablasHijasDeEvento = (q) => tablasCon(q, 'ID_EVENTO', ['EVENTOS']);
 
 (async () => {
   const c = await oracledb.getConnection({
@@ -135,10 +138,34 @@ Tablas hijas detectadas: ${HIJAS_EVENTO.length}`);
       totalEventos += r.rowsAffected;
     }
 
+    // Los espacios también tienen hijos (p. ej. ARCHIVOS cuelga del salón por
+    // FK_ARCHIVOS_SALON: el croquis). Mismo criterio que con los eventos —
+    // se le pregunta a la base quién apunta a ID_SALON y a ID_LOCAL en vez de
+    // mantener una lista que se queda vieja.
+    const subSalones = `SELECT ID_SALON FROM SALONES WHERE ID_LOCAL IN
+        (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`;
+    for (const tabla of await tablasCon(q, 'ID_SALON', ['SALONES', 'EVENTOS'])) {
+      const r = await c.execute(
+        `DELETE FROM ${tabla} WHERE ID_SALON IN (${subSalones})`,
+        { id }, { autoCommit: false },
+      );
+      if (r.rowsAffected) console.log(`    ${tabla} (por salón): ${r.rowsAffected}`);
+    }
+
     const rs = await c.execute(
       `DELETE FROM SALONES WHERE ID_LOCAL IN (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`,
       { id }, { autoCommit: false },
     );
+
+    for (const tabla of await tablasCon(q, 'ID_LOCAL', ['LOCALES', 'SALONES', 'EVENTOS'])) {
+      const r = await c.execute(
+        `DELETE FROM ${tabla} WHERE ID_LOCAL IN
+           (SELECT ID_LOCAL FROM LOCALES WHERE ID_INSTITUCION = :id)`,
+        { id }, { autoCommit: false },
+      );
+      if (r.rowsAffected) console.log(`    ${tabla} (por local): ${r.rowsAffected}`);
+    }
+
     const rl = await c.execute(`DELETE FROM LOCALES WHERE ID_INSTITUCION = :id`, { id }, { autoCommit: false });
     const rv = await c.execute(`DELETE FROM USUARIO_INSTITUCIONES WHERE ID_INSTITUCION = :id`, { id }, { autoCommit: false });
     const ri = await c.execute(`DELETE FROM INSTITUCIONES WHERE ID_INSTITUCION = :id`, { id }, { autoCommit: false });
