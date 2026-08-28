@@ -8,7 +8,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { OracleService } from '../../database/oracle.service';
-import { JwtUser, soloSusEventos } from '../../auth/types';
+import { JwtUser, soloSusEventos, veTodo } from '../../auth/types';
 import { ScopeService } from '../operativa/scope.service';
 import { ArchivosService } from '../archivos/archivos.service';
 import { PushService } from '../push/push.service';
@@ -357,7 +357,13 @@ export class EventosService {
 
     // Sólo los eventos PRINCIPALES (sin padre) validan choque de espacio;
     // los hijos/workshops se saltan la validación.
-    if (idEventoPadre == null) {
+    // OMITIDO PARA SYSTEM / ADMINISTRATION (decisión del 2026-08-20).
+    // La comprobación NO se borra: sigue viva para el rol EVENT, que es quien
+    // no debe pisar el espacio de otro sin darse cuenta. Un administrador, en
+    // cambio, sabe lo que hace y a veces NECESITA solapar (un taller dentro del
+    // congreso, una sesión paralela en el mismo salón). Para volver a exigirla
+    // a todo el mundo, basta con quitar el `!veTodo(actor) &&` de aquí.
+    if (!veTodo(actor) && idEventoPadre == null) {
       await this.validarDisponibilidad({
         idLocal: dto.idLocal,
         idSalon: dto.idSalon ?? null,
@@ -667,7 +673,13 @@ export class EventosService {
     }
 
     // Sólo los eventos PRINCIPALES revalidan choque; los hijos se saltan.
-    if (idEventoPadre == null) {
+    // OMITIDO PARA SYSTEM / ADMINISTRATION (decisión del 2026-08-20).
+    // La comprobación NO se borra: sigue viva para el rol EVENT, que es quien
+    // no debe pisar el espacio de otro sin darse cuenta. Un administrador, en
+    // cambio, sabe lo que hace y a veces NECESITA solapar (un taller dentro del
+    // congreso, una sesión paralela en el mismo salón). Para volver a exigirla
+    // a todo el mundo, basta con quitar el `!veTodo(actor) &&` de aquí.
+    if (!veTodo(actor) && idEventoPadre == null) {
       await this.validarDisponibilidad({
         idLocal,
         idSalon: idSalon ?? null,
@@ -1890,7 +1902,13 @@ export class EventosService {
          FROM EVENTO_HORAS WHERE ID_EVENTO = :id ORDER BY FECHA`,
       { id: idEvento },
     );
-    if (ev.ID_EVENTO_PADRE == null && ev.ID_LOCAL && horas.length) {
+    // OMITIDO PARA SYSTEM / ADMINISTRATION (decisión del 2026-08-20).
+    // La comprobación NO se borra: sigue viva para el rol EVENT, que es quien
+    // no debe pisar el espacio de otro sin darse cuenta. Un administrador, en
+    // cambio, sabe lo que hace y a veces NECESITA solapar (un taller dentro del
+    // congreso, una sesión paralela en el mismo salón). Para volver a exigirla
+    // a todo el mundo, basta con quitar el `!veTodo(actor) &&` de aquí.
+    if (!veTodo(actor) && ev.ID_EVENTO_PADRE == null && ev.ID_LOCAL && horas.length) {
       await this.validarDisponibilidad({
         idLocal: ev.ID_LOCAL,
         idSalon: ev.ID_SALON ?? null,
