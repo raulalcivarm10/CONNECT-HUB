@@ -104,6 +104,22 @@ export class PagosService {
         WHERE ID_EVENTO = :e AND ID_CLIENTE = :c`,
       { e: idEvento, c: idCliente },
     );
+    // Código de autorización: NO viene de la app, se le pregunta a la pasarela.
+    // Hacerlo aquí evita depender de una versión nueva de la app —el correo lo
+    // dispara el mismo endpoint que ya usan las instaladas— y además el dato
+    // sale de la fuente, no de lo que el cliente diga que le devolvieron.
+    // Si algo falla (red, credenciales, pasarela que no lo devuelve) el correo
+    // se manda igual sin esa línea: un comprobante incompleto es mejor que
+    // ningún comprobante.
+    let codigoAutorizacion: string | null = null;
+    try {
+      const ev2 = await this.eventoParaPago(idEvento);
+      const res = await (await this.cliente(ev2.ID_INSTITUCION!)).verify(transactionId);
+      codigoAutorizacion = res.data?.transaction?.authorization_code ?? null;
+    } catch {
+      /* se manda el correo sin el código */
+    }
+
     const sent = await this.mailer.enviarConfirmacionPago(
       destino,
       nombre,
@@ -111,6 +127,7 @@ export class PagosService {
       monto,
       transactionId,
       cup[0]?.CUPON_CODIGO ?? null,
+      codigoAutorizacion,
     );
     return { sent };
   }

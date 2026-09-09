@@ -75,9 +75,17 @@ export class AsistenteMailerService {
     monto: number,
     transactionId: string,
     cupon?: string | null,
+    codigoAutorizacion?: string | null,
   ): Promise<boolean> {
     // Línea extra solo cuando la inscripción usó cupón (el servidor la lee de
     // EVENTOS_USUARIOS.CUPON_CODIGO, así que no depende de lo que mande la app).
+    // Código de autorización del banco. Es lo que pide el cliente cuando
+    // reclama un cobro, así que va en el comprobante junto a la transacción.
+    // Puede faltar (pasarela que no lo devuelve, o consulta fallida): entonces
+    // simplemente no se pinta la línea, el correo sale igual.
+    const lineaAutorizacion = codigoAutorizacion
+      ? `<div style="color:#334155">Authorization code: <b>${codigoAutorizacion}</b></div>`
+      : '';
     const lineaCupon = cupon
       ? `<div style="color:#334155">Coupon: <b>${cupon}</b></div>`
       : '';
@@ -96,6 +104,7 @@ export class AsistenteMailerService {
           <div style="color:#334155">Amount: <b>$${monto.toFixed(2)}</b></div>
           ${lineaCupon}
           <div style="color:#334155">Transaction: <b>${transactionId}</b></div>
+          ${lineaAutorizacion}
         </div>
         <p>You can find your QR code in the event information section of the app.</p>
         <p>Have it ready on the day of the event for faster entry.</p>
