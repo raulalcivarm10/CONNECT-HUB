@@ -142,6 +142,61 @@ export class ReportesService {
    * historia). Ingreso de ENTRADAS = PAGOS APPROVED del evento, por fecha de
    * cobro. Son conceptos separados y se reportan por separado.
    */
+  /**
+   * Quiénes entraron con el CÓDIGO de una institución.
+   *
+   * Es la lista de personas que abrieron la app y se vincularon, con nombre y
+   * correo. No confundir con descargas: una descarga no crea vínculo, y esto
+   * solo ve a quien llegó a entrar.
+   *
+   * Se marca si tiene la app abierta en un dispositivo, pero OJO al leerlo: hoy
+   * solo se detecta en iOS, porque en Android falta la configuración de FCM y
+   * no se registra token. Un Android real aparece como "sin dispositivo".
+   */
+  async vinculados(actor: JwtUser, filtros: { idInstitucion?: number; q?: string }) {
+    const inst = this.scope.institucionForRead(actor, filtros.idInstitucion);
+    const texto = (filtros.q ?? '').trim();
+
+    const filas = await this.oracle.query<Record<string, unknown>>(
+      `SELECT i.ID_INSTITUCION, i.NOMBRE AS INSTITUCION, i.CODIGO_CONEXION,
+              u.ID_CLIENTE, u.NOMBRE, u.APELLIDO, u.EMAIL, u.EMAIL_FACTURA,
+              ui.ESTADO,
+              TO_CHAR(ui.FECHA_REGISTRO, 'YYYY-MM-DD"T"HH24:MI') AS FECHA_VINCULO,
+              (SELECT MIN(pt.PLATFORM) FROM USUARIO_PUSH_TOKENS pt
+                WHERE pt.ID_CLIENTE = u.ID_CLIENTE AND pt.ESTADO = 'ACTIVO') AS PLATAFORMA
+         FROM USUARIO_INSTITUCIONES ui
+         JOIN USUARIOS u      ON u.ID_CLIENTE = ui.ID_CLIENTE
+         JOIN INSTITUCIONES i ON i.ID_INSTITUCION = ui.ID_INSTITUCION
+        WHERE (:inst IS NULL OR ui.ID_INSTITUCION = :inst)
+          AND (:q IS NULL OR
+               UPPER(u.NOMBRE || ' ' || u.APELLIDO) LIKE '%' || UPPER(:q) || '%' OR
+               UPPER(u.EMAIL) LIKE '%' || UPPER(:q) || '%')
+        ORDER BY ui.FECHA_REGISTRO DESC NULLS LAST, u.APELLIDO, u.NOMBRE`,
+      { inst: inst ?? null, q: texto || null },
+    );
+
+    const items = filas.map((r) => ({
+      idCliente: r.ID_CLIENTE as string,
+      idInstitucion: Number(r.ID_INSTITUCION),
+      institucion: r.INSTITUCION as string,
+      codigo: (r.CODIGO_CONEXION as string) ?? null,
+      nombre:
+        [r.NOMBRE, r.APELLIDO].filter(Boolean).join(' ').trim() ||
+        String(r.EMAIL ?? '').split('@')[0],
+      email: (r.EMAIL as string) ?? null,
+      emailFactura: (r.EMAIL_FACTURA as string) ?? null,
+      estado: (r.ESTADO as string) ?? null,
+      fechaVinculo: (r.FECHA_VINCULO as string) ?? null,
+      plataforma: (r.PLATAFORMA as string) ?? null,
+    }));
+
+    return {
+      total: items.length,
+      conDispositivo: items.filter((x) => x.plataforma).length,
+      items,
+    };
+  }
+
   async salones(
     actor: JwtUser,
     filtros: {

@@ -1150,6 +1150,23 @@ const en: Dict = {
   'pub.codeHint': "The organising institution gives you this code.",
   'pub.codeInvalid': "We couldn't find an institution with that code.",
   'pub.codeError': "We couldn't verify the code. Please try again.",
+
+  // --- Reporte: ingresos por código de institución ---
+  'side.signups': "Code sign-ups",
+  'vin.title': "Institution code sign-ups",
+  'vin.subtitle': "People who opened the app and joined using the code.",
+  'vin.statTotal': "People joined",
+  'vin.statDevice': "With the app on a device",
+  'vin.statDeviceNote': "Only detected on iOS today: Android notifications are not configured yet, so a real Android device shows as none.",
+  'vin.search': "Search by name or email…",
+  'vin.empty': "Nobody has joined with this code yet.",
+  'vin.colName': "Name",
+  'vin.colEmail': "Email",
+  'vin.colBillingEmail': "Billing email",
+  'vin.colInstitution': "Institution",
+  'vin.colCode': "Code",
+  'vin.colJoined': "Joined on",
+  'vin.colDevice': "Device",
 };
 
 export default en;

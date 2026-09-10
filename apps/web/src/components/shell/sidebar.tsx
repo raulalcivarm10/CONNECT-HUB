@@ -202,6 +202,15 @@ export function Sidebar() {
               label={t('side.venueUsage')}
               icon={IconChart}
             />
+            {/* Datos personales de gente sin participación todavía: solo SYSTEM
+                y super. El endpoint del API lo restringe igual. */}
+            {puedeVer(user, [ROL.SYSTEM]) && (
+              <NavLink
+                href="/panel/reportes/vinculados"
+                label={t('side.signups')}
+                icon={IconChart}
+              />
+            )}
           </div>
         )}
 

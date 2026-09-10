@@ -1135,6 +1135,23 @@ const es: Dict = {
   'pub.codeHint': "Te lo entrega la institución organizadora.",
   'pub.codeInvalid': "No encontramos ninguna institución con ese código.",
   'pub.codeError': "No pudimos verificar el código. Inténtalo de nuevo.",
+
+  // --- Reporte: ingresos por código de institución ---
+  'side.signups': "Ingresos por código",
+  'vin.title': "Ingresos por código de institución",
+  'vin.subtitle': "Personas que abrieron la app y entraron con el código.",
+  'vin.statTotal': "Personas vinculadas",
+  'vin.statDevice': "Con la app en un dispositivo",
+  'vin.statDeviceNote': "Hoy solo se detecta en iOS: falta configurar las notificaciones en Android, así que un Android real aparece sin dispositivo.",
+  'vin.search': "Buscar por nombre o correo…",
+  'vin.empty': "Todavía no hay nadie vinculado con este código.",
+  'vin.colName': "Nombre",
+  'vin.colEmail': "Correo",
+  'vin.colBillingEmail': "Correo de facturación",
+  'vin.colInstitution': "Institución",
+  'vin.colCode': "Código",
+  'vin.colJoined': "Fecha de ingreso",
+  'vin.colDevice': "Dispositivo",
 };
 
 export default es;

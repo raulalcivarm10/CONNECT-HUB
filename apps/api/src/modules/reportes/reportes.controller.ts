@@ -47,6 +47,25 @@ export class ReportesController {
     });
   }
 
+  // SOLO SYSTEM (y el super, que el guard deja pasar siempre): son datos
+  // personales de gente que no participó en ningún evento todavía, así que no
+  // se abren al rol EVENT ni a ADMINISTRATION.
+  @Get('vinculados')
+  @Roles(ROL.SYSTEM)
+  @ApiOperation({
+    summary: 'Personas que entraron con el código de una institución (nombre y correo)',
+  })
+  vinculados(
+    @CurrentUser() user: JwtUser,
+    @Query('idInstitucion') idInstitucion?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.reportes.vinculados(user, {
+      idInstitucion: idInstitucion ? Number(idInstitucion) : undefined,
+      q,
+    });
+  }
+
   @Get('salones')
   @ApiOperation({
     summary:

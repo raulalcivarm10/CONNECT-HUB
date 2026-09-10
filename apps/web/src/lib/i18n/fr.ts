@@ -1140,6 +1140,23 @@ const fr: Dict = {
   'pub.codeHint': "L'institution organisatrice vous fournit ce code.",
   'pub.codeInvalid': "Aucune institution ne correspond à ce code.",
   'pub.codeError': "Impossible de vérifier le code. Veuillez réessayer.",
+
+  // --- Reporte: ingresos por código de institución ---
+  'side.signups': "Inscriptions par code",
+  'vin.title': "Inscriptions par code d'institution",
+  'vin.subtitle': "Personnes ayant ouvert l'application et rejoint avec le code.",
+  'vin.statTotal': "Personnes inscrites",
+  'vin.statDevice': "Avec l'application sur un appareil",
+  'vin.statDeviceNote': "Détecté uniquement sur iOS pour l'instant : les notifications Android ne sont pas encore configurées, donc un appareil Android réel apparaît sans appareil.",
+  'vin.search': "Rechercher par nom ou e-mail…",
+  'vin.empty': "Personne n'a encore rejoint avec ce code.",
+  'vin.colName': "Nom",
+  'vin.colEmail': "E-mail",
+  'vin.colBillingEmail': "E-mail de facturation",
+  'vin.colInstitution': "Institution",
+  'vin.colCode': "Code",
+  'vin.colJoined': "Date d'inscription",
+  'vin.colDevice': "Appareil",
 };
 
 export default fr;
