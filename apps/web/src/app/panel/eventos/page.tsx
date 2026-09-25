@@ -268,9 +268,13 @@ function BannerAprobacion({
   // progreso del flujo en 2 pasos: 1) salón, 2) publicación
   const pasoSalonHecho = listoParaPublicar(estado) || estado === 'PUBLICADO';
   const pasoPublicadoHecho = estado === 'PUBLICADO';
-  // el indicador solo tiene sentido dentro del flujo (no en legados/rechazo/suspensión)
+  // el indicador solo tiene sentido dentro del flujo (no en legados, ni cuando
+  // el evento salió de él: rechazado, suspendido o ya finalizado)
   const mostrarPasos =
-    estado != null && estado !== 'RECHAZADO' && estado !== 'SUSPENDIDO';
+    estado != null &&
+    estado !== 'RECHAZADO' &&
+    estado !== 'SUSPENDIDO' &&
+    estado !== 'FINALIZADO';
 
   return (
     <div className={`mt-5 rounded-2xl border p-4 ${estilo.banner}`}>
@@ -302,6 +306,9 @@ function BannerAprobacion({
           )}
           {estado === 'SUSPENDIDO' && (
             <div className="mt-0.5 text-sm">{t('ev.aprSuspendedHint')}</div>
+          )}
+          {estado === 'FINALIZADO' && (
+            <div className="mt-0.5 text-sm">{t('ev.aprFinishedHint')}</div>
           )}
           {(estado === 'RECHAZADO' || estado === 'SUSPENDIDO') &&
             evento.motivoRechazo && (

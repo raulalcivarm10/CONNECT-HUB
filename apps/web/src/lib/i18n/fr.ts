@@ -217,6 +217,9 @@ const fr: Dict = {
   'ev.histEmpty': 'Pas encore d’historique',
   'ev.histSUSPENDIDO': 'Suspendu',
   'ev.histREPUBLICADO': 'Publié à nouveau',
+  'ev.aprFinished': 'Terminé — plus en vente',
+  'ev.aprFinishedHint':
+    'L’événement a déjà eu lieu. Il sort du catalogue de l’app et ne peut plus être acheté, mais les inscrits conservent leur billet, le mur et leur certificat.',
   'ev.aprSuspended': 'Suspendu — masqué dans l’app',
   'ev.aprSuspendedHint':
     'Il n’est pas visible dans l’app. Les inscriptions, paiements et billets sont conservés.',

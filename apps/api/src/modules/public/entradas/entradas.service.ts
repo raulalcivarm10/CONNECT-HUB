@@ -50,6 +50,7 @@ interface EventoLite {
   PRECIO: number | null;
   ID_EVENTO_PADRE: number | null;
   NO_PUBLICAR: string | null;
+  ESTADO_APROBACION: string | null;
 }
 
 /**
@@ -64,13 +65,22 @@ export class EntradasService {
 
   private async eventoLite(id: number): Promise<EventoLite> {
     const rows = await this.oracle.query<EventoLite>(
-      `SELECT ID_EVENTO, TITULO, PRECIO, ID_EVENTO_PADRE, NO_PUBLICAR
+      `SELECT ID_EVENTO, TITULO, PRECIO, ID_EVENTO_PADRE, NO_PUBLICAR, ESTADO_APROBACION
          FROM EVENTOS WHERE ID_EVENTO = :id`,
       { id },
     );
     const ev = rows[0];
     if (!ev || (ev.NO_PUBLICAR ?? 'N') === 'S') {
       throw new NotFoundException('Event not found');
+    }
+    // Ya terminó (lo cierra EventosCron): existe y se puede seguir consultando,
+    // pero no se entra. Va como conflicto y no como 404 a propósito: 404 haría
+    // creer que el evento no existe a quien llega por un enlace viejo.
+    if (ev.ESTADO_APROBACION === 'FINALIZADO') {
+      throw new ConflictException({
+        code: 'EVENT_ENDED',
+        message: 'This event has already ended',
+      });
     }
     return ev;
   }

@@ -17,6 +17,8 @@ export type EstadoAprobacion =
   | 'SALON_APROBADO'
   | 'REUBICADO'
   | 'PUBLICADO'
+  /** ya ocurrió; lo pone solo el cierre automático diario (EventosCron) */
+  | 'FINALIZADO'
   | 'SUSPENDIDO'
   | 'RECHAZADO';
 

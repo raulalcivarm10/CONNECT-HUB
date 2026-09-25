@@ -20,6 +20,7 @@ interface EventoPagoRow {
   MONTO_IVA: number | null;
   ID_EVENTO_PADRE: number | null;
   NO_PUBLICAR: string | null;
+  ESTADO_APROBACION: string | null;
   ID_INSTITUCION: number | null;
 }
 
@@ -324,7 +325,7 @@ export class PagosService {
   private async eventoParaPago(idEvento: number): Promise<EventoPagoRow> {
     const rows = await this.oracle.query<EventoPagoRow>(
       `SELECT e.ID_EVENTO, e.TITULO, e.PRECIO, e.INCLUYE_IVA, e.MONTO_IVA,
-              e.ID_EVENTO_PADRE, e.NO_PUBLICAR,
+              e.ID_EVENTO_PADRE, e.NO_PUBLICAR, e.ESTADO_APROBACION,
               COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) AS ID_INSTITUCION
          FROM EVENTOS e
          LEFT JOIN LOCALES l ON l.ID_LOCAL = e.ID_LOCAL
@@ -337,6 +338,24 @@ export class PagosService {
     if (!ev || (ev.NO_PUBLICAR ?? 'N') === 'S') throw new NotFoundException('Event not found');
     if (!ev.ID_INSTITUCION) throw new BadRequestException('Event has no institution');
     return ev;
+  }
+
+  /**
+   * Corta los cobros de un evento que ya terminó (lo cierra EventosCron).
+   *
+   * Va en los puntos de ENTRADA (abrir checkout, cobrar, canjear cupón) y NO
+   * dentro de eventoParaPago, porque confirmarCheckout también lo usa: si el
+   * cierre cayera entre el pago y su confirmación, bloquearlo ahí dejaría la
+   * tarjeta cobrada y sin entrada. Confirmar un pago ya hecho siempre debe
+   * poder completarse.
+   */
+  private exigirNoFinalizado(ev: EventoPagoRow) {
+    if (ev.ESTADO_APROBACION === 'FINALIZADO') {
+      throw new ConflictException({
+        code: 'EVENT_ENDED',
+        message: 'This event has already ended',
+      });
+    }
   }
 
   private montos(ev: EventoPagoRow) {
@@ -523,6 +542,7 @@ export class PagosService {
    */
   async inscribirConCupon(idCliente: string, idEvento: number, codigo: string) {
     const ev = await this.eventoParaPago(idEvento);
+    this.exigirNoFinalizado(ev);
     await this.exigirMembresia(idCliente, ev.ID_INSTITUCION!);
 
     // idempotencia: si ya tiene la entrada, no consume el cupón otra vez
@@ -603,6 +623,7 @@ export class PagosService {
 
   async pagarDirecto(idCliente: string, email: string, idEvento: number, idTarjeta: number) {
     const ev = await this.eventoParaPago(idEvento);
+    this.exigirNoFinalizado(ev);
     await this.exigirMembresia(idCliente, ev.ID_INSTITUCION!);
     const m = this.montos(ev);
 
@@ -693,6 +714,7 @@ export class PagosService {
 
   async crearCheckout(idCliente: string, email: string, idEvento: number) {
     const ev = await this.eventoParaPago(idEvento);
+    this.exigirNoFinalizado(ev);
     await this.exigirMembresia(idCliente, ev.ID_INSTITUCION!);
     const m = this.montos(ev);
 
@@ -753,6 +775,7 @@ export class PagosService {
    */
   async iniciarCheckout(idCliente: string, email: string, idEvento: number) {
     const ev = await this.eventoParaPago(idEvento);
+    this.exigirNoFinalizado(ev);
     await this.exigirMembresia(idCliente, ev.ID_INSTITUCION!);
     const m = this.montos(ev);
 

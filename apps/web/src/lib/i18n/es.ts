@@ -217,6 +217,9 @@ const es: Dict = {
   'ev.histEmpty': 'Aún no hay historial',
   'ev.histSUSPENDIDO': 'Suspendido',
   'ev.histREPUBLICADO': 'Publicado de nuevo',
+  'ev.aprFinished': 'Finalizado — ya no se vende',
+  'ev.aprFinishedHint':
+    'El evento ya ocurrió. Sale del catálogo de la app y no se puede comprar, pero los inscritos conservan su entrada, el muro y su certificado.',
   'ev.aprSuspended': 'Suspendido — oculto en la app',
   'ev.aprSuspendedHint':
     'No se ve en la app. Se conservan inscritos, pagos y entradas.',

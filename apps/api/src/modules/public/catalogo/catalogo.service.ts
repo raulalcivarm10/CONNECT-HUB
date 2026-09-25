@@ -24,6 +24,16 @@ const V_EXPOSITOR_PORTADA =
   `TO_CHAR((SELECT MAX(a.FECHA_REGISTRO) FROM ARCHIVOS a ` +
   `WHERE a.ID_EXPOSITOR = ee.ID_EXPOSITOR AND a.TIPO_ARCHIVO = 'PORTADA' AND NVL(a.ACTIVO,'S') = 'S'),'YYYYMMDDHH24MISS')`;
 
+/**
+ * Saca del catálogo los eventos que ya terminaron (los cierra EventosCron).
+ *
+ * Va SOLO en los listados —lo que se ofrece— y NO en getEvento ni en el muro:
+ * quien ya tiene entrada debe poder seguir abriendo la ficha del evento y su
+ * comunidad después de que ocurra, que es justo cuando busca contactos y su
+ * certificado. Por eso el cierre no toca NO_PUBLICAR.
+ */
+const SIN_FINALIZAR = `NVL(e.ESTADO_APROBACION, 'PUBLICADO') <> 'FINALIZADO'`;
+
 /** Parsea un CLOB JSON (array) de forma segura → [] si viene null/roto */
 function parseJsonArray(v: unknown): string[] {
   if (v == null) return [];
@@ -436,6 +446,7 @@ export class CatalogoService {
                JOIN INSTITUCIONES ins ON ins.ID_INSTITUCION = ui.ID_INSTITUCION
               WHERE ui.ID_CLIENTE = :cli AND ins.ESTADO = 'APROBADA')
          AND NVL(e.NO_PUBLICAR,'N') = 'N'
+         AND ${SIN_FINALIZAR}
          AND e.ID_EVENTO_PADRE IS NULL
          AND (:q IS NULL OR UPPER(e.TITULO) LIKE '%' || UPPER(:q) || '%')`;
     const binds = { cli: opts.idCliente, q };
@@ -498,6 +509,7 @@ export class CatalogoService {
     const where =
       `COALESCE(l.ID_INSTITUCION, l2.ID_INSTITUCION) = :idInst
          AND NVL(e.NO_PUBLICAR,'N') = 'N'
+         AND ${SIN_FINALIZAR}
          AND e.ID_EVENTO_PADRE IS NULL
          AND (:q IS NULL OR UPPER(e.TITULO) LIKE '%' || UPPER(:q) || '%')` +
       (opts.destacados ? ` AND e.DESTACADO = 1` : '');
@@ -713,6 +725,7 @@ export class CatalogoService {
          FROM EVENTOS e
          LEFT JOIN SALONES s ON s.ID_SALON = e.ID_SALON
         WHERE e.ID_EVENTO_PADRE = :id AND NVL(e.NO_PUBLICAR,'N') = 'N'
+          AND ${SIN_FINALIZAR}
         ORDER BY e.FECHA_EVENTO, e.HORA_INICIO`,
       { id },
     );

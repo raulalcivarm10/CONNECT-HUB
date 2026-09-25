@@ -222,6 +222,9 @@ const en: Dict = {
   'ev.histEmpty': 'No history yet',
   'ev.histSUSPENDIDO': 'Suspended',
   'ev.histREPUBLICADO': 'Published again',
+  'ev.aprFinished': 'Finished — no longer on sale',
+  'ev.aprFinishedHint':
+    'The event has already taken place. It is off the app catalogue and can no longer be purchased, but attendees keep their ticket, the event wall and their certificate.',
   'ev.aprSuspended': 'Suspended — hidden from the app',
   'ev.aprSuspendedHint':
     'It is not visible in the app. Registrations, payments and tickets are kept.',

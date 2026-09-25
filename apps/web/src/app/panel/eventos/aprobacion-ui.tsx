@@ -49,6 +49,13 @@ export const ESTILO_APROBACION: Record<
     chip: 'bg-text-muted/15 text-text-muted',
     banner: 'border-text-muted/40 bg-text-muted/10 text-text-2',
   },
+  /* ya ocurrió: lo cierra el trabajo automático. Deja de venderse y sale del
+     catálogo, pero quien tiene entrada conserva ficha, muro y certificado */
+  FINALIZADO: {
+    labelKey: 'ev.aprFinished',
+    chip: 'bg-slate-500/15 text-slate-400',
+    banner: 'border-slate-500/40 bg-slate-500/10 text-text-2',
+  },
   /* solo para el banner (el badge de la lista oculta PUBLICADO) */
   PUBLICADO: {
     labelKey: 'ev.aprPublished',
