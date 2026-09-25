@@ -12,6 +12,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { fechaMedia } from '@/lib/fechas';
 
 // Dentro del contenedor la URL pública apunta a sí mismo, así que para el fetch
 // del servidor se usa la interna. La pública solo sirve para lo que ve el
@@ -89,10 +90,10 @@ export async function generateMetadata({
 
 /** Rango de fechas legible; si empieza y acaba el mismo día, muestra una sola. */
 function rangoFechas(desde: string, hasta: string) {
-  const f = (s: string) =>
-    new Date(s).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' });
-  const a = f(desde);
-  const b = f(hasta);
+  // fechaMedia parsea por componentes: `new Date('2026-10-01')` es medianoche
+  // UTC y en Ecuador se pintaría como 30 de septiembre.
+  const a = fechaMedia(desde, 'es-EC');
+  const b = fechaMedia(hasta, 'es-EC');
   return a === b ? a : `${a} – ${b}`;
 }
 

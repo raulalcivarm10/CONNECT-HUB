@@ -6,6 +6,7 @@ import { api } from '@/lib/api/client';
 import { descargarExcel } from '@/lib/excel';
 import { useInstitucionFiltro } from '@/lib/institucion-context';
 import { useI18n } from '@/lib/i18n';
+import { fechaCorta } from '@/lib/fechas';
 
 // recharts (~300-400 KB) fuera del first-load: el gráfico está bajo el fold.
 const FinancieroBarChart = dynamic(
@@ -154,7 +155,7 @@ export default function FinancieroPage() {
     ];
     const porEvento = datos.porEvento.map((e) => ({
       [t('ev.event')]: e.TITULO ?? `#${e.ID_EVENTO}`,
-      [t('fin.date')]: e.FECHA_EVENTO ? new Date(e.FECHA_EVENTO).toLocaleDateString(locale) : '',
+      [t('fin.date')]: fechaCorta(e.FECHA_EVENTO, locale, ''),
       [t('fin.collected')]: e.RECAUDADO,
       [t('fin.numPay')]: e.NUM_PAGOS,
     }));
@@ -169,7 +170,7 @@ export default function FinancieroPage() {
       [t('fin.payerEmail')]: p.PAGADOR_EMAIL?.toLowerCase() ?? '',
       [t('fin.amount')]: p.MONTO,
       [t('fin.method')]: `${p.METODO_PAGO ?? ''}${p.ULTIMOS_4 ? ` ••••${p.ULTIMOS_4}` : ''}`.trim(),
-      [t('fin.date')]: p.FECHA ? new Date(p.FECHA).toLocaleDateString(locale) : '',
+      [t('fin.date')]: fechaCorta(p.FECHA, locale, ''),
     }));
     void descargarExcel('finance-report', [
       { nombre: t('x.summary'), filas: resumen },
@@ -320,7 +321,7 @@ export default function FinancieroPage() {
                 <tr key={e.ID_EVENTO} className="border-b border-border-app/60">
                   <td className="px-4 py-3 font-medium text-text">{e.TITULO ?? `#${e.ID_EVENTO}`}</td>
                   <td className="px-4 py-3 text-text-2">
-                    {e.FECHA_EVENTO ? new Date(e.FECHA_EVENTO).toLocaleDateString(locale) : '—'}
+                    {fechaCorta(e.FECHA_EVENTO, locale)}
                   </td>
                   <td className="px-4 py-3 text-success">{money(e.RECAUDADO)}</td>
                   <td className="px-4 py-3 text-text-2">{e.NUM_PAGOS}</td>
@@ -405,7 +406,7 @@ export default function FinancieroPage() {
                     {p.ULTIMOS_4 ? ` ••••${p.ULTIMOS_4}` : ''}
                   </td>
                   <td className="px-4 py-3 text-text-2">
-                    {p.FECHA ? new Date(p.FECHA).toLocaleDateString(locale) : '—'}
+                    {fechaCorta(p.FECHA, locale)}
                   </td>
                 </tr>
               ))}

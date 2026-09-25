@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api/client';
+import { fechaMedia } from './fechas';
 
 /**
  * Suscripciones (vigencia de cada institución) y licencias on-premise.
@@ -151,19 +152,11 @@ export function tonoVencimiento(
 /**
  * 'YYYY-MM-DD' → fecha legible en el idioma activo.
  *
- * Se construye con los componentes sueltos a propósito: `new Date('2026-08-15')`
- * se interpreta como medianoche UTC y en zonas al oeste de Greenwich (Ecuador,
- * la nuestra) se mostraría el día anterior.
+ * El parseo por componentes vive en lib/fechas.ts, que explica por qué
+ * `new Date('2026-08-15')` muestra el día anterior en Ecuador.
  */
 export function fechaLegible(iso: string | null | undefined, locale: string): string {
-  if (!iso) return '—';
-  const [a, m, d] = iso.slice(0, 10).split('-').map(Number);
-  if (!a || !m || !d) return iso;
-  return new Date(a, m - 1, d).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return fechaMedia(iso, locale);
 }
 
 /** Hoy en 'YYYY-MM-DD' (hora local), para los valores por defecto del formulario. */

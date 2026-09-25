@@ -63,12 +63,17 @@ export class FinanzasService {
         binds,
       ),
       this.oracle.query(
-        `SELECT pi.ID_EVENTO, pi.TITULO, pi.FECHA_EVENTO,
+        // La fecha sale como TEXTO 'YYYY-MM-DD', no como DATE: una DATE de
+        // Oracle se serializa a '2026-10-01T00:00:00.000Z' y el navegador, al
+        // reconstruirla en Ecuador (UTC-5), pinta el día anterior. Es el día
+        // del evento, no un instante: no debe convertirse de zona horaria.
+        `SELECT pi.ID_EVENTO, pi.TITULO,
+                TO_CHAR(pi.FECHA_EVENTO, 'YYYY-MM-DD') AS FECHA_EVENTO,
                 SUM(pi.MONTO) AS RECAUDADO,
                 COUNT(*) AS NUM_PAGOS
            FROM (${PAGOS_INSTITUCION}) pi
           ${COND} AND pi.ESTADO = 'APPROVED'
-          GROUP BY pi.ID_EVENTO, pi.TITULO, pi.FECHA_EVENTO
+          GROUP BY pi.ID_EVENTO, pi.TITULO, TO_CHAR(pi.FECHA_EVENTO, 'YYYY-MM-DD')
           ORDER BY RECAUDADO DESC`,
         binds,
       ),
@@ -88,7 +93,8 @@ export class FinanzasService {
            SELECT pi.ID_PAGO, pi.TITULO, pi.MONTO, pi.MONEDA, pi.ESTADO,
                   pi.METODO_PAGO, pi.ULTIMOS_4,
                   pi.PAGADOR_NOMBRE, pi.PAGADOR_APELLIDO, pi.PAGADOR_EMAIL,
-                  COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO) AS FECHA
+                  -- texto, no DATE: ver la nota de FECHA_EVENTO más arriba
+                  TO_CHAR(COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO), 'YYYY-MM-DD') AS FECHA
              FROM (${PAGOS_INSTITUCION}) pi
             ${COND} AND pi.ESTADO = 'APPROVED'
             ORDER BY COALESCE(pi.FECHA_PAGO, pi.FECHA_REGISTRO) DESC
